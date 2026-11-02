@@ -1,0 +1,29 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" role="img" aria-label="Bhargava Junior College crest (placeholder)">
+  <!-- PLACEHOLDER crest. Replace with the official logo file (logo.png) and update content/college.ts → logoSrc. -->
+  <defs>
+    <path id="top" d="M 30 100 A 70 70 0 0 1 170 100" />
+    <path id="bottom" d="M 36 108 A 64 64 0 0 0 164 108" />
+  </defs>
+  <circle cx="100" cy="100" r="97" fill="#C9A24A" />
+  <circle cx="100" cy="100" r="91" fill="#1D2A5E" />
+  <circle cx="100" cy="100" r="62" fill="none" stroke="#C9A24A" stroke-width="1.5" />
+  <text font-family="Georgia, serif" font-size="13" letter-spacing="1.5" fill="#E3C77F" font-weight="700">
+    <textPath href="#top" startOffset="50%" text-anchor="middle">BHARGAVA JUNIOR COLLEGE</textPath>
+  </text>
+  <text font-family="Georgia, serif" font-size="10" letter-spacing="1.2" fill="#E3C77F">
+    <textPath href="#bottom" startOffset="50%" text-anchor="middle">VIDHYA VRUDDHI VIKASAM</textPath>
+  </text>
+  <!-- shield -->
+  <path d="M100 52 L134 62 V98 C134 122 118 138 100 146 C82 138 66 122 66 98 V62 Z" fill="#7D1F2C" stroke="#C9A24A" stroke-width="2" />
+  <path d="M100 52 L134 62 V98 C134 122 118 138 100 146 Z" fill="#26356F" />
+  <!-- rising sun + open book -->
+  <circle cx="100" cy="104" r="11" fill="#C9A24A" />
+  <path d="M76 116 Q88 108 100 116 Q112 108 124 116 V128 Q112 120 100 128 Q88 120 76 128 Z" fill="#F4F5F9" stroke="#C9A24A" stroke-width="1" />
+  <!-- atom -->
+  <g fill="none" stroke="#E3C77F" stroke-width="1.4">
+    <ellipse cx="100" cy="80" rx="13" ry="5" />
+    <ellipse cx="100" cy="80" rx="13" ry="5" transform="rotate(60 100 80)" />
+    <ellipse cx="100" cy="80" rx="13" ry="5" transform="rotate(-60 100 80)" />
+  </g>
+  <circle cx="100" cy="80" r="2.2" fill="#E3C77F" />
+</svg>

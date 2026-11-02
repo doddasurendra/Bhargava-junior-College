@@ -1,0 +1,153 @@
+/**
+ * SAMPLE DATA for build and demo (brief §3). Every block carries `sample: true`, which renders a
+ * "Sample data" badge. Replace with real data (and set sample: false) before launch.
+ * Phase 2 moves all of this into the headless CMS so admins can edit it without code changes.
+ */
+
+export type ResultType = 'jee' | 'neet' | 'board';
+
+export const results = {
+  sample: true,
+  items: [
+    { name: 'A. Sai Charan', exam: 'JEE Advanced', type: 'jee' as ResultType, year: 2026, score: 'AIR 412', verifyUrl: null as string | null },
+    { name: 'K. Harshitha', exam: 'NEET UG', type: 'neet' as ResultType, year: 2026, score: '686 / 720', verifyUrl: null as string | null },
+    { name: 'M. Rohith', exam: 'JEE Main', type: 'jee' as ResultType, year: 2026, score: '99.82 percentile', verifyUrl: null as string | null },
+    { name: 'P. Sri Vaishnavi', exam: 'NEET UG', type: 'neet' as ResultType, year: 2026, score: '671 / 720', verifyUrl: null as string | null },
+    { name: 'T. Varun Teja', exam: 'JEE Advanced', type: 'jee' as ResultType, year: 2026, score: 'AIR 1,208', verifyUrl: null as string | null },
+    { name: 'S. Keerthana', exam: 'TS Inter MPC', type: 'board' as ResultType, year: 2026, score: '992 / 1000', verifyUrl: null as string | null },
+  ],
+  aggregates: [
+    { value: '38', label: 'IIT / NIT selections' },
+    { value: '112', label: 'NEET qualifiers' },
+    { value: '96%', label: 'Inter first class' },
+    { value: '14', label: 'ranks under AIR 5,000' },
+  ],
+};
+
+export const fees = {
+  sample: true,
+  academicYear: '2027–28',
+  twoYear: { tuition: 135000, material: 15000, admission: 5000 },
+  longTerm: { tuition: 110000, material: 15000, admission: 5000 },
+  hostelNonAc: 120000,
+  hostelAc: 150000,
+  transport: 18000,
+  instalmentOptions: [1, 3, 10],
+  paymentModes: ['UPI', 'Debit / credit cards', 'Net banking', 'Bank transfer', 'UPI AutoPay (monthly plans)'],
+};
+export type FeeData = typeof fees;
+
+export const bsat = {
+  sample: true,
+  name: 'BSAT — Bhargava Scholarship & Admission Test',
+  durationMin: 90,
+  sections: ['Mathematics / Biology', 'Physics', 'Chemistry', 'Mental Ability'],
+  eligibility: 'Class 10 students',
+  resultsWithin: '48 hours',
+  sessions: [
+    { id: '2026-11-16-campus', date: '2026-11-16', mode: 'campus' as const },
+    { id: '2026-11-30-online', date: '2026-11-30', mode: 'online' as const },
+    { id: '2026-12-14-campus', date: '2026-12-14', mode: 'campus' as const },
+  ],
+  /** Sorted high → low. Score is the BSAT percentage. */
+  slabs: [
+    { min: 90, label: '90% and above', pct: 60 },
+    { min: 80, label: '80 – 89%', pct: 45 },
+    { min: 70, label: '70 – 79%', pct: 30 },
+    { min: 60, label: '60 – 69%', pct: 20 },
+    { min: 50, label: '50 – 59%', pct: 10 },
+  ],
+  gpaBonus: 10,
+  cap: 60,
+};
+export type BsatData = typeof bsat;
+
+export const hostel = {
+  sample: true,
+  blocks: 'Separate blocks for boys and girls',
+  rooms: ['3-sharing AC rooms', '4-sharing non-AC rooms', 'Attached bathrooms in every room'],
+  safety: [
+    'Resident warden on every floor; lady warden for the girls’ block',
+    '24×7 CCTV in common areas',
+    'Biometric entry and exit, with a WhatsApp alert to parents on every check-in and check-out',
+  ],
+  health: ['Doctor on call', 'Sick room on campus', 'Tie-up with a nearby hospital'],
+  amenities: ['RO drinking water', 'Laundry twice a week', 'Wi-Fi in the study hall only'],
+  food: 'Vegetarian kitchen, with egg on alternate days. The weekly mess menu is published in the parent app.',
+  schedule: [
+    { time: '05:30', activity: 'Wake up' },
+    { time: '06:00', activity: 'Morning study' },
+    { time: '07:30', activity: 'Breakfast' },
+    { time: '08:30', activity: 'Classes' },
+    { time: '13:00', activity: 'Lunch' },
+    { time: '14:00', activity: 'Classes and doubt clinic' },
+    { time: '17:30', activity: 'Games / yoga' },
+    { time: '19:30', activity: 'Supervised night study' },
+    { time: '22:15', activity: 'Lights out' },
+  ],
+};
+
+export const faculty = {
+  sample: true,
+  items: [
+    { name: 'S. Krishna Murthy', subject: 'Physics', years: 14 },
+    { name: 'P. Radhika', subject: 'Chemistry', years: 12 },
+    { name: 'V. Naresh', subject: 'Mathematics', years: 15 },
+    { name: 'A. Swathi', subject: 'Biology', years: 11 },
+  ],
+};
+
+/** Campus visit slots. Mirrors supabase/seed.sql (visit_slots) — keep both in sync until the CMS owns it. */
+export const visitSlots = {
+  sample: true,
+  slots: [
+    { slot: '10:00', label: '10:00 AM', capacity: 5, saturday: true },
+    { slot: '11:30', label: '11:30 AM', capacity: 5, saturday: true },
+    { slot: '14:00', label: '2:00 PM', capacity: 5, saturday: true },
+    { slot: '15:30', label: '3:30 PM', capacity: 5, saturday: false },
+  ],
+  maxDaysAhead: 30,
+};
+
+export const admissionDocuments = [
+  'SSC / Class 10 marks memo',
+  'Transfer certificate (TC)',
+  'Study certificate',
+  'Aadhaar card (student)',
+  'Passport-size photographs',
+  'Caste / income certificate (if applicable)',
+];
+
+export const faqs = {
+  sample: true,
+  items: [
+    {
+      q: 'Which programs does Bhargava Junior College offer?',
+      a: 'Four programs: IIT-JEE Integrated and NEET UG Integrated (2 years, with the TS Intermediate Board), and one-year Long Term repeater programs for JEE and NEET.',
+    },
+    {
+      q: 'Are the fees published?',
+      a: 'Yes. The full fee table and a fee and scholarship calculator are on the Fees page. You do not need to fill a form to see them.',
+    },
+    {
+      q: 'How does the BSAT scholarship work?',
+      a: 'BSAT is a 90-minute test for Class 10 students. Your score sets a tuition scholarship of up to 60%, with an extra 10% for a 10 GPA in SSC (total capped at 60%).',
+    },
+    {
+      q: 'What is the batch size?',
+      a: 'A maximum of 40 students per batch, and one mentor for every 20 students.',
+    },
+    {
+      q: 'Is hostel accommodation available?',
+      a: 'Yes. There are separate boys’ and girls’ blocks with wardens, CCTV in common areas, and biometric check-in and check-out with WhatsApp alerts to parents.',
+    },
+    {
+      q: 'Can we visit the campus before deciding?',
+      a: 'Yes. Book a campus visit slot online for Monday to Saturday. You will get a WhatsApp confirmation and a reminder before the visit.',
+    },
+    {
+      q: 'Which documents are needed for admission?',
+      a: 'SSC memo, transfer certificate, study certificate, Aadhaar, photographs, and a caste/income certificate if applicable.',
+    },
+  ],
+};
