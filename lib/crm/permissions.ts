@@ -1,0 +1,33 @@
+import type { CrmLead, Role, Staff } from './types';
+
+/**
+ * Permissions per brief §7.5–7.6. A user with several roles gets the union of them.
+ * TODO: reconcile with §9A (login types and rules) once that section is available.
+ */
+const SEE_ALL_LEADS: Role[] = ['super_admin', 'management', 'principal', 'admission_manager', 'data_executive', 'front_desk', 'admission_office', 'accounts', 'admin_office'];
+const MANAGE: Role[] = ['super_admin', 'management', 'admission_manager'];
+
+const RULES = {
+  'lead.viewAll': SEE_ALL_LEADS,
+  'lead.assign': MANAGE,
+  'lead.qualify': MANAGE,
+  'lead.call': [...MANAGE, 'telecaller', 'admission_counsellor'],
+  'lead.decide': [...MANAGE, 'admission_counsellor'],
+  'visit.view': [...SEE_ALL_LEADS, 'telecaller', 'admission_counsellor'],
+  'visit.checkin': [...MANAGE, 'front_desk', 'telecaller'],
+  'visit.outcome': [...MANAGE, 'front_desk', 'admission_counsellor'],
+} satisfies Record<string, Role[]>;
+
+export type Permission = keyof typeof RULES;
+
+export function can(user: Pick<Staff, 'roles'>, perm: Permission): boolean {
+  return user.roles.some((r) => (RULES[perm] as Role[]).includes(r));
+}
+
+/** Telecallers and counsellors see only the leads they own (§7.6). */
+export function canSeeLead(user: Pick<Staff, 'id' | 'roles'>, lead: Pick<CrmLead, 'ownerId'>): boolean {
+  return can(user, 'lead.viewAll') || lead.ownerId === user.id;
+}
+
+export const isTelecaller = (s: Pick<Staff, 'roles'>) => s.roles.includes('telecaller');
+export const isCounsellor = (s: Pick<Staff, 'roles'>) => s.roles.includes('admission_counsellor');

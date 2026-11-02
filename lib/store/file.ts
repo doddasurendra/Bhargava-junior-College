@@ -1,15 +1,16 @@
 import { promises as fs } from 'node:fs';
 import path from 'node:path';
 import { randomUUID } from 'node:crypto';
-import { bsat, visitSlots } from '@/content/sample';
+import { bsat, devStaff, visitSlots } from '@/content/sample';
 import type { StageKey } from '../admission';
+import type { AuditEntry, CallLog, Staff, VisitStatus } from '../crm/types';
 import { StoreError, type AdmissionRecord, type LeadInput, type OtpRecord, type Store } from './types';
 
 /**
  * Development-only store: a JSON file at .data/dev-db.json, mirroring the Supabase tables.
  * Writes are serialised through a promise queue (single process only).
  */
-interface FileLead {
+export interface FileLead {
   id: string;
   phone: string;
   contactName: string;
@@ -23,27 +24,59 @@ interface FileLead {
   consentAt: string;
   createdAt: string;
   updatedAt: string;
+  // CRM fields
+  parentName?: string | null;
+  studentPhone?: string | null;
+  school?: string | null;
+  board?: string | null;
+  area?: string | null;
+  category?: string | null;
+  ownerId?: string | null;
+  nextFollowUpAt?: string | null;
+  lastContactAt?: string | null;
+  lostReason?: string | null;
+  lostCompetitor?: string | null;
 }
 
-interface DB {
+export interface FileVisit {
+  id: string;
+  leadId: string;
+  date: string;
+  slot: string;
+  familySize: number;
+  program: string | null;
+  status: VisitStatus;
+  outcome?: string | null;
+  outcomeAt?: string | null;
+  outcomeBy?: string | null;
+  createdAt: string;
+}
+
+export interface DB {
   leads: FileLead[];
   touchpoints: Record<string, unknown>[];
-  visits: { id: string; leadId: string; date: string; slot: string; familySize: number; program: string | null; status: string; createdAt: string }[];
+  visits: FileVisit[];
   bsat: { id: string; leadId: string; sessionId: string; stream: string; hallTicket: string; createdAt: string }[];
   otps: OtpRecord[];
+  staff: Staff[];
+  calls: CallLog[];
+  audit: AuditEntry[];
   seq: { bsat: number };
 }
 
 const FILE = path.join(process.cwd(), '.data', 'dev-db.json');
-const empty = (): DB => ({ leads: [], touchpoints: [], visits: [], bsat: [], otps: [], seq: { bsat: 0 } });
+const empty = (): DB => ({ leads: [], touchpoints: [], visits: [], bsat: [], otps: [], staff: [], calls: [], audit: [], seq: { bsat: 0 } });
 
 async function load(): Promise<DB> {
+  let db: DB;
   try {
-    return { ...empty(), ...JSON.parse(await fs.readFile(FILE, 'utf8')) };
+    db = { ...empty(), ...JSON.parse(await fs.readFile(FILE, 'utf8')) };
   } catch (e) {
-    if ((e as NodeJS.ErrnoException).code === 'ENOENT') return empty();
-    throw e;
+    if ((e as NodeJS.ErrnoException).code !== 'ENOENT') throw e;
+    db = empty();
   }
+  if (db.staff.length === 0) db.staff = devStaff.items.map((s) => ({ ...s, email: null, phone: null, active: true }));
+  return db;
 }
 
 async function save(db: DB) {
@@ -54,7 +87,7 @@ async function save(db: DB) {
 }
 
 let queue: Promise<unknown> = Promise.resolve();
-function tx<T>(fn: (db: DB) => T | Promise<T>, write = true): Promise<T> {
+export function tx<T>(fn: (db: DB) => T | Promise<T>, write = true): Promise<T> {
   const run = queue.then(async () => {
     const db = await load();
     const result = await fn(db);
@@ -63,6 +96,10 @@ function tx<T>(fn: (db: DB) => T | Promise<T>, write = true): Promise<T> {
   });
   queue = run.catch(() => undefined);
   return run;
+}
+
+export function pushAudit(db: DB, leadId: string, entry: Omit<AuditEntry, 'id' | 'at' | 'leadId'>) {
+  db.audit.push({ id: randomUUID(), leadId, at: new Date().toISOString(), ...entry });
 }
 
 function upsertLead(db: DB, input: LeadInput & { source: string }): { lead: FileLead; isNew: boolean } {
@@ -95,6 +132,7 @@ function upsertLead(db: DB, input: LeadInput & { source: string }): { lead: File
     lead.updatedAt = now;
   }
   db.touchpoints.push({ id: randomUUID(), leadId: lead.id, source: input.source, program: input.program ?? null, note: input.note ?? null, ...input.attribution, createdAt: now });
+  pushAudit(db, lead.id, { actorId: null, action: isNew ? 'created' : 'touchpoint', field: null, oldValue: null, newValue: input.source, reason: null });
   return { lead, isNew };
 }
 
@@ -117,12 +155,13 @@ export function createFileStore(): Store {
       tx((db) => {
         const cfg = visitSlots.slots.find((s) => s.slot === input.slot);
         if (!cfg) throw new StoreError('invalid_slot');
-        const booked = db.visits.filter((v) => v.date === input.date && v.slot === input.slot && v.status === 'scheduled').length;
+        const booked = db.visits.filter((v) => v.date === input.date && v.slot === input.slot && (v.status === 'scheduled' || v.status === 'arrived')).length;
         if (booked >= cfg.capacity) throw new StoreError('slot_full');
         const { lead } = upsertLead(db, { ...input, source: 'visit' });
         const id = randomUUID();
         db.visits.push({ id, leadId: lead.id, date: input.date, slot: input.slot, familySize: input.familySize, program: input.program ?? null, status: 'scheduled', createdAt: new Date().toISOString() });
         if (lead.status === 'open') lead.status = 'visit_scheduled';
+        pushAudit(db, lead.id, { actorId: null, action: 'visit_booked', field: null, oldValue: null, newValue: `${input.date} ${input.slot}`, reason: null });
         return { visitId: id };
       }),
 
@@ -135,6 +174,7 @@ export function createFileStore(): Store {
         db.seq.bsat += 1;
         const hallTicket = `BSAT27-${String(db.seq.bsat).padStart(5, '0')}`;
         db.bsat.push({ id: randomUUID(), leadId: lead.id, sessionId: input.sessionId, stream: input.stream, hallTicket, createdAt: new Date().toISOString() });
+        pushAudit(db, lead.id, { actorId: null, action: 'bsat_registered', field: null, oldValue: null, newValue: hallTicket, reason: null });
         return { hallTicket, alreadyRegistered: false };
       }),
 
@@ -143,14 +183,15 @@ export function createFileStore(): Store {
         const lead = db.leads.find((l) => l.phone === phone);
         if (!lead) return null;
         const visit = db.visits.filter((v) => v.leadId === lead.id && v.status === 'scheduled').sort((a, b) => a.date.localeCompare(b.date))[0];
+        const owner = lead.ownerId ? db.staff.find((s) => s.id === lead.ownerId) : null;
         return {
           studentName: lead.studentName,
           contactName: lead.contactName,
           program: lead.program,
           completedStage: lead.stage,
           events: [{ stage: 'enquiry', at: lead.createdAt, owner: null }],
-          owner: null,
-          nextUpdate: null,
+          owner: owner ? owner.fullName.split(' ')[0] : null,
+          nextUpdate: lead.nextFollowUpAt ?? null,
           upcomingVisit: visit ? { date: visit.date, slot: visit.slot } : null,
         };
       }, false),

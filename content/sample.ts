@@ -97,6 +97,26 @@ export const faculty = {
   ],
 };
 
+/**
+ * Sample staff for the local development store only (brief §3.6). Real staff are created as
+ * Supabase Auth users + profiles + user_roles.
+ */
+export const devStaff = {
+  sample: true,
+  items: [
+    { id: 'staff-admin', fullName: 'Super Admin', roles: ['super_admin' as const] },
+    { id: 'staff-manager', fullName: 'Admission Manager', roles: ['admission_manager' as const] },
+    { id: 'staff-priya', fullName: 'Priya', roles: ['telecaller' as const] },
+    { id: 'staff-ramesh', fullName: 'Ramesh', roles: ['telecaller' as const] },
+    { id: 'staff-divya', fullName: 'Divya', roles: ['telecaller' as const] },
+    { id: 'staff-anil', fullName: 'Anil', roles: ['admission_counsellor' as const] },
+    { id: 'staff-frontdesk', fullName: 'Front Desk', roles: ['front_desk' as const] },
+    { id: 'staff-office', fullName: 'Admission Office', roles: ['admission_office' as const] },
+    { id: 'staff-accounts', fullName: 'Accounts', roles: ['accounts' as const] },
+    { id: 'staff-adminoffice', fullName: 'Admin Office', roles: ['admin_office' as const] },
+  ],
+};
+
 /** Campus visit slots. Mirrors supabase/seed.sql (visit_slots) — keep both in sync until the CMS owns it. */
 export const visitSlots = {
   sample: true,

@@ -46,6 +46,23 @@ Nothing is pushed to a remote Supabase project yet.
 
 The schema has roles (20, pending §9A), profiles, `leads` (one active row per phone, merged rows kept), `lead_touchpoints`, `lead_audit` (who/what/when/old→new), `visit_slots`/`visits`, `bsat_sessions`/`bsat_registrations`, `admission_stage_events` (feeds tracking and the College-ID gate) and `otp_challenges`. Writes go through `capture_lead`, `book_visit` (advisory-locked capacity check) and `register_bsat`, which only the service role can execute. RLS is on everywhere, and telecallers can see only their own leads.
 
+## Admissions CRM (`/crm`), in progress
+
+Open http://localhost:3000/crm. In local development (no Supabase) you sign in by picking one of the sample staff (brief §3.6), with no password. If the store is empty, **Load demo leads** fills every queue. With Supabase configured, staff sign in with email and password through Supabase Auth, and every attempt is written to `login_audit`. The session is a signed, 10-hour, httpOnly cookie (`SESSION_SECRET`).
+
+| Built (brief §7) | Where |
+|---|---|
+| My tasks: overdue / escalated / today / upcoming / unassigned counts, and visits today and needing an outcome | `app/crm/(app)/page.tsx` |
+| Leads list: queues, filters (category, status, program, source, owner, search), bulk assign (named owner or load-balanced round-robin) and bulk category | `app/crm/(app)/leads` |
+| Lead detail: one owner, reassignment needs a reason, qualification Hot/Warm/Cold/Invalid, **mandatory call outcome + next follow-up unless closed**, close-as-lost with reason/competitor, admission decision Confirmed/Pending/Lost, full timeline (website touchpoints, calls, audit) | `app/crm/(app)/leads/[id]` |
+| Campus visits: Arrived / No-show, outcome required, past visits without outcome flagged and escalated after 24h | `app/crm/(app)/visits` |
+| Follow-up escalation: overdue → owner, 24h → supervisor, 48h → flagged for the 7 PM report | `lib/crm/rules.ts` |
+| Permissions: telecallers and counsellors see only their own leads; managers assign and qualify; front desk checks in visits | `lib/crm/permissions.ts` |
+
+Business rules are pure functions in `lib/crm/rules.ts`, with unit tests. Every mutation goes through `lib/crm/service.ts`, which re-checks permission and lead visibility and writes the audit trail.
+
+**Not yet:** bulk Excel/CSV import with column mapping, Kanban view, a data-quality report, click-to-call telephony and recordings, WhatsApp/SMS templates and campaigns, the AI-handoff chat inbox, the verification checkpoint (documents → fee → receipt → student record → College ID), the staff mobile app, role switching UI, 2FA, and the 7 PM report (§8 is missing from the brief).
+
 ## Before launch: the college must provide
 
 - [ ] Official `logo.png` → add it to `/public` and set `logoSrc` in `content/college.ts` (a placeholder SVG crest is in use)

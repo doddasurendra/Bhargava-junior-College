@@ -1,12 +1,9 @@
 import type { Metadata, Viewport } from 'next';
 import { Figtree, IBM_Plex_Mono, Marcellus } from 'next/font/google';
 import type { ReactNode } from 'react';
-import { ClientBoot, ExitIntent } from '@/components/ClientWidgets';
-import { Footer, Header, MobileBar, WhatsAppButton } from '@/components/SiteChrome';
-import { JsonLd } from '@/components/ui';
 import { college } from '@/content/college';
 import { getLang } from '@/lib/i18n-server';
-import { organizationJsonLd, siteUrl } from '@/lib/seo';
+import { siteUrl } from '@/lib/seo';
 import './globals.css';
 
 const display = Marcellus({ subsets: ['latin'], weight: '400', variable: '--font-display', display: 'swap' });
@@ -51,19 +48,7 @@ export default function RootLayout({ children }: { children: ReactNode }) {
       <head>
         <script dangerouslySetInnerHTML={{ __html: themeScript }} />
       </head>
-      <body className="pb-16 md:pb-0">
-        <a href="#main" className="sr-only focus:not-sr-only focus:fixed focus:left-4 focus:top-4 focus:z-50 focus:rounded-full focus:bg-gold focus:px-4 focus:py-2 focus:text-navy-950">
-          Skip to content
-        </a>
-        <Header />
-        <main id="main">{children}</main>
-        <Footer />
-        <MobileBar />
-        <WhatsAppButton />
-        <ExitIntent />
-        <ClientBoot />
-        <JsonLd data={organizationJsonLd()} />
-      </body>
+      <body>{children}</body>
     </html>
   );
 }
