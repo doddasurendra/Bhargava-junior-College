@@ -18,6 +18,7 @@ const toLead = (l: FileLead): CrmLead => ({
   status: l.status as LeadStatus,
   stage: l.stage,
   ownerId: l.ownerId ?? null,
+  assignedAt: l.assignedAt ?? null,
   firstSource: l.firstSource,
   lastSource: l.lastSource,
   nextFollowUpAt: l.nextFollowUpAt ?? null,
@@ -46,6 +47,77 @@ const norm = (s: string) => s.toLowerCase().replace(/\s+/g, '');
 
 export function createFileCrmRepo(): CrmRepo {
   return {
+    findExistingPhones: (phones) =>
+      tx((db) => {
+        const wanted = new Set(phones);
+        const found = new Set<string>();
+        for (const l of db.leads) {
+          if (wanted.has(l.phone)) found.add(l.phone);
+          if (l.studentPhone && wanted.has(l.studentPhone)) found.add(l.studentPhone);
+        }
+        return found;
+      }, false),
+
+    importLeads: (records, meta) =>
+      tx((db) => {
+        const now = new Date().toISOString();
+        const batchId = randomUUID();
+        let created = 0;
+        let merged = 0;
+        for (const r of records) {
+          const match = db.leads.find(
+            (l) => l.phone === r.phone || l.studentPhone === r.phone || (r.studentPhone && (l.phone === r.studentPhone || l.studentPhone === r.studentPhone)),
+          );
+          let lead: FileLead;
+          if (!match) {
+            lead = {
+              id: randomUUID(),
+              phone: r.phone,
+              contactName: r.parentName ?? r.studentName ?? '',
+              parentName: r.parentName,
+              studentName: r.studentName,
+              studentPhone: r.studentPhone,
+              studentClass: r.classLevel,
+              school: r.school,
+              board: r.board,
+              area: r.area,
+              program: r.program,
+              firstSource: meta.source,
+              lastSource: meta.source,
+              stage: 'enquiry',
+              status: 'open',
+              consentAt: '', // imported data: no web consent captured
+              createdAt: now,
+              updatedAt: now,
+            };
+            db.leads.push(lead);
+            created++;
+            pushAudit(db, lead.id, { actorId: meta.actorId, action: 'created', field: null, oldValue: null, newValue: meta.source, reason: `import ${meta.fileName}` });
+          } else {
+            lead = match;
+            // Fill blanks only — never overwrite what staff or the family already gave us.
+            lead.parentName ??= r.parentName;
+            lead.studentName ??= r.studentName;
+            lead.studentPhone ??= r.studentPhone && r.studentPhone !== lead.phone ? r.studentPhone : null;
+            lead.studentClass ??= r.classLevel;
+            lead.school ??= r.school;
+            lead.board ??= r.board;
+            lead.area ??= r.area;
+            lead.program ??= r.program;
+            if (!lead.contactName) lead.contactName = r.parentName ?? r.studentName ?? '';
+            lead.lastSource = meta.source;
+            lead.updatedAt = now;
+            merged++;
+            pushAudit(db, lead.id, { actorId: meta.actorId, action: 'merged_import', field: null, oldValue: null, newValue: meta.source, reason: `import ${meta.fileName}, line ${r.line}` });
+          }
+          db.touchpoints.push({ id: randomUUID(), leadId: lead.id, source: meta.source, program: r.program, note: [r.note, `import ${meta.fileName} line ${r.line}`].filter(Boolean).join(' · '), createdAt: now });
+        }
+        db.importBatches.push({ ...meta, id: batchId, created, merged, createdAt: now });
+        return { batchId, created, merged };
+      }),
+
+    listImportBatches: (limit = 20) => tx((db) => [...db.importBatches].sort((a, b) => b.createdAt.localeCompare(a.createdAt)).slice(0, limit), false),
+
     listStaff: () => tx((db) => db.staff.filter((s) => s.active), false),
     getStaff: (id) => tx((db) => db.staff.find((s) => s.id === id) ?? null, false),
 

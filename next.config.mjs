@@ -9,6 +9,8 @@ const securityHeaders = [
 const nextConfig = {
   poweredByHeader: false,
   reactStrictMode: true,
+  // CSV lead imports send the file text to a server action (2 MB file limit + JSON overhead).
+  experimental: { serverActions: { bodySizeLimit: '3mb' } },
   async headers() {
     return [{ source: '/(.*)', headers: securityHeaders }];
   },

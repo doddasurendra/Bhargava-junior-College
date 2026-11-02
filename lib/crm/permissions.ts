@@ -12,6 +12,7 @@ const RULES = {
   'lead.assign': MANAGE,
   'lead.qualify': MANAGE,
   'lead.call': [...MANAGE, 'telecaller', 'admission_counsellor'],
+  'lead.import': [...MANAGE, 'data_executive'],
   'lead.decide': [...MANAGE, 'admission_counsellor'],
   'visit.view': [...SEE_ALL_LEADS, 'telecaller', 'admission_counsellor'],
   'visit.checkin': [...MANAGE, 'front_desk', 'telecaller'],

@@ -1,4 +1,5 @@
 import type { StageKey } from '../admission';
+import type { ImportRecord } from './importer';
 
 export const ROLES = [
   'super_admin',
@@ -104,6 +105,8 @@ export interface CrmLead {
   status: LeadStatus;
   stage: StageKey;
   ownerId: string | null;
+  /** when the current owner was assigned (starts the follow-up clock for imported leads) */
+  assignedAt: string | null;
   firstSource: string;
   lastSource: string;
   nextFollowUpAt: string | null;
@@ -168,7 +171,7 @@ export interface VisitRow {
   createdAt: string;
 }
 
-export type LeadPatch = Partial<Pick<CrmLead, 'category' | 'status' | 'stage' | 'ownerId' | 'nextFollowUpAt' | 'lastContactAt' | 'lostReason' | 'lostCompetitor'>>;
+export type LeadPatch = Partial<Pick<CrmLead, 'category' | 'status' | 'stage' | 'ownerId' | 'assignedAt' | 'nextFollowUpAt' | 'lastContactAt' | 'lostReason' | 'lostCompetitor'>>;
 export type VisitPatch = Partial<Pick<VisitRow, 'status' | 'outcome' | 'outcomeAt' | 'outcomeBy'>>;
 
 export interface LeadFilter {
@@ -190,8 +193,29 @@ export interface LeadHistory {
   visits: VisitRow[];
 }
 
+export interface ImportMeta {
+  fileName: string;
+  source: string;
+  actorId: string;
+  totalRows: number;
+  invalid: number;
+  duplicatesInFile: number;
+}
+
+export interface ImportBatch extends ImportMeta {
+  id: string;
+  created: number;
+  merged: number;
+  createdAt: string;
+}
+
 /** Storage primitives. Business rules live in ./service.ts. */
 export interface CrmRepo {
+  /** Which of these phones already belong to an active lead (as its phone or student phone). */
+  findExistingPhones(phones: string[]): Promise<Set<string>>;
+  /** Create new leads or merge into existing ones (fill blanks only), recording one import batch. */
+  importLeads(records: ImportRecord[], meta: ImportMeta): Promise<{ batchId: string; created: number; merged: number }>;
+  listImportBatches(limit?: number): Promise<ImportBatch[]>;
   listStaff(): Promise<Staff[]>;
   getStaff(id: string): Promise<Staff | null>;
   listLeads(filter: LeadFilter): Promise<CrmLead[]>;

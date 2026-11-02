@@ -43,6 +43,28 @@ describe('file store', () => {
     expect((await store.slotBookings('2026-11-05'))['10:00']).toBe(5);
   });
 
+  it('imports: creates new leads, merges into existing ones without overwriting', async () => {
+    const { createFileCrmRepo } = await import('../crm/fileRepo');
+    const repo = createFileCrmRepo();
+    await store.captureLead({ ...base, name: 'Web Parent', phone: '+919111111111', source: 'callback', program: 'neet' });
+    const rec = (p: Partial<import('../crm/importer').ImportRecord>) => ({ line: 2, phone: '', studentPhone: null, studentName: null, parentName: null, school: null, classLevel: null, board: null, area: null, program: null, note: null, ...p });
+    expect(await repo.findExistingPhones(['+919111111111', '+919222222222'])).toEqual(new Set(['+919111111111']));
+    const res = await repo.importLeads(
+      [
+        rec({ phone: '+919111111111', studentName: 'Imported Student', program: 'iit-jee', school: 'ZPHS' }),
+        rec({ line: 3, phone: '+919222222222', studentPhone: '+919333333333', studentName: 'New Kid', parentName: 'New Parent' }),
+      ],
+      { fileName: 'school.csv', source: 'school_data', actorId: 'staff-manager', totalRows: 3, invalid: 1, duplicatesInFile: 0 },
+    );
+    expect(res).toMatchObject({ created: 1, merged: 1 });
+    const [merged] = await repo.listLeads({ q: '9111111111' });
+    expect(merged).toMatchObject({ contactName: 'Web Parent', studentName: 'Imported Student', program: 'neet', school: 'ZPHS', lastSource: 'school_data' });
+    // A later web enquiry from the student's own phone is recognised as the same family.
+    expect(await repo.findExistingPhones(['+919333333333'])).toEqual(new Set(['+919333333333']));
+    const [batch] = await repo.listImportBatches();
+    expect(batch).toMatchObject({ fileName: 'school.csv', created: 1, merged: 1, invalid: 1 });
+  });
+
   it('issues one hall ticket per lead', async () => {
     const r1 = await store.registerBsat({ ...base, phone: '+919000000009', stream: 'MPC', sessionId: '2026-11-16-campus' });
     const r2 = await store.registerBsat({ ...base, phone: '+919000000009', stream: 'MPC', sessionId: '2026-11-30-online' });

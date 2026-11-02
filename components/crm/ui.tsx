@@ -31,6 +31,12 @@ const ESC_LABEL = ['', 'Overdue', 'Overdue 24h+ · supervisor', 'Overdue 48h+ ·
 
 export function FollowUpBadge({ f }: { f: FollowUpInfo }) {
   if (f.state === 'closed') return <span className="text-xs text-muted">Closed</span>;
+  if (f.state === 'awaiting')
+    return (
+      <span className="w-fit rounded-full border border-dashed border-line px-2 py-0.5 text-[11px] font-semibold text-muted" title="Imported data: the follow-up clock starts when it is assigned">
+        Awaiting assignment
+      </span>
+    );
   if (f.state === 'overdue') {
     return (
       <span className="flex flex-col">

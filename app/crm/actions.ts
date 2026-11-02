@@ -5,7 +5,8 @@ import { z } from 'zod';
 import { PROGRAM_SLUGS } from '@/content/programs';
 import { clearSession, devLoginEnabled, loginAsDevStaff, loginWithPassword, requireStaff } from '@/lib/crm/auth';
 import { getCrmRepo } from '@/lib/crm/repo';
-import { assignLeads, bulkCategory, checkInVisit, CrmError, logCall, qualifyLead, recordDecision, recordVisitOutcome } from '@/lib/crm/service';
+import { IMPORT_FIELDS, IMPORT_SOURCES, type ImportField, type ImportSource } from '@/lib/crm/importer';
+import { assignLeads, bulkCategory, checkInVisit, CrmError, logCall, previewImport, qualifyLead, recordDecision, recordVisitOutcome, runImport, type ImportPreview } from '@/lib/crm/service';
 import { CALL_OUTCOMES, LEAD_CATEGORIES, LOST_REASONS } from '@/lib/crm/types';
 import { addDays, todayIST } from '@/lib/dates';
 import { getStore } from '@/lib/store';
@@ -156,6 +157,44 @@ export async function checkInAction(_: ActionState, fd: FormData): Promise<Actio
 export async function visitOutcomeAction(_: ActionState, fd: FormData): Promise<ActionState> {
   const user = await requireStaff();
   return run(() => recordVisitOutcome(user, String(fd.get('visitId')), str(fd, 'outcome') ?? '', fd.get('counselled') === 'on'), ['/crm/visits', '/crm', '/crm/leads']);
+}
+
+// ---------------------------------------------------------------- import
+
+const importSchema = z.object({
+  fileName: z.string().max(200),
+  text: z.string().min(1, 'Choose a CSV file.'),
+  mapping: z.record(z.enum(IMPORT_FIELDS.map((f) => f.key) as [ImportField, ...ImportField[]]), z.number().int().nullable()),
+  source: z.enum(IMPORT_SOURCES.map((s) => s.value) as [ImportSource, ...ImportSource[]], { errorMap: () => ({ message: 'Choose where this data came from.' }) }),
+  defaults: z.object({ school: z.string().trim().max(120).nullable().optional(), program: z.enum(PROGRAM_SLUGS).nullable().optional() }),
+});
+
+export type PreviewResult = { ok: true; preview: ImportPreview } | { ok: false; error: string };
+export type ImportResult = { ok: true; created: number; merged: number; invalid: number; duplicatesInFile: number } | { ok: false; error: string };
+
+async function guardedImport<T>(input: unknown, fn: (user: Awaited<ReturnType<typeof requireStaff>>, req: z.infer<typeof importSchema>) => Promise<T>) {
+  const user = await requireStaff();
+  try {
+    const req = importSchema.parse(input);
+    return { ok: true as const, value: await fn(user, req) };
+  } catch (e) {
+    if (e instanceof CrmError) return { ok: false as const, error: e.message };
+    if (e instanceof z.ZodError) return { ok: false as const, error: e.issues[0]?.message ?? 'Invalid request.' };
+    console.error('[crm] import failed', e);
+    return { ok: false as const, error: 'Something went wrong. Please try again.' };
+  }
+}
+
+export async function previewImportAction(input: unknown): Promise<PreviewResult> {
+  const r = await guardedImport(input, previewImport);
+  return r.ok ? { ok: true, preview: r.value } : r;
+}
+
+export async function runImportAction(input: unknown): Promise<ImportResult> {
+  const r = await guardedImport(input, runImport);
+  if (!r.ok) return r;
+  revalidatePath('/crm', 'layout');
+  return { ok: true, created: r.value.created, merged: r.value.merged, invalid: r.value.invalid, duplicatesInFile: r.value.duplicatesInFile };
 }
 
 // ---------------------------------------------------------------- development

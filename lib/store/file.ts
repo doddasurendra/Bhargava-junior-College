@@ -3,7 +3,7 @@ import path from 'node:path';
 import { randomUUID } from 'node:crypto';
 import { bsat, devStaff, visitSlots } from '@/content/sample';
 import type { StageKey } from '../admission';
-import type { AuditEntry, CallLog, Staff, VisitStatus } from '../crm/types';
+import type { AuditEntry, CallLog, ImportBatch, Staff, VisitStatus } from '../crm/types';
 import { StoreError, type AdmissionRecord, type LeadInput, type OtpRecord, type Store } from './types';
 
 /**
@@ -32,6 +32,7 @@ export interface FileLead {
   area?: string | null;
   category?: string | null;
   ownerId?: string | null;
+  assignedAt?: string | null;
   nextFollowUpAt?: string | null;
   lastContactAt?: string | null;
   lostReason?: string | null;
@@ -61,11 +62,12 @@ export interface DB {
   staff: Staff[];
   calls: CallLog[];
   audit: AuditEntry[];
+  importBatches: ImportBatch[];
   seq: { bsat: number };
 }
 
 const FILE = path.join(process.cwd(), '.data', 'dev-db.json');
-const empty = (): DB => ({ leads: [], touchpoints: [], visits: [], bsat: [], otps: [], staff: [], calls: [], audit: [], seq: { bsat: 0 } });
+const empty = (): DB => ({ leads: [], touchpoints: [], visits: [], bsat: [], otps: [], staff: [], calls: [], audit: [], importBatches: [], seq: { bsat: 0 } });
 
 async function load(): Promise<DB> {
   let db: DB;

@@ -58,10 +58,13 @@ Open http://localhost:3000/crm. In local development (no Supabase) you sign in b
 | Campus visits: Arrived / No-show, outcome required, past visits without outcome flagged and escalated after 24h | `app/crm/(app)/visits` |
 | Follow-up escalation: overdue → owner, 24h → supervisor, 48h → flagged for the 7 PM report | `lib/crm/rules.ts` |
 | Permissions: telecallers and counsellors see only their own leads; managers assign and qualify; front desk checks in visits | `lib/crm/permissions.ts` |
+| **Lead import (CSV):** column mapping auto-guessed from headers (school-data style "Father's Name", "Mobile No", "Group"…), program text normalised (MPC → IIT-JEE, BiPC → NEET, "long term"), source required, default school/program, server-side preview (new / merge / duplicates-in-file / rejected with reasons, by-school breakdown), downloadable rejected rows (formula-injection safe), batch history | `app/crm/(app)/import`, `lib/crm/csv.ts`, `lib/crm/importer.ts` |
+
+Imports are de-duplicated by mobile number, both within the file and against existing leads (matching their phone or student phone). A merge **only fills empty fields**, so nothing staff or the family already gave is overwritten, and an audit entry and touchpoint record which file and line it came from. Imported leads have `consent = false`. Their follow-up clock starts **when they are assigned**, not when they're imported, so a large school list shows as "Awaiting assignment" rather than flooding the overdue and escalation queues. Web enquiries are still due the moment they arrive. Limits: 5,000 rows / 2 MB per file. Excel files must be saved as CSV first.
 
 Business rules are pure functions in `lib/crm/rules.ts`, with unit tests. Every mutation goes through `lib/crm/service.ts`, which re-checks permission and lead visibility and writes the audit trail.
 
-**Not yet:** bulk Excel/CSV import with column mapping, Kanban view, a data-quality report, click-to-call telephony and recordings, WhatsApp/SMS templates and campaigns, the AI-handoff chat inbox, the verification checkpoint (documents → fee → receipt → student record → College ID), the staff mobile app, role switching UI, 2FA, and the 7 PM report (§8 is missing from the brief).
+**Not yet:** direct .xlsx upload, Kanban view, a data-quality report (category mix by school and source), click-to-call telephony and recordings, WhatsApp/SMS templates and campaigns, the AI-handoff chat inbox, the verification checkpoint (documents → fee → receipt → student record → College ID), the staff mobile app, role switching UI, 2FA, and the 7 PM report (§8 is missing from the brief).
 
 ## Before launch: the college must provide
 

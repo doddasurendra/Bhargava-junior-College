@@ -1,4 +1,4 @@
-﻿import { createClient } from '@supabase/supabase-js';
+import { createClient } from '@supabase/supabase-js';
 import type { AuditInput, CrmLead, CrmRepo, LeadPatch, Role, Staff, VisitPatch, VisitRow } from './types';
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
@@ -20,6 +20,7 @@ const toLead = (r: Row): CrmLead => ({
   status: r.status,
   stage: r.stage,
   ownerId: r.owner_id,
+  assignedAt: r.assigned_at,
   firstSource: r.first_source,
   lastSource: r.last_source,
   nextFollowUpAt: r.next_follow_up_at,
@@ -50,6 +51,7 @@ const leadPatchRow = (p: LeadPatch): Row => {
     status: 'status',
     stage: 'stage',
     ownerId: 'owner_id',
+    assignedAt: 'assigned_at',
     nextFollowUpAt: 'next_follow_up_at',
     lastContactAt: 'last_contact_at',
     lostReason: 'lost_reason',
@@ -86,7 +88,69 @@ export function createSupabaseCrmRepo(url: string, serviceKey: string): CrmRepo 
     roles: (r.user_roles ?? []).map((x: Row) => x.role as Role),
   });
 
+  const chunks = <T,>(arr: T[], n: number) => Array.from({ length: Math.ceil(arr.length / n) }, (_, i) => arr.slice(i * n, i * n + n));
+
   return {
+    async findExistingPhones(phones) {
+      const found = new Set<string>();
+      for (const part of chunks(Array.from(new Set(phones)), 200)) {
+        const [a, b] = await Promise.all([
+          sb.from('leads').select('phone').is('merged_into', null).in('phone', part),
+          sb.from('leads').select('student_phone').is('merged_into', null).in('student_phone', part),
+        ]);
+        for (const r of rows(a)) found.add(r.phone);
+        for (const r of rows(b)) found.add(r.student_phone);
+      }
+      return found;
+    },
+
+    async importLeads(records, meta) {
+      const batch = check(
+        await sb
+          .from('import_batches')
+          .insert({ file_name: meta.fileName, source: meta.source, actor_id: meta.actorId, total_rows: meta.totalRows, invalid: meta.invalid, duplicates_in_file: meta.duplicatesInFile })
+          .select('id')
+          .single(),
+      );
+      if (!batch) throw new Error('import batch not created');
+      let created = 0;
+      let merged = 0;
+      for (const part of chunks(records, 500)) {
+        const payload = part.map((r) => ({
+          line: r.line,
+          phone: r.phone,
+          student_phone: r.studentPhone,
+          student_name: r.studentName,
+          parent_name: r.parentName,
+          school: r.school,
+          class_level: r.classLevel,
+          board: r.board,
+          area: r.area,
+          program: r.program,
+          note: r.note,
+        }));
+        const res: { created: number; merged: number }[] = rows(await sb.rpc('import_leads', { p_batch: batch.id, p_actor: meta.actorId, p_source: meta.source, p_file: meta.fileName, p_rows: payload }));
+        created += res[0]?.created ?? 0;
+        merged += res[0]?.merged ?? 0;
+      }
+      return { batchId: batch.id, created, merged };
+    },
+
+    async listImportBatches(limit = 20) {
+      return rows(await sb.from('import_batches').select('*').order('created_at', { ascending: false }).limit(limit)).map((r: Row) => ({
+        id: r.id,
+        fileName: r.file_name,
+        source: r.source,
+        actorId: r.actor_id,
+        totalRows: r.total_rows,
+        invalid: r.invalid,
+        duplicatesInFile: r.duplicates_in_file,
+        created: r.created,
+        merged: r.merged,
+        createdAt: r.created_at,
+      }));
+    },
+
     async listStaff() {
       return rows(await sb.from('profiles').select('id, full_name, email, phone, active, user_roles(role)').eq('active', true).order('full_name')).map(toStaff);
     },

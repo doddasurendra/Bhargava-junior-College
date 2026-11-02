@@ -5,7 +5,16 @@ import { categoryFromCall, followUp, roundRobin, validateCall, validateDecision,
 
 const NOW = new Date('2026-11-02T06:00:00Z'); // 11:30 IST, Monday
 const iso = (hoursFromNow: number) => new Date(NOW.getTime() + hoursFromNow * 3_600_000).toISOString();
-const lead = (p: Partial<Parameters<typeof followUp>[0]> = {}) => ({ status: 'open' as const, nextFollowUpAt: null, lastContactAt: null, createdAt: iso(-1), ...p });
+const lead = (p: Partial<Parameters<typeof followUp>[0]> = {}) => ({
+  status: 'open' as const,
+  nextFollowUpAt: null,
+  lastContactAt: null,
+  createdAt: iso(-1),
+  ownerId: null,
+  assignedAt: null,
+  firstSource: 'callback',
+  ...p,
+});
 
 describe('follow-up queues and escalation (§7.3)', () => {
   it('a never-contacted lead is due from the moment it arrives', () => {
@@ -20,6 +29,15 @@ describe('follow-up queues and escalation (§7.3)', () => {
   it('splits today and upcoming by IST calendar day', () => {
     expect(followUp(lead({ nextFollowUpAt: iso(5), lastContactAt: iso(-2) }), NOW).state).toBe('today'); // 16:30 IST
     expect(followUp(lead({ nextFollowUpAt: iso(14), lastContactAt: iso(-2) }), NOW).state).toBe('upcoming'); // 01:30 IST next day
+  });
+  it('imported leads wait for assignment, then the clock starts at assignment', () => {
+    const imported = { firstSource: 'school_data', createdAt: iso(-24 * 10) };
+    expect(followUp(lead(imported), NOW)).toMatchObject({ state: 'awaiting', escalation: 0 });
+    const assigned = followUp(lead({ ...imported, ownerId: 'priya', assignedAt: iso(-3) }), NOW);
+    expect(assigned).toMatchObject({ state: 'overdue', escalation: 1, overdueHours: 3 });
+    expect(followUp(lead({ ...imported, ownerId: 'priya', assignedAt: iso(-30) }), NOW).escalation).toBe(2);
+    // Web enquiries keep the arrival clock even while unassigned.
+    expect(followUp(lead({ createdAt: iso(-30) }), NOW).escalation).toBe(2);
   });
   it('closed leads have no follow-up', () => {
     expect(followUp(lead({ status: 'lost', nextFollowUpAt: iso(-100) }), NOW).state).toBe('closed');

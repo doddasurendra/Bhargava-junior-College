@@ -7,7 +7,10 @@ import { can } from '@/lib/crm/permissions';
 import { getCrmRepo } from '@/lib/crm/repo';
 import { listLeads, type Queue } from '@/lib/crm/service';
 import { LEAD_CATEGORIES, LEAD_STATUSES, ROLE_LABELS, STATUS_LABELS, type LeadFilter } from '@/lib/crm/types';
+import { IMPORT_SOURCES } from '@/lib/crm/importer';
 import { LEAD_SOURCES } from '@/lib/validation';
+
+const ALL_SOURCES = [...LEAD_SOURCES, ...IMPORT_SOURCES.map((s) => s.value)] as const;
 
 export const metadata = { title: 'Leads' };
 
@@ -32,7 +35,7 @@ export default async function LeadsPage({ searchParams }: { searchParams: SP }) 
     category: pick(one(searchParams.category), [...LEAD_CATEGORIES, 'none'] as const),
     status: pick(one(searchParams.status), LEAD_STATUSES),
     program: pick(one(searchParams.program), PROGRAM_SLUGS),
-    source: pick(one(searchParams.source), LEAD_SOURCES),
+    source: pick(one(searchParams.source), ALL_SOURCES),
     q: one(searchParams.q)?.slice(0, 60),
   };
   const ownerParam = one(searchParams.owner);
@@ -87,7 +90,7 @@ export default async function LeadsPage({ searchParams }: { searchParams: SP }) 
         </select>
         <select name="source" defaultValue={filter.source ?? ''} className="input w-auto py-2 text-sm">
           <option value="">Any source</option>
-          {LEAD_SOURCES.map((s) => (
+          {ALL_SOURCES.map((s) => (
             <option key={s} value={s}>{sourceLabel(s)}</option>
           ))}
         </select>

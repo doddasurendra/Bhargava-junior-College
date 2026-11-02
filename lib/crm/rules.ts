@@ -1,5 +1,6 @@
 /** Pure CRM business rules (brief §7). No I/O — unit tested in rules.test.ts. */
 import { addDays, todayIST } from '../dates';
+import { IMPORT_SOURCES } from './importer';
 import { CLOSED_STATUSES, type CallOutcome, type CrmLead, type LeadCategory, type LeadStatus, type LostReason, type VisitRow } from './types';
 
 const HOUR = 3_600_000;
@@ -9,7 +10,10 @@ export const isClosed = (status: LeadStatus) => CLOSED_STATUSES.includes(status)
 
 export const istDate = (iso: string) => todayIST(new Date(iso));
 
-export type FollowUpState = 'closed' | 'overdue' | 'today' | 'upcoming';
+/** 'awaiting' = imported list data not yet assigned to anyone; its follow-up clock has not started. */
+export type FollowUpState = 'closed' | 'awaiting' | 'overdue' | 'today' | 'upcoming';
+
+export const isImportSource = (source: string) => IMPORT_SOURCES.some((s) => s.value === source);
 
 export interface FollowUpInfo {
   state: FollowUpState;
@@ -22,13 +26,21 @@ export interface FollowUpInfo {
 }
 
 /**
- * A lead is due at its next follow-up date. A lead that has never been contacted is due the moment it
- * arrives. A contacted lead without a follow-up date (should not happen) is treated as due since that contact.
+ * A lead is due at its next follow-up date. A web enquiry that has never been contacted is due the moment it
+ * arrives. Imported list data (school data, walk-ins, referrals…) is due from when it is assigned to someone,
+ * so a big import doesn't flood the overdue and escalation queues before it has been qualified and allocated.
+ * A contacted lead without a follow-up date (should not happen) is treated as due since that contact.
  */
-export function followUp(lead: Pick<CrmLead, 'status' | 'nextFollowUpAt' | 'lastContactAt' | 'createdAt'>, now: Date = new Date()): FollowUpInfo {
-  const ageDays = Math.floor((now.getTime() - new Date(lead.lastContactAt ?? lead.createdAt).getTime()) / DAY);
+export function followUp(
+  lead: Pick<CrmLead, 'status' | 'nextFollowUpAt' | 'lastContactAt' | 'createdAt' | 'ownerId' | 'assignedAt' | 'firstSource'>,
+  now: Date = new Date(),
+): FollowUpInfo {
+  const imported = isImportSource(lead.firstSource);
+  const clockStart = imported ? lead.assignedAt ?? lead.createdAt : lead.createdAt;
+  const ageDays = Math.floor((now.getTime() - new Date(lead.lastContactAt ?? clockStart).getTime()) / DAY);
   if (isClosed(lead.status)) return { state: 'closed', dueAt: null, escalation: 0, overdueHours: 0, ageDays };
-  const dueAt = lead.nextFollowUpAt ?? lead.lastContactAt ?? lead.createdAt;
+  if (imported && !lead.ownerId && !lead.lastContactAt && !lead.nextFollowUpAt) return { state: 'awaiting', dueAt: null, escalation: 0, overdueHours: 0, ageDays: 0 };
+  const dueAt = lead.nextFollowUpAt ?? lead.lastContactAt ?? clockStart;
   const overdueMs = now.getTime() - new Date(dueAt).getTime();
   if (overdueMs > 0) {
     const overdueHours = Math.floor(overdueMs / HOUR);

@@ -4,6 +4,8 @@ import { addDays, todayIST } from '../dates';
 import { can, canSeeLead, isCounsellor } from './permissions';
 import { getCrmRepo } from './repo';
 import { categoryFromCall, followUp, roundRobin, validateCall, validateDecision, visitFlag, type CallInput, type DecisionInput, type FollowUpInfo } from './rules';
+import { parseCsv } from './csv';
+import { buildRecords, IMPORT_SOURCES, MAX_IMPORT_ROWS, validateMapping, type ImportDefaults, type ImportRecord, type ImportSource, type Mapping, type RejectedRow } from './importer';
 import type { AuditInput, CrmLead, LeadCategory, LeadFilter, LeadPatch, Staff, VisitRow } from './types';
 
 export class CrmError extends Error {}
@@ -111,7 +113,7 @@ export async function assignLeads(user: Staff, ids: string[], target: string | '
   for (const l of leads) {
     const to = plan[l.id];
     if (!to || to === l.ownerId) continue;
-    await repo.updateLead(l.id, { ownerId: to }, [{ action: l.ownerId ? 'reassigned' : 'assigned', actorId: user.id, field: 'owner', oldValue: l.ownerId, newValue: to, reason: reason?.trim() || null }]);
+    await repo.updateLead(l.id, { ownerId: to, assignedAt: new Date().toISOString() }, [{ action: l.ownerId ? 'reassigned' : 'assigned', actorId: user.id, field: 'owner', oldValue: l.ownerId, newValue: to, reason: reason?.trim() || null }]);
     count++;
   }
   return count;
@@ -171,6 +173,7 @@ export async function recordDecision(user: Staff, id: string, d: DecisionInput, 
   // §7.2: a pending post-visit decision is owned by the admission counsellor following it up.
   if (d.decision === 'pending' && isCounsellor(user) && lead.ownerId !== user.id) {
     patch.ownerId = user.id;
+    patch.assignedAt = now.toISOString();
     audit.push({ action: 'reassigned', actorId: user.id, field: 'owner', oldValue: lead.ownerId, newValue: user.id, reason: 'Post-visit follow-up by admission counsellor' });
   }
   await getCrmRepo().updateLead(id, patch, audit);
@@ -230,6 +233,95 @@ export async function visitBoard(user: Staff, from: string, to: string, includeO
       return { visit, lead, owner: lead?.ownerId ? staff.get(lead.ownerId) ?? null : null, flag: visitFlag(visit) };
     })
     .filter((r) => r.lead && canSeeLead(user, r.lead));
+}
+
+// ---------------------------------------------------------------- import (§7.1 step 1)
+
+export interface ImportRequest {
+  fileName: string;
+  text: string;
+  mapping: Mapping;
+  source: ImportSource;
+  defaults: ImportDefaults;
+}
+
+export interface ImportPreview {
+  totalRows: number;
+  valid: number;
+  newLeads: number;
+  mergeExisting: number;
+  duplicatesInFile: number;
+  rejected: RejectedRow[];
+  sample: (ImportRecord & { existing: boolean })[];
+  bySchool: { school: string; rows: number; existing: number }[];
+}
+
+function prepareImport(req: ImportRequest) {
+  if (!IMPORT_SOURCES.some((s) => s.value === req.source)) throw new CrmError('Choose where this data came from.');
+  if (req.text.length > 3_000_000) throw new CrmError('The file is too large. Split it into files under 2 MB.');
+  const { headers, rows } = parseCsv(req.text);
+  if (headers.length === 0) throw new CrmError('The file is empty.');
+  if (rows.length === 0) throw new CrmError('The file has a header row but no data rows.');
+  if (rows.length > MAX_IMPORT_ROWS) throw new CrmError(`At most ${MAX_IMPORT_ROWS} rows per import. This file has ${rows.length}.`);
+  const mappingError = validateMapping(req.mapping, headers.length);
+  if (mappingError) throw new CrmError(mappingError);
+  return buildRecords(rows, req.mapping, req.defaults);
+}
+
+async function existingFor(records: ImportRecord[]) {
+  const phones = records.flatMap((r) => (r.studentPhone ? [r.phone, r.studentPhone] : [r.phone]));
+  const found = await getCrmRepo().findExistingPhones(phones);
+  return (r: ImportRecord) => found.has(r.phone) || (r.studentPhone !== null && found.has(r.studentPhone));
+}
+
+export async function previewImport(user: Staff, req: ImportRequest): Promise<ImportPreview> {
+  if (!can(user, 'lead.import')) throw new CrmError('You cannot import leads.');
+  const built = prepareImport(req);
+  const isExisting = await existingFor(built.records);
+  const schools = new Map<string, { rows: number; existing: number }>();
+  let mergeExisting = 0;
+  for (const r of built.records) {
+    const ex = isExisting(r);
+    if (ex) mergeExisting++;
+    const key = r.school ?? '(no school)';
+    const s = schools.get(key) ?? { rows: 0, existing: 0 };
+    s.rows++;
+    if (ex) s.existing++;
+    schools.set(key, s);
+  }
+  return {
+    totalRows: built.totalRows,
+    valid: built.records.length,
+    newLeads: built.records.length - mergeExisting,
+    mergeExisting,
+    duplicatesInFile: built.duplicatesInFile,
+    rejected: built.rejected.slice(0, 2000),
+    sample: built.records.slice(0, 15).map((r) => ({ ...r, existing: isExisting(r) })),
+    bySchool: Array.from(schools, ([school, v]) => ({ school, ...v })).sort((a, b) => b.rows - a.rows).slice(0, 30),
+  };
+}
+
+export async function runImport(user: Staff, req: ImportRequest) {
+  if (!can(user, 'lead.import')) throw new CrmError('You cannot import leads.');
+  // Re-parse and re-validate on the server; the browser preview is never trusted.
+  const built = prepareImport(req);
+  if (built.records.length === 0) throw new CrmError('No valid rows to import.');
+  const fileName = req.fileName.replace(/[^\w.\- ]/g, '').slice(0, 120) || 'upload.csv';
+  const result = await getCrmRepo().importLeads(built.records, {
+    fileName,
+    source: req.source,
+    actorId: user.id,
+    totalRows: built.totalRows,
+    invalid: built.rejected.length,
+    duplicatesInFile: built.duplicatesInFile,
+  });
+  return { ...result, invalid: built.rejected.length, duplicatesInFile: built.duplicatesInFile };
+}
+
+export async function importHistory(user: Staff) {
+  if (!can(user, 'lead.import')) throw new CrmError('You cannot view imports.');
+  const [batches, staff] = await Promise.all([getCrmRepo().listImportBatches(20), staffMap()]);
+  return batches.map((b) => ({ ...b, actorName: staff.get(b.actorId)?.fullName ?? 'Staff' }));
 }
 
 export async function dashboard(user: Staff) {
