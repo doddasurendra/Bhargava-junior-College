@@ -129,14 +129,46 @@ export const visitSlots = {
   maxDaysAhead: 30,
 };
 
-export const admissionDocuments = [
-  'SSC / Class 10 marks memo',
-  'Transfer certificate (TC)',
-  'Study certificate',
-  'Aadhaar card (student)',
-  'Passport-size photographs',
-  'Caste / income certificate (if applicable)',
-];
+/**
+ * Document checklist for the admission verification checkpoint (brief §7.4). `required: false` means
+ * "if applicable": it must be verified or marked not applicable. Override per program in `byProgram`.
+ */
+export const documentChecklist = {
+  sample: true,
+  default: [
+    { key: 'ssc_memo', label: 'SSC / Class 10 marks memo', required: true },
+    { key: 'tc', label: 'Transfer certificate (TC)', required: true },
+    { key: 'study_certificate', label: 'Study certificate', required: true },
+    { key: 'aadhaar', label: 'Aadhaar card (student)', required: true },
+    { key: 'photos', label: 'Passport-size photographs', required: true },
+    { key: 'caste_income', label: 'Caste / income certificate (if applicable)', required: false },
+  ],
+  byProgram: {} as Partial<Record<string, { key: string; label: string; required: boolean }[]>>,
+};
+export type ChecklistItem = (typeof documentChecklist.default)[number];
+
+export const admissionDocuments = documentChecklist.default.map((d) => d.label);
+
+/** College ID and receipt numbering (brief §7.4). Format is configurable; sequences are per year + program. */
+export const numbering = {
+  sample: true,
+  collegeId: {
+    template: 'BJC-{YEAR}-{PROGRAM}-{SEQ}',
+    year: 2027,
+    seqDigits: 4,
+    programCodes: { 'iit-jee': 'JEE', neet: 'NEET', 'long-term-jee': 'LTJ', 'long-term-neet': 'LTN' } as Record<string, string>,
+  },
+  receipt: { prefix: 'BJC', academicYear: '2027-28', seqDigits: 5 },
+};
+
+export const PAYMENT_MODES = [
+  { value: 'upi', label: 'UPI' },
+  { value: 'card', label: 'Card' },
+  { value: 'netbanking', label: 'Net banking' },
+  { value: 'bank_transfer', label: 'Bank transfer' },
+  { value: 'cheque', label: 'Cheque / DD' },
+  { value: 'cash', label: 'Cash' },
+] as const;
 
 export const faqs = {
   sample: true,

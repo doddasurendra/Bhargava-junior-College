@@ -33,12 +33,14 @@ export function Submit({ children, className = 'btn-primary', name, value, formA
   );
 }
 
-function ActionForm({ action, children, className = 'space-y-3', reset = true }: { action: Action; children: ReactNode; className?: string; reset?: boolean }) {
-  const [state, formAction] = useFormState(action, {});
+export function ActionForm({ action, children, className = 'space-y-3', reset = true, quiet = false }: { action: Action; children: ReactNode; className?: string; reset?: boolean; quiet?: boolean }) {
+  const [rawState, formAction] = useFormState(action, {});
+  // quiet: show errors only — for row-level controls where a success banner would shift the layout.
+  const state = quiet && rawState.ok ? {} : rawState;
   const ref = useRef<HTMLFormElement>(null);
   useEffect(() => {
-    if (state.ok && reset) ref.current?.reset();
-  }, [state, reset]);
+    if (rawState.ok && reset) ref.current?.reset();
+  }, [rawState, reset]);
   return (
     <form ref={ref} action={formAction} className={className}>
       {children}

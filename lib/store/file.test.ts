@@ -65,6 +65,72 @@ describe('file store', () => {
     expect(batch).toMatchObject({ fileName: 'school.csv', created: 1, merged: 1, invalid: 1 });
   });
 
+  it('verification gate: refuses the College ID until every step is signed off, numbers atomically', async () => {
+    const { createFileCrmRepo } = await import('../crm/fileRepo');
+    const repo = createFileCrmRepo();
+    const mk = async (phone: string) => {
+      const { leadId } = await store.captureLead({ ...base, phone, source: 'callback', program: 'iit-jee' });
+      await repo.updateLead(leadId, { status: 'confirmed' }, []);
+      return leadId;
+    };
+    const a = await mk('+919444444441');
+    await expect(repo.issueCollegeId(a, 'staff-adminoffice')).rejects.toThrow(/Not all steps/);
+    await expect(repo.issueReceipts(a, 'staff-accounts')).rejects.toThrow(/Fee payment/);
+
+    await repo.signOffStage(a, 'application', 'staff-anil', null);
+    await expect(repo.signOffStage(a, 'application', 'staff-anil', null)).rejects.toThrow(/already/);
+    await repo.signOffStage(a, 'documents', 'staff-office', null);
+    const pid = await repo.addPayment({ leadId: a, amount: 55000, mode: 'upi', reference: 'UTR1', paidOn: '2026-11-02', status: 'pending_approval', recordedBy: 'staff-frontdesk', approvedBy: null, approvedAt: null });
+    await repo.decidePayment(pid, true, 'staff-accounts');
+    await expect(repo.decidePayment(pid, false, 'staff-accounts')).rejects.toThrow(/already been decided/);
+    await repo.signOffStage(a, 'fee', 'staff-accounts', null);
+    expect(await repo.issueReceipts(a, 'staff-accounts')).toEqual(['BJC/2027-28/00001']);
+    await repo.createStudent(a, { fullName: 'Ravi Teja', dob: '2011-05-01', gender: 'male', program: 'iit-jee', stay: 'hostel', guardianName: 'K Srinivas', guardianPhone: '+919444444441' }, 'staff-adminoffice');
+    await expect(repo.issueCollegeId(a, 'staff-adminoffice')).resolves.toBe('BJC-2027-JEE-0001');
+    await expect(repo.issueCollegeId(a, 'staff-adminoffice')).rejects.toThrow(/already been issued/);
+
+    const l = await repo.getLead(a);
+    expect(l).toMatchObject({ status: 'admitted', stage: 'college_id', nextFollowUpAt: null });
+    const v = await repo.getVerification(a);
+    expect(v.signOffs.map((s) => s.stage)).toEqual(['application', 'documents', 'fee', 'receipt', 'student_record', 'college_id']);
+    expect(v.student?.collegeId).toBe('BJC-2027-JEE-0001');
+  });
+
+  it('reversal: cascades, removes the student record, keeps receipts, blocked after College ID', async () => {
+    const { createFileCrmRepo } = await import('../crm/fileRepo');
+    const repo = createFileCrmRepo();
+    const { leadId: b } = await store.captureLead({ ...base, phone: '+919444444442', source: 'callback', program: 'neet' });
+    await repo.updateLead(b, { status: 'confirmed', stage: 'counselling' }, []);
+    await repo.signOffStage(b, 'application', 'staff-anil', null);
+    await repo.signOffStage(b, 'documents', 'staff-office', null);
+    await repo.addPayment({ leadId: b, amount: 1000, mode: 'cash', reference: null, paidOn: '2026-11-02', status: 'approved', recordedBy: 'staff-accounts', approvedBy: 'staff-accounts', approvedAt: '' });
+    await repo.signOffStage(b, 'fee', 'staff-accounts', null);
+    const [receipt] = await repo.issueReceipts(b, 'staff-accounts');
+    await repo.createStudent(b, { fullName: 'Wrong Name', dob: '2011-01-01', gender: 'female', program: 'neet', stay: 'day', guardianName: 'G', guardianPhone: '+919444444442' }, 'staff-adminoffice');
+
+    await expect(repo.requestReversal(b, 'college_id', 'x', 'staff-manager')).rejects.toThrow(/not signed/);
+    const r1 = await repo.requestReversal(b, 'application', 'Student name misspelt', 'staff-anil');
+    await expect(repo.requestReversal(b, 'application', 'again', 'staff-anil')).rejects.toThrow(/already waiting/);
+    expect(await repo.decideReversal(r1, true, 'staff-manager', 'ok')).toEqual(['application', 'student_record']);
+    await expect(repo.decideReversal(r1, true, 'staff-manager', null)).rejects.toThrow(/already been decided/);
+
+    let v = await repo.getVerification(b);
+    expect(v.signOffs.map((s) => s.stage).sort()).toEqual(['documents', 'fee', 'receipt']);
+    expect(v.student).toBeNull();
+    expect((await repo.getLead(b))?.stage).toBe('receipt');
+
+    const r2 = await repo.requestReversal(b, 'fee', 'Wrong amount approved', 'staff-accounts');
+    expect(await repo.decideReversal(r2, true, 'staff-manager', null)).toEqual(['fee', 'receipt']);
+    v = await repo.getVerification(b);
+    expect(v.payments[0].receiptNo).toBe(receipt); // issued receipt numbers stay valid
+    expect((await repo.getLead(b))?.stage).toBe('documents');
+
+    // Rejection leaves the sign-off in place.
+    const r3 = await repo.requestReversal(b, 'documents', 'Check TC again', 'staff-office');
+    expect(await repo.decideReversal(r3, false, 'staff-manager', 'TC is fine')).toEqual([]);
+    expect((await repo.getVerification(b)).signOffs.map((s) => s.stage)).toEqual(['documents']);
+  });
+
   it('issues one hall ticket per lead', async () => {
     const r1 = await store.registerBsat({ ...base, phone: '+919000000009', stream: 'MPC', sessionId: '2026-11-16-campus' });
     const r2 = await store.registerBsat({ ...base, phone: '+919000000009', stream: 'MPC', sessionId: '2026-11-30-online' });

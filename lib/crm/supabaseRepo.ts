@@ -1,4 +1,5 @@
 import { createClient } from '@supabase/supabase-js';
+import { createSupabaseVerifyRepo } from './supabaseVerifyRepo';
 import type { AuditInput, CrmLead, CrmRepo, LeadPatch, Role, Staff, VisitPatch, VisitRow } from './types';
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
@@ -91,6 +92,8 @@ export function createSupabaseCrmRepo(url: string, serviceKey: string): CrmRepo 
   const chunks = <T,>(arr: T[], n: number) => Array.from({ length: Math.ceil(arr.length / n) }, (_, i) => arr.slice(i * n, i * n + n));
 
   return {
+    ...createSupabaseVerifyRepo(sb),
+
     async findExistingPhones(phones) {
       const found = new Set<string>();
       for (const part of chunks(Array.from(new Set(phones)), 200)) {

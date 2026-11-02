@@ -2,6 +2,9 @@ import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { AssignForm, CallForm, CheckInButtons, DecisionForm, QualifyForm, VisitOutcomeForm } from '@/components/crm/forms';
 import { CategoryBadge, Empty, FollowUpBadge, Panel, programShort, sourceLabel, StatusBadge } from '@/components/crm/ui';
+import { VerificationPanel } from '@/components/crm/VerificationPanel';
+import { VERIFY_STATUSES } from '@/lib/crm/verification';
+import { verification } from '@/lib/crm/verifyService';
 import { visitSlots } from '@/content/sample';
 import { STAGES } from '@/lib/admission';
 import { requireStaff } from '@/lib/crm/auth';
@@ -25,6 +28,7 @@ export default async function LeadPage({ params }: { params: { id: string } }) {
     throw e;
   }
   const { lead, history, staff, owner, follow } = d;
+  const verify = VERIFY_STATUSES.includes(lead.status) && can(user, 'verify.view') ? await verification(user, lead.id) : null;
   const name = (id: string | null) => (id ? staff.get(id)?.fullName ?? 'Staff' : 'System');
   const defaultFollowUp = `${addDays(todayIST(), 1)}T10:00`;
   const outcomeLabel = (v: string) => CALL_OUTCOMES.find((o) => o.value === v)?.label ?? v;
@@ -79,6 +83,8 @@ export default async function LeadPage({ params }: { params: { id: string } }) {
           </li>
         ))}
       </ol>
+
+      {verify && <VerificationPanel user={user} lead={lead} record={verify.record} steps={verify.steps} checklist={verify.checklist} names={name} />}
 
       <div className="grid gap-5 xl:grid-cols-[1fr_380px]">
         <div className="space-y-5">

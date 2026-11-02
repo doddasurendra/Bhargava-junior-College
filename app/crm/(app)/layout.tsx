@@ -15,6 +15,7 @@ export default async function CrmShell({ children }: { children: ReactNode }) {
     { href: '/crm', label: 'My tasks' },
     { href: '/crm/leads', label: can(user, 'lead.viewAll') ? 'All leads' : 'My leads' },
     ...(can(user, 'visit.view') ? [{ href: '/crm/visits', label: 'Campus visits' }] : []),
+    ...(can(user, 'verify.view') ? [{ href: '/crm/verification', label: 'Verification' }] : []),
     ...(can(user, 'lead.import') ? [{ href: '/crm/import', label: 'Import leads' }] : []),
   ];
   return (

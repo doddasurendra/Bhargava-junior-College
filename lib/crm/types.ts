@@ -1,5 +1,6 @@
 import type { StageKey } from '../admission';
 import type { ImportRecord } from './importer';
+import type { DocStatus, PaymentRow, ReversalRow, StudentRow, VerificationRecord, VerifyStage } from './verification';
 
 export const ROLES = [
   'super_admin',
@@ -209,8 +210,36 @@ export interface ImportBatch extends ImportMeta {
   createdAt: string;
 }
 
+/** Thrown by a repo when a write conflicts with current state (already signed off, gate not met…). */
+export class RepoConflict extends Error {}
+
+export interface VerifyRepo {
+  getVerification(leadId: string): Promise<VerificationRecord>;
+  /** Atomic: record the sign-off, advance the lead's stage, audit. Throws RepoConflict if already signed off. */
+  signOffStage(leadId: string, stage: VerifyStage, actorId: string, note: string | null): Promise<void>;
+  setDocument(leadId: string, key: string, status: DocStatus, note: string | null, actorId: string): Promise<void>;
+  addPayment(p: Omit<PaymentRow, 'id' | 'recordedAt' | 'receiptNo' | 'receiptAt'>): Promise<string>;
+  getPayment(id: string): Promise<PaymentRow | null>;
+  /** Only from pending_approval. */
+  decidePayment(id: string, approve: boolean, actorId: string): Promise<void>;
+  /** Atomic: number every approved payment without a receipt, sign off 'receipt'. Returns the numbers issued. */
+  issueReceipts(leadId: string, actorId: string): Promise<string[]>;
+  /** Atomic: create the student record and sign off 'student_record'. */
+  createStudent(leadId: string, s: Omit<StudentRow, 'id' | 'leadId' | 'collegeId' | 'createdAt' | 'createdBy'>, actorId: string): Promise<void>;
+  /** Atomic: re-check the gate, take the next number, set the College ID, mark the lead admitted, sign off. */
+  issueCollegeId(leadId: string, actorId: string): Promise<string>;
+  /** One pending request per lead + stage; the stage must be signed off. */
+  requestReversal(leadId: string, stage: VerifyStage, reason: string, actorId: string): Promise<string>;
+  getReversal(id: string): Promise<ReversalRow | null>;
+  /**
+   * Atomic. Approve: clear the stage and its signed dependents (reversalCascade), delete the student record if
+   * 'student_record' is cleared, recompute the lead's stage, audit. Reject: just record the decision.
+   */
+  decideReversal(id: string, approve: boolean, actorId: string, note: string | null): Promise<VerifyStage[]>;
+}
+
 /** Storage primitives. Business rules live in ./service.ts. */
-export interface CrmRepo {
+export interface CrmRepo extends VerifyRepo {
   /** Which of these phones already belong to an active lead (as its phone or student phone). */
   findExistingPhones(phones: string[]): Promise<Set<string>>;
   /** Create new leads or merge into existing ones (fill blanks only), recording one import batch. */

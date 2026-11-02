@@ -64,6 +64,29 @@ Imports are de-duplicated by mobile number, both within the file and against exi
 
 Business rules are pure functions in `lib/crm/rules.ts`, with unit tests. Every mutation goes through `lib/crm/service.ts`, which re-checks permission and lead visibility and writes the audit trail.
 
+### Admission verification checkpoint (§7.4)
+
+When a lead's decision is **Confirmed**, its page shows the six-step checkpoint, and `/crm/verification` lists every admission in progress, with "waiting on you" rows first.
+
+| Step | Signed off by | How |
+|---|---|---|
+| 1 Application completed | Admission counsellor (or manager) | Sign-off button |
+| 2 Documents verified | Admission office | Checklist (Received / Verified / N/A for "if applicable" items / Rejected with reason). Configurable per program in `content/sample.ts → documentChecklist` |
+| 3 Fee payment confirmed | Accounts | Payments recorded by the front desk or admission office wait for Accounts approval; payments Accounts records are approved as they are recorded. Needs an approved payment and nothing still pending |
+| 4 Official receipt | Accounts | "Generate official receipt" numbers every approved payment (`BJC/2027-28/00001`), with a printable receipt on the letterhead at `/crm/receipts/[id]` |
+| 5 Student record | Admin office | Legal name, DOB, gender, program, stay, guardian |
+| 6 College ID | Admin office | **Disabled until 1–5 are signed off.** Format configurable (`numbering.collegeId`, e.g. `BJC-2027-JEE-0001`), sequence per year + program. Marks the lead Admitted |
+
+Each sign-off happens once (a second attempt is refused) and is written to the audit trail with who and when. Receipt numbers and College IDs come from atomic counters. In Supabase the gate is enforced again inside `issue_college_id()`, so it holds even if someone bypasses the app.
+
+**Reversing a wrong sign-off:**
+- **Who requests:** the step's owner or a manager clicks "Request reversal" with a reason.
+- **Who approves:** a *different* manager (Super Admin, Management or Admission Manager). Self-approval is refused in the app and in the database.
+- **What clears:** approving removes that sign-off plus the sign-offs that depended on it: application → student record, fee → receipt. A removed student record is copied into the audit trail first.
+- **What never changes:** issued receipt numbers stay valid, payments are never deleted, and nothing can be reversed after a College ID is issued.
+
+**Not yet (verification):** a PDF file with WhatsApp/email delivery of receipts (today: print / save as PDF), payment gateway auto-confirmation, DigiLocker fetch, cancelling an issued receipt, and the Student & Parent app login that the College ID unlocks.
+
 **Not yet:** direct .xlsx upload, Kanban view, a data-quality report (category mix by school and source), click-to-call telephony and recordings, WhatsApp/SMS templates and campaigns, the AI-handoff chat inbox, the verification checkpoint (documents → fee → receipt → student record → College ID), the staff mobile app, role switching UI, 2FA, and the 7 PM report (§8 is missing from the brief).
 
 ## Before launch: the college must provide

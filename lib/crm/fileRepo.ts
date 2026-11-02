@@ -1,5 +1,6 @@
 import { randomUUID } from 'node:crypto';
 import { pushAudit, tx, type FileLead, type FileVisit } from '../store/file';
+import { createFileVerifyRepo } from './fileVerifyRepo';
 import type { CrmLead, CrmRepo, LeadCategory, LeadStatus, Touchpoint, VisitRow } from './types';
 
 const toLead = (l: FileLead): CrmLead => ({
@@ -47,6 +48,7 @@ const norm = (s: string) => s.toLowerCase().replace(/\s+/g, '');
 
 export function createFileCrmRepo(): CrmRepo {
   return {
+    ...createFileVerifyRepo(),
     findExistingPhones: (phones) =>
       tx((db) => {
         const wanted = new Set(phones);
