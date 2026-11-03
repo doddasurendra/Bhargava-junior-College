@@ -3,7 +3,8 @@ import { revalidatePath } from 'next/cache';
 import { redirect } from 'next/navigation';
 import { z } from 'zod';
 import { PROGRAM_SLUGS } from '@/content/programs';
-import { clearSession, devLoginEnabled, loginAsDevStaff, loginWithPassword, requireStaff } from '@/lib/crm/auth';
+import { getAuthService } from '@/lib/auth/store';
+import { clearSession, devLoginEnabled, getStaffSession, loginAsDevStaff, loginWithPassword, requestCtx, requireStaff } from '@/lib/crm/auth';
 import { getCrmRepo } from '@/lib/crm/repo';
 import { IMPORT_FIELDS, IMPORT_SOURCES, type ImportField, type ImportSource } from '@/lib/crm/importer';
 import { addSibling, assignLeads, bulkCategory, checkInVisit, CrmError, logCall, previewImport, qualifyLead, recordDecision, recordVisitOutcome, runImport, type ImportPreview } from '@/lib/crm/service';
@@ -44,8 +45,9 @@ async function run(fn: () => Promise<string | void>, paths: string[]): Promise<A
 // ---------------------------------------------------------------- auth
 
 export async function loginDevAction(_: ActionState, fd: FormData): Promise<ActionState> {
-  const err = await loginAsDevStaff(String(fd.get('staffId') ?? ''));
-  if (err) return { error: err };
+  const r = await loginAsDevStaff(String(fd.get('staffId') ?? ''));
+  if (r === 'mfa') redirect('/crm/login/2fa');
+  if (r) return { error: r };
   redirect('/crm');
 }
 
@@ -53,12 +55,16 @@ export async function loginPasswordAction(_: ActionState, fd: FormData): Promise
   const email = str(fd, 'email');
   const password = typeof fd.get('password') === 'string' ? String(fd.get('password')) : '';
   if (!email || !password) return { error: 'Enter your email and password.' };
-  const err = await loginWithPassword(email, password);
-  if (err) return { error: err };
+  if (email.length > 254 || password.length > 200) return { error: 'Email or password is incorrect.' };
+  const r = await loginWithPassword(email, password);
+  if (r === 'mfa') redirect('/crm/login/2fa');
+  if (r) return { error: r };
   redirect('/crm');
 }
 
 export async function logoutAction() {
+  const user = await getStaffSession();
+  if (user) await getAuthService().logout(user.id, requestCtx());
   clearSession();
   redirect('/crm/login');
 }

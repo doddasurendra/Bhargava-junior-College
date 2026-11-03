@@ -48,7 +48,17 @@ The schema has roles (20, pending §9A), profiles, `leads` (one active row per p
 
 ## Admissions CRM (`/crm`), in progress
 
-Open http://localhost:3000/crm. In local development (no Supabase) you sign in by picking one of the sample staff (brief §3.6), with no password. If the store is empty, **Load demo leads** fills every queue. With Supabase configured, staff sign in with email and password through Supabase Auth, and every attempt is written to `login_audit`. The session is a signed, 10-hour, httpOnly cookie (`SESSION_SECRET`).
+Open http://localhost:3000/crm. In local development (no Supabase) you sign in by picking one of the sample staff (brief §3.6), with no password. If the store is empty, **Load demo leads** fills every queue. With Supabase configured, staff sign in with email and password through Supabase Auth. The session is a signed, 10-hour, httpOnly cookie (`SESSION_SECRET`).
+
+### Staff sign-in and 2FA (`lib/auth/`)
+
+- **Two-step verification is required for Super Admin, Management and Accounts** (anyone with one of those roles). It uses any authenticator app with standard TOTP codes (6 digits, 30 seconds). On their first sign-in they scan a QR code, confirm one code and get **8 single-use recovery codes**, shown once only. Every later sign-in asks for a code. Other staff can turn 2FA on, and later off, from **My account**. The dev picker skips only the password; 2FA still applies.
+- **Lockout:** after 5 wrong passwords or codes in a row, the account is locked for 15 minutes, unless a Super Admin unlocks it sooner. "Wrong email" and "wrong password" get the same message, so the form doesn't reveal who has an account.
+- **Replay protection:** a code can't be reused, and ±30 s of phone clock drift is accepted. TOTP secrets are stored encrypted with AES-256-GCM (`MFA_ENCRYPTION_KEY`, or derived from `SESSION_SECRET`), and recovery codes are stored only as hashes.
+- **Login audit:** every step is recorded, success or failure, with the reason, IP address and device. That covers password, dev picker, 2FA code, recovery code, 2FA setup, sign-out and admin actions. **Security** (`/crm/security`, Super Admin and Management) shows it next to everyone's 2FA status, recovery codes left and locks. A failed audit write is logged loudly but doesn't block the sign-in.
+- **Lost phone:** sign in with a recovery code, or ask *another* Super Admin to **Reset 2FA**. That needs a reason, is audited, signs the user out everywhere, and makes them set up 2FA again at their next sign-in. A Super Admin can't reset their own 2FA, so keep at least two Super Admins, or keep the recovery codes safe.
+- **Sessions:** **My account → Sign out everywhere else** ends every other session. A session cookie without the 2FA step completed is refused for 2FA roles, even if it is still valid. So existing Accounts and Super Admin sessions have to sign in again after this release.
+- Supabase: `supabase/migrations/20261103050000_staff_auth.sql` (the `staff_auth` table, extra `login_audit` columns, and atomic RPCs for failure counting, code replay and recovery codes).
 
 | Built (brief §7) | Where |
 |---|---|
@@ -227,7 +237,7 @@ Code: `lib/whatsapp/`. Templates live in `lib/whatsapp/templates.ts`, the single
 - Hostel check-in alerts and the Sunday parent report (student app phase).
 - SMS fallback.
 
-**Not yet:** direct .xlsx upload, Kanban view, a data-quality report (category mix by school and source), click-to-call telephony and recordings, WhatsApp/SMS templates and campaigns, the AI-handoff chat inbox, the verification checkpoint (documents → fee → receipt → student record → College ID), the staff mobile app, role switching UI, 2FA, and the 7 PM report (§8 is missing from the brief).
+**Not yet:** direct .xlsx upload, Kanban view, a data-quality report (category mix by school and source), click-to-call telephony and recordings, WhatsApp/SMS templates and campaigns, the AI-handoff chat inbox, the verification checkpoint (documents → fee → receipt → student record → College ID), the staff mobile app, role switching UI, and the 7 PM report (§8 is missing from the brief).
 
 ## Before launch: the college must provide
 

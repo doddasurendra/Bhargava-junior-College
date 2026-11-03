@@ -1,17 +1,25 @@
 import 'server-only';
-import { createClient } from '@supabase/supabase-js';
-import { cookies } from 'next/headers';
+import { cookies, headers } from 'next/headers';
 import { redirect } from 'next/navigation';
+import { getAuthService, getPasswordVerifier } from '../auth/store';
+import type { Ctx, FirstStep } from '../auth/service';
 import { can, type Permission } from './permissions';
 import { getCrmRepo, usingSupabase } from './repo';
-import { decodeSession, encodeSession, SESSION_COOKIE, SESSION_MAX_AGE_S } from './session';
+import { decodeToken, encodeToken, MFA_COOKIE, MFA_MAX_AGE_S, SESSION_COOKIE, SESSION_MAX_AGE_S } from './session';
 import type { Staff } from './types';
 
+export function requestCtx(): Ctx {
+  const h = headers();
+  const ip = h.get('x-forwarded-for')?.split(',')[0]?.trim() || h.get('x-real-ip') || null;
+  return { ip, userAgent: h.get('user-agent') };
+}
+
 export async function getStaffSession(): Promise<Staff | null> {
-  const id = decodeSession(cookies().get(SESSION_COOKIE)?.value);
-  if (!id) return null;
-  const staff = await getCrmRepo().getStaff(id);
-  return staff && staff.active && staff.roles.length > 0 ? staff : null;
+  const claims = decodeToken(cookies().get(SESSION_COOKIE)?.value, 'crm');
+  if (!claims) return null;
+  const staff = await getCrmRepo().getStaff(claims.sub);
+  if (!staff || !staff.active || staff.roles.length === 0) return null;
+  return (await getAuthService().sessionValid(staff, claims)) ? staff : null;
 }
 
 /** For pages and server actions. Redirects to login when signed out; throws when not permitted. */
@@ -22,53 +30,45 @@ export async function requireStaff(perm?: Permission): Promise<Staff> {
   return staff;
 }
 
-function setSession(staffId: string) {
-  cookies().set(SESSION_COOKIE, encodeSession(staffId), {
-    httpOnly: true,
-    sameSite: 'lax',
-    secure: process.env.NODE_ENV === 'production',
-    path: '/',
-    maxAge: SESSION_MAX_AGE_S,
-  });
+const cookieOpts = (maxAge: number) => ({ httpOnly: true, sameSite: 'lax' as const, secure: process.env.NODE_ENV === 'production', path: '/', maxAge });
+
+export function setSession(staffId: string, sv: number, mfa: boolean) {
+  cookies().set(SESSION_COOKIE, encodeToken({ sub: staffId, sv, mfa }, 'crm', SESSION_MAX_AGE_S), cookieOpts(SESSION_MAX_AGE_S));
+  cookies().delete(MFA_COOKIE);
 }
 
 export function clearSession() {
   cookies().delete(SESSION_COOKIE);
+  cookies().delete(MFA_COOKIE);
+}
+
+/** Password accepted, second factor still to come. */
+export function getPendingMfa(): string | null {
+  return decodeToken(cookies().get(MFA_COOKIE)?.value, 'mfa')?.sub ?? null;
 }
 
 export const devLoginEnabled = () => process.env.NODE_ENV === 'development' && !usingSupabase();
 
-/** Development only: sign in as one of the sample staff, no password. */
-export async function loginAsDevStaff(staffId: string): Promise<string | null> {
+/** null = signed in · 'mfa' = go to the 2FA step · otherwise an error message */
+function finishFirstStep(r: FirstStep): string | 'mfa' | null {
+  if (r.kind === 'error') return r.message;
+  if (r.kind === 'mfa') {
+    cookies().delete(SESSION_COOKIE);
+    cookies().set(MFA_COOKIE, encodeToken({ sub: r.staffId }, 'mfa', MFA_MAX_AGE_S), cookieOpts(MFA_MAX_AGE_S));
+    return 'mfa';
+  }
+  setSession(r.staffId, r.sv, false);
+  return null;
+}
+
+/** Development only: sign in as one of the sample staff without a password. 2FA still applies. */
+export async function loginAsDevStaff(staffId: string): Promise<string | 'mfa' | null> {
   if (!devLoginEnabled()) return 'Developer sign-in is disabled.';
-  const staff = await getCrmRepo().getStaff(staffId);
-  if (!staff) return 'Unknown staff member.';
-  setSession(staff.id);
-  console.info(`[login] dev sign-in as ${staff.fullName}`);
-  return null;
+  return finishFirstStep(await getAuthService().devLogin(staffId, requestCtx()));
 }
 
-/** Supabase Auth email + password. The session itself is our own signed cookie. */
-export async function loginWithPassword(email: string, password: string): Promise<string | null> {
-  const url = process.env.SUPABASE_URL;
-  const anon = process.env.SUPABASE_ANON_KEY;
-  if (!url || !anon) return 'Sign-in is not configured.';
-  const sb = createClient(url, anon, { auth: { persistSession: false, autoRefreshToken: false } });
-  const { data, error } = await sb.auth.signInWithPassword({ email, password });
-  await recordLogin(email, data.user?.id ?? null, !error);
-  if (error || !data.user) return 'Email or password is incorrect.';
-  const staff = await getCrmRepo().getStaff(data.user.id);
-  if (!staff || !staff.active || staff.roles.length === 0) return 'This account has no CRM access. Contact the admin office.';
-  // TODO(§9A): enforce 2FA for super_admin, management and accounts before issuing the session.
-  setSession(staff.id);
-  return null;
-}
-
-async function recordLogin(email: string, userId: string | null, success: boolean) {
-  const url = process.env.SUPABASE_URL;
-  const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
-  if (!url || !key) return;
-  const sb = createClient(url, key, { auth: { persistSession: false } });
-  const { error } = await sb.from('login_audit').insert({ email: email.toLowerCase(), user_id: userId, success });
-  if (error) console.error('[login] audit write failed', error.message);
+export async function loginWithPassword(email: string, password: string): Promise<string | 'mfa' | null> {
+  const verify = getPasswordVerifier();
+  if (!verify) return 'Sign-in is not configured.';
+  return finishFirstStep(await getAuthService().passwordLogin(email, password, verify, requestCtx()));
 }

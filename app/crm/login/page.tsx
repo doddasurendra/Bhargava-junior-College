@@ -3,6 +3,7 @@ import { redirect } from 'next/navigation';
 import { DevLoginForm, PasswordLoginForm } from '@/components/crm/forms';
 import { Crest } from '@/components/ui';
 import { college } from '@/content/college';
+import { requiresMfa } from '@/lib/auth/service';
 import { devLoginEnabled, getStaffSession } from '@/lib/crm/auth';
 import { getCrmRepo } from '@/lib/crm/repo';
 import { ROLE_LABELS } from '@/lib/crm/types';
@@ -28,8 +29,8 @@ export default async function LoginPage() {
           {dev ? (
             <>
               <p className="mb-1 font-semibold text-heading">Local development: sign in as</p>
-              <p className="mb-4 text-xs text-muted">Sample staff from the brief. In production, staff sign in with email and password (Supabase Auth).</p>
-              <DevLoginForm staff={staff.map((s) => ({ id: s.id, name: s.fullName, role: s.roles.map((r) => ROLE_LABELS[r]).join(', ') }))} />
+              <p className="mb-4 text-xs text-muted">Sample staff from the brief. This skips the password only: roles marked 2FA still need a code from an authenticator app. In production, staff sign in with email and password (Supabase Auth).</p>
+              <DevLoginForm staff={staff.map((s) => ({ id: s.id, name: s.fullName, role: s.roles.map((r) => ROLE_LABELS[r]).join(', ') + (requiresMfa(s) ? ' · 2FA' : '') }))} />
             </>
           ) : (
             <PasswordLoginForm />

@@ -23,6 +23,7 @@ export default async function CrmShell({ children }: { children: ReactNode }) {
     ...(can(user, 'lead.import') ? [{ href: '/crm/import', label: 'Import leads' }] : []),
     ...(can(user, 'whatsapp.setup') ? [{ href: '/crm/assistant', label: 'AI assistant' }] : []),
     ...(can(user, 'whatsapp.setup') ? [{ href: '/crm/whatsapp', label: 'WhatsApp setup' }] : []),
+    ...(can(user, 'security.view') ? [{ href: '/crm/security', label: 'Security' }] : []),
   ];
   return (
     <div className="lg:grid lg:min-h-screen lg:grid-cols-[232px_1fr] print:block">
@@ -46,9 +47,14 @@ export default async function CrmShell({ children }: { children: ReactNode }) {
         <div className="hidden border-t border-white/10 px-5 py-4 lg:block">
           <p className="text-sm font-semibold text-white">{user.fullName}</p>
           <p className="text-xs text-white/60">{user.roles.map((r) => ROLE_LABELS[r]).join(' · ')}</p>
-          <form action={logoutAction} className="mt-3">
-            <button className="text-xs text-white/70 underline hover:text-white">Sign out</button>
-          </form>
+          <div className="mt-3 flex gap-4">
+            <Link href="/crm/account" className="text-xs text-white/70 underline hover:text-white">
+              My account
+            </Link>
+            <form action={logoutAction}>
+              <button className="text-xs text-white/70 underline hover:text-white">Sign out</button>
+            </form>
+          </div>
         </div>
       </aside>
       <div className="min-w-0">
@@ -57,7 +63,9 @@ export default async function CrmShell({ children }: { children: ReactNode }) {
             Every lead tracked · every parent followed up on time · every visit with an outcome · every admission verified
           </p>
           <div className="flex shrink-0 items-center gap-2">
-            <span className="text-sm text-muted lg:hidden">{user.fullName}</span>
+            <Link href="/crm/account" className="text-sm text-muted underline lg:hidden">
+              {user.fullName}
+            </Link>
             <form action={logoutAction} className="lg:hidden">
               <button className="text-xs underline">Sign out</button>
             </form>

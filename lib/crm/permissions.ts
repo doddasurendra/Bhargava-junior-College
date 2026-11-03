@@ -28,6 +28,10 @@ const RULES = {
   'visit.view': [...SEE_ALL_LEADS, 'telecaller', 'admission_counsellor'],
   'visit.checkin': [...MANAGE, 'front_desk', 'telecaller'],
   'visit.outcome': [...MANAGE, 'front_desk', 'admission_counsellor'],
+  /** login audit and everyone's 2FA status */
+  'security.view': ['super_admin', 'management'],
+  /** reset someone's 2FA, unlock an account */
+  'security.manage': ['super_admin'],
 } satisfies Record<string, Role[]>;
 
 export type Permission = keyof typeof RULES;

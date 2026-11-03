@@ -1,8 +1,13 @@
 import { createHmac, timingSafeEqual } from 'node:crypto';
 
-/** Signed, expiring staff session token: base64url(json).hmac — no framework imports, unit tested. */
+/** Signed, expiring session tokens: base64url(json).hmac — no framework imports, unit tested. */
 export const SESSION_COOKIE = 'bjc_staff';
 export const SESSION_MAX_AGE_S = 10 * 60 * 60; // one working day
+/** Between the password and the 2FA code. */
+export const MFA_COOKIE = 'bjc_staff_mfa';
+export const MFA_MAX_AGE_S = 10 * 60;
+/** New recovery codes on their way to the page that shows them once. */
+export const RC_COOKIE = 'bjc_rc';
 
 function secret(): string {
   const s = process.env.SESSION_SECRET;
@@ -12,15 +17,26 @@ function secret(): string {
 
 const sign = (body: string) => createHmac('sha256', secret()).update(body).digest('base64url');
 
-/** `aud` separates staff CRM sessions from Student & Parent app sessions: neither token works for the other. */
-export type Audience = 'crm' | 'app';
+/**
+ * `aud` separates token kinds — a staff CRM session, a half-finished staff sign-in waiting for its 2FA code,
+ * and a Student & Parent app session. None works as another.
+ */
+export type Audience = 'crm' | 'app' | 'mfa';
 
-export function encodeSession(sub: string, now = Date.now(), aud: Audience = 'crm', maxAgeS = SESSION_MAX_AGE_S): string {
-  const body = Buffer.from(JSON.stringify({ sub, aud, exp: Math.floor(now / 1000) + maxAgeS })).toString('base64url');
+export interface Claims {
+  sub: string;
+  /** staff: session version — bumped to sign out everywhere */
+  sv?: number;
+  /** staff: second factor completed */
+  mfa?: boolean;
+}
+
+export function encodeToken(claims: Claims, aud: Audience, maxAgeS: number, now = Date.now()): string {
+  const body = Buffer.from(JSON.stringify({ ...claims, aud, exp: Math.floor(now / 1000) + maxAgeS })).toString('base64url');
   return `${body}.${sign(body)}`;
 }
 
-export function decodeSession(token: string | undefined, now = Date.now(), aud: Audience = 'crm'): string | null {
+export function decodeToken(token: string | undefined, aud: Audience, now = Date.now()): Claims | null {
   if (!token) return null;
   const [body, sig] = token.split('.');
   if (!body || !sig) return null;
@@ -28,11 +44,19 @@ export function decodeSession(token: string | undefined, now = Date.now(), aud: 
   const given = Buffer.from(sig);
   if (expected.length !== given.length || !timingSafeEqual(expected, given)) return null;
   try {
-    const { sub, exp, aud: tokenAud } = JSON.parse(Buffer.from(body, 'base64url').toString());
+    const { sub, exp, aud: tokenAud, sv, mfa } = JSON.parse(Buffer.from(body, 'base64url').toString());
     if (typeof sub !== 'string' || typeof exp !== 'number' || exp * 1000 < now) return null;
     if ((tokenAud ?? 'crm') !== aud) return null;
-    return sub;
+    return { sub, sv: typeof sv === 'number' ? sv : 0, mfa: mfa === true };
   } catch {
     return null;
   }
+}
+
+export function encodeSession(sub: string, now = Date.now(), aud: Audience = 'crm', maxAgeS = SESSION_MAX_AGE_S): string {
+  return encodeToken({ sub }, aud, maxAgeS, now);
+}
+
+export function decodeSession(token: string | undefined, now = Date.now(), aud: Audience = 'crm'): string | null {
+  return decodeToken(token, aud, now)?.sub ?? null;
 }
