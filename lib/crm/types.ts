@@ -245,6 +245,17 @@ export interface CrmRepo extends VerifyRepo {
   /** Create new leads or merge into existing ones (fill blanks only), recording one import batch. */
   importLeads(records: ImportRecord[], meta: ImportMeta): Promise<{ batchId: string; created: number; merged: number }>;
   listImportBatches(limit?: number): Promise<ImportBatch[]>;
+  /**
+   * Everything the management dashboard needs: all active leads (current state), and calls, audit entries,
+   * sign-offs since `sinceIso`, plus visits created since then or still awaiting an outcome.
+   */
+  exportForMetrics(sinceIso: string): Promise<{
+    leads: CrmLead[];
+    calls: CallLog[];
+    audit: AuditEntry[];
+    visits: VisitRow[];
+    signOffs: { leadId: string; stage: string; at: string }[];
+  }>;
   listStaff(): Promise<Staff[]>;
   getStaff(id: string): Promise<Staff | null>;
   listLeads(filter: LeadFilter): Promise<CrmLead[]>;

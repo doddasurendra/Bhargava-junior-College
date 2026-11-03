@@ -97,6 +97,16 @@ export const TEMPLATES = [
     manual: true,
   },
   {
+    key: 'daily_report',
+    name: 'bjc_daily_report',
+    category: 'utility',
+    language: 'en',
+    description: 'The 7 PM admissions report, sent to management.',
+    body: 'Bhargava admissions, {{1}}: {{2}} new leads, {{3}} visits held, {{4}} admissions confirmed today. {{5}} follow-ups overdue 48h+, {{6}} visits without an outcome. Full report: {{7}}',
+    params: ['Date', 'New leads', 'Visits held', 'Confirmed', 'Overdue 48h+', 'Visits without outcome', 'Report link'],
+    manual: false,
+  },
+  {
     key: 'otp',
     name: 'bjc_otp',
     category: 'authentication',

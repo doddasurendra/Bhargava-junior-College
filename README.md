@@ -87,6 +87,31 @@ Each sign-off happens once (a second attempt is refused) and is written to the a
 
 **Not yet (verification):** a PDF file with WhatsApp/email delivery of receipts (today: print / save as PDF), payment gateway auto-confirmation, DigiLocker fetch, cancelling an issued receipt, and the Student & Parent app login that the College ID unlocks.
 
+## Management dashboard and the 7 PM report
+
+**`/crm/dashboard`** is for Super Admin, Management, Principal and the Admission Manager. One period filter (**Today / Month to date / Season to date**, India time; season start is `admissionsSeason` in `content/sample.ts`) scopes everything below it.
+
+| Section | What it shows |
+|---|---|
+| Right now | Live backlog: open, overdue, **overdue 48h+**, visits without outcome, unassigned, unqualified, pending decisions, in verification. Each tile links to the matching queue |
+| Admission funnel | New leads → called → visits booked → held → confirmed → fee confirmed → College ID, with stage-to-stage %, calls/connect rate and no-shows. Hover a row for its definition |
+| Last 30 days | Daily new leads, visits held and confirmations (line chart, one axis, table view) |
+| Accountability by owner | Per telecaller/counsellor: open leads, calls, connect rate, overdue, **48h+**, visits booked, confirmed. Worst first |
+| Overdue 48h+ | The leads §7.3 says go to management, with owner and how late |
+| Where admissions are lost | Loss reasons, losses after a visit, and the competitors named |
+| Lead sources | Leads by source and how many went on to visit or be confirmed |
+| Data quality | Hot/Warm/Cold/Invalid/Unqualified mix by source and by school (§7.1) |
+
+Chart colours were validated with the dataviz palette checker (colour-blind separation, lightness band, contrast) for the light (`#ffffff`) and dark (`#151c3d`) surfaces. They live as `--viz-*` tokens in `app/globals.css`. Every chart has hover values and a table view, and status tiles use an icon and a label, never colour alone.
+
+**7 PM report:**
+- **Schedule:** call `/api/cron/daily-report` daily at **13:30 UTC (19:00 IST)** with `Authorization: Bearer $CRON_SECRET`.
+- **Snapshot:** it stores a snapshot (today, month to date, season) that never changes afterwards. Read it at `/crm/reports/<date>`, printable as a PDF.
+- **WhatsApp:** template `bjc_daily_report` goes to every active Super Admin, Management or Principal user who has a mobile number. It's safe to re-run: the snapshot is replaced, but nobody gets the message twice.
+- **Preview:** "Preview today's report" builds the snapshot without sending.
+
+**Caveat:** §8 of the brief (dashboard metrics) was cut off in the copy we received. These metrics are derived from §6.8 and §7.1–7.5, and their definitions live in `lib/crm/metrics.ts` (unit tested), so they're easy to change.
+
 ## Chat: website assistant and handoff inbox
 
 **Website widget** ("Ask admissions", on every public page):

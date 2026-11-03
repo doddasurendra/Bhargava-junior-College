@@ -235,6 +235,38 @@ export async function seedDemoAction(_: ActionState, _fd: FormData): Promise<Act
       owner ? [{ action: 'assigned', field: 'owner', newValue: owner, reason: 'demo data' }] : [],
     );
   }
+  // Calls, schools, a confirmed admission and two losses, so the management dashboard has something to show.
+  const all = await repo.listLeads({});
+  const outcomes = ['connected', 'not_answered', 'connected', 'busy', 'switched_off'] as const;
+  for (const [i, l] of all.entries()) {
+    if (!l.ownerId) continue;
+    const outcome = outcomes[i % outcomes.length];
+    await repo.addCall({ leadId: l.id, actorId: l.ownerId, outcome, interest: outcome === 'connected' ? l.category : null, notes: 'demo call', nextFollowUpAt: l.nextFollowUpAt });
+  }
+  const schoolRow = (n: number, school: string, program: (typeof PROGRAM_SLUGS)[number]) => ({
+    line: n + 1,
+    phone: `+9190000${String(20000 + n).slice(-5)}`,
+    studentPhone: null,
+    studentName: `Demo Student ${n}`,
+    parentName: `Demo Parent ${n}`,
+    school,
+    classLevel: 'Class 10',
+    board: 'SSC',
+    area: null,
+    program,
+    note: null,
+  });
+  await repo.importLeads(
+    [schoolRow(1, 'ZPHS Saroornagar', 'iit-jee'), schoolRow(2, 'ZPHS Saroornagar', 'neet'), schoolRow(3, 'ZPHS Saroornagar', 'iit-jee'), schoolRow(4, 'Little Flower High School', 'neet'), schoolRow(5, 'Little Flower High School', 'iit-jee')],
+    { fileName: 'demo-schools.csv', source: 'school_data', actorId: 'staff-manager', totalRows: 5, invalid: 0, duplicatesInFile: 0 },
+  );
+  const imported = await repo.listLeads({ source: 'school_data' });
+  for (const [i, l] of imported.entries()) await repo.updateLead(l.id, { category: (['hot', 'cold', 'invalid', 'warm', null] as const)[i % 5] }, []);
+  const owned = all.filter((l) => l.ownerId);
+  if (owned[0]) await repo.updateLead(owned[0].id, { status: 'confirmed', stage: 'counselling' }, [{ action: 'decision', actorId: 'staff-anil', field: 'status', oldValue: 'visited', newValue: 'confirmed' }]);
+  if (owned[1]) await repo.updateLead(owned[1].id, { status: 'lost', lostReason: 'competitor', lostCompetitor: 'XYZ Junior College', nextFollowUpAt: null }, [{ action: 'decision', actorId: 'staff-anil', field: 'status', oldValue: 'visited', newValue: 'lost', reason: 'competitor: XYZ Junior College' }]);
+  if (owned[2]) await repo.updateLead(owned[2].id, { status: 'lost', lostReason: 'fees', nextFollowUpAt: null }, [{ action: 'status_changed', actorId: owned[2].ownerId, field: 'status', oldValue: 'open', newValue: 'lost', reason: 'fees' }]);
+
   const today = todayIST();
   await store.createVisit({ name: names[0], phone: '+919000010000', consent: true, date: today, slot: '10:00', familySize: 3, program: 'iit-jee' });
   await store.createVisit({ name: names[1], phone: '+919000010001', consent: true, date: addDays(today, -1), slot: '11:30', familySize: 2, program: 'neet' });

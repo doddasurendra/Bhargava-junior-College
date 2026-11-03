@@ -8,6 +8,7 @@ import type { DocRow, PaymentRow, ReversalRow, StageSignOff, StudentRow } from '
 import type { InboundRow, OutboundMessage } from '../whatsapp/types';
 import type { ConvMessage, Conversation } from '../chat/types';
 import type { AssistantTurnRow } from '../assistant/analytics';
+import type { DailyReport } from '../crm/reports';
 import { StoreError, type AdmissionRecord, type LeadInput, type OtpRecord, type Store } from './types';
 
 /**
@@ -78,12 +79,13 @@ export interface DB {
   conversations: Conversation[];
   convMessages: ConvMessage[];
   assistantTurns: AssistantTurnRow[];
+  dailyReports: DailyReport[];
   counters: Record<string, number>;
   seq: { bsat: number };
 }
 
 const FILE = path.join(process.cwd(), '.data', 'dev-db.json');
-const empty = (): DB => ({ leads: [], touchpoints: [], visits: [], bsat: [], otps: [], staff: [], calls: [], audit: [], importBatches: [], signOffs: [], documents: [], payments: [], students: [], reversals: [], waMessages: [], waInbound: [], waOptOuts: [], conversations: [], convMessages: [], assistantTurns: [], counters: {}, seq: { bsat: 0 } });
+const empty = (): DB => ({ leads: [], touchpoints: [], visits: [], bsat: [], otps: [], staff: [], calls: [], audit: [], importBatches: [], signOffs: [], documents: [], payments: [], students: [], reversals: [], waMessages: [], waInbound: [], waOptOuts: [], conversations: [], convMessages: [], assistantTurns: [], dailyReports: [], counters: {}, seq: { bsat: 0 } });
 
 async function load(): Promise<DB> {
   let db: DB;

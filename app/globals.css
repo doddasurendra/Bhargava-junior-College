@@ -11,6 +11,26 @@
   color-scheme: light;
 }
 
+/* Chart tokens — validated with the dataviz palette validator against #ffffff (light) and #151c3d (dark). */
+:root {
+  --viz-1: #2a78d6;
+  --viz-2: #a8822a;
+  --viz-3: #c0405a;
+  --viz-4: #1a9e70;
+  --viz-neutral: #d5d4cc;
+  --viz-grid: #e8e7e1;
+  --viz-axis: #c3c2b7;
+}
+.dark {
+  --viz-1: #3a82dc;
+  --viz-2: #ad8a2e;
+  --viz-3: #d2577f;
+  --viz-4: #199e70;
+  --viz-neutral: #4a5285;
+  --viz-grid: #262e58;
+  --viz-axis: #3b4373;
+}
+
 .dark {
   --bg: 12 17 41;
   --surface: 21 28 61;

@@ -161,6 +161,9 @@ export const numbering = {
   receipt: { prefix: 'BJC', academicYear: '2027-28', seqDigits: 5 },
 };
 
+/** Admissions season for "season to date" on the management dashboard. */
+export const admissionsSeason = { sample: true, label: '2027–29 intake', start: '2026-09-01' };
+
 /** Public URLs of the program brochure PDFs, sent as the WhatsApp document header. null = not available yet. */
 export const brochures = {
   sample: true,

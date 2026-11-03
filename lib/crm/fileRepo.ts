@@ -118,6 +118,18 @@ export function createFileCrmRepo(): CrmRepo {
         return { batchId, created, merged };
       }),
 
+    exportForMetrics: (since) =>
+      tx(
+        (db) => ({
+          leads: db.leads.map(toLead),
+          calls: db.calls.filter((c) => c.createdAt >= since),
+          audit: db.audit.filter((a) => a.at >= since),
+          visits: db.visits.filter((v) => v.createdAt >= since || v.status === 'scheduled' || v.status === 'arrived' || (v.outcomeAt ?? '') >= since).map(toVisit),
+          signOffs: db.signOffs.filter((s) => s.at >= since).map((s) => ({ leadId: s.leadId, stage: s.stage, at: s.at })),
+        }),
+        false,
+      ),
+
     listImportBatches: (limit = 20) => tx((db) => [...db.importBatches].sort((a, b) => b.createdAt.localeCompare(a.createdAt)).slice(0, limit), false),
 
     listStaff: () => tx((db) => db.staff.filter((s) => s.active), false),

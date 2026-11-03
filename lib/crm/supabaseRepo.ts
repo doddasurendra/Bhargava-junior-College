@@ -139,6 +139,32 @@ export function createSupabaseCrmRepo(url: string, serviceKey: string): CrmRepo 
       return { batchId: batch.id, created, merged };
     },
 
+    async exportForMetrics(since) {
+      // PostgREST caps rows per request; page through.
+      const all = async (build: (from: number, to: number) => PromiseLike<{ data: Row[] | null; error: { message: string } | null }>) => {
+        const out: Row[] = [];
+        for (let from = 0; ; from += 1000) {
+          const page = rows(await build(from, from + 999));
+          out.push(...page);
+          if (page.length < 1000) return out;
+        }
+      };
+      const [leads, calls, audit, visits, signOffs] = await Promise.all([
+        all((a, b) => sb.from('leads').select('*').is('merged_into', null).order('created_at').range(a, b)),
+        all((a, b) => sb.from('call_logs').select('*').gte('created_at', since).order('created_at').range(a, b)),
+        all((a, b) => sb.from('lead_audit').select('*').gte('at', since).in('action', ['decision', 'status_changed', 'visit_no_show']).order('at').range(a, b)),
+        all((a, b) => sb.from('visits').select('*').or(`created_at.gte."${since}",outcome_at.gte."${since}",status.in.(scheduled,arrived)`).order('created_at').range(a, b)),
+        all((a, b) => sb.from('admission_stage_events').select('lead_id, stage, completed_at').gte('completed_at', since).order('completed_at').range(a, b)),
+      ]);
+      return {
+        leads: leads.map(toLead),
+        calls: calls.map((r) => ({ id: r.id, leadId: r.lead_id, actorId: r.actor_id, outcome: r.outcome, interest: r.interest, notes: null, nextFollowUpAt: r.next_follow_up_at, createdAt: r.created_at })),
+        audit: audit.map((r) => ({ id: String(r.id), leadId: r.lead_id, actorId: r.actor_id, action: r.action, field: r.field, oldValue: r.old_value, newValue: r.new_value, reason: r.reason, at: r.at })),
+        visits: visits.map(toVisit),
+        signOffs: signOffs.map((r) => ({ leadId: r.lead_id, stage: r.stage, at: r.completed_at })),
+      };
+    },
+
     async listImportBatches(limit = 20) {
       return rows(await sb.from('import_batches').select('*').order('created_at', { ascending: false }).limit(limit)).map((r: Row) => ({
         id: r.id,

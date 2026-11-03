@@ -14,6 +14,7 @@ export default async function CrmShell({ children }: { children: ReactNode }) {
   const user = await requireStaff();
   const inbox = await inboxCounts(user);
   const nav = [
+    ...(can(user, 'dashboard.view') ? [{ href: '/crm/dashboard', label: 'Dashboard' }] : []),
     { href: '/crm', label: 'My tasks' },
     ...(can(user, 'inbox.reply') ? [{ href: '/crm/inbox', label: `Chat inbox${inbox.waiting + inbox.unreadMine > 0 ? ` (${inbox.waiting + inbox.unreadMine})` : ''}` }] : []),
     { href: '/crm/leads', label: can(user, 'lead.viewAll') ? 'All leads' : 'My leads' },
@@ -24,8 +25,8 @@ export default async function CrmShell({ children }: { children: ReactNode }) {
     ...(can(user, 'whatsapp.setup') ? [{ href: '/crm/whatsapp', label: 'WhatsApp setup' }] : []),
   ];
   return (
-    <div className="lg:grid lg:min-h-screen lg:grid-cols-[232px_1fr]">
-      <aside className="border-b border-line bg-navy-950 text-white/80 lg:border-b-0">
+    <div className="lg:grid lg:min-h-screen lg:grid-cols-[232px_1fr] print:block">
+      <aside className="border-b border-line bg-navy-950 text-white/80 print:hidden lg:border-b-0">
         <div className="flex items-center justify-between gap-3 px-4 py-3 lg:block lg:px-5 lg:py-6">
           <Link href="/crm" className="flex items-center gap-2.5">
             <Crest size={36} />
@@ -51,7 +52,7 @@ export default async function CrmShell({ children }: { children: ReactNode }) {
         </div>
       </aside>
       <div className="min-w-0">
-        <div className="flex items-center justify-between gap-3 border-b border-line bg-surface px-4 py-2 lg:px-8">
+        <div className="flex items-center justify-between gap-3 border-b border-line bg-surface px-4 py-2 print:hidden lg:px-8">
           <p className="truncate text-xs text-muted">
             Every lead tracked · every parent followed up on time · every visit with an outcome · every admission verified
           </p>
