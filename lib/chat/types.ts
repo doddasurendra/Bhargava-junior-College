@@ -24,6 +24,8 @@ export interface Conversation {
   createdAt: string;
   closedAt: string | null;
   closeNote: string | null;
+  /** when the visitor agreed (DPDP) to their details being saved — set by an explicit UI action, never by the model */
+  consentAt?: string | null;
 }
 
 export interface ConvMessage {
@@ -42,7 +44,7 @@ export interface ConversationStore {
   get(id: string): Promise<Conversation | null>;
   /** the open (not closed) conversation for a WhatsApp number */
   findOpenByPhone(phone: string): Promise<Conversation | null>;
-  update(id: string, patch: Partial<Pick<Conversation, 'status' | 'assigneeId' | 'leadId' | 'contactName' | 'handoffReason' | 'handoffAt' | 'closedAt' | 'closeNote' | 'unread'>>): Promise<void>;
+  update(id: string, patch: Partial<Pick<Conversation, 'status' | 'assigneeId' | 'leadId' | 'contactName' | 'contactPhone' | 'handoffReason' | 'handoffAt' | 'closedAt' | 'closeNote' | 'unread' | 'consentAt'>>): Promise<void>;
   /** Appends and bumps lastMessageAt (and lastInboundAt + unread for messages from the family). */
   addMessage(m: Omit<ConvMessage, 'id' | 'createdAt'> & { createdAt?: string }): Promise<ConvMessage>;
   messages(conversationId: string, after?: string): Promise<ConvMessage[]>;

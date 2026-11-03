@@ -103,7 +103,34 @@ Each sign-off happens once (a second attempt is refused) and is written to the a
 - **Outside office hours:** the family gets an automatic reply, and a **callback is scheduled** on the lead for the next opening (Mon–Fri 7–5, Sat 9–3 IST).
 - **Privacy:** staff-only notes (transfer reasons, close outcomes) are never shown to the family. Visitors see staff first names only, and a visitor's chat is protected by a random token stored only as a hash.
 
-**Not yet (chat):** the AI admission assistant (LLM + RAG + CRM tool calls, the next phase; it plugs into the same conversations as author `bot`), vernacular answers, voice notes and media in the inbox, typing indicators and push notifications (the inbox polls), canned replies, and the chat analytics from §5.
+### AI admission assistant (`lib/assistant/`)
+
+The website chat is answered by Claude (`claude-opus-5-5`, low effort for chat latency) using the **Anthropic TypeScript SDK**.
+- **Knowledge:** answers come **only** from a knowledge base rendered from the same content files as the site (`lib/assistant/knowledge.ts`). It's small, so it sits whole in a prompt-cached system prompt rather than a vector store; move to retrieval once the CMS adds long content. Unconfirmed sample data is labelled so the assistant says "currently listed".
+- **Behaviour:** replies in English, Telugu or Hindi, including romanised Telugu/Hindi. It never promises ranks or seats, and says it doesn't know rather than guessing.
+- **Tools** (strict schemas, re-validated on the server):
+
+  | Tool | What it does |
+  |---|---|
+  | `calculate_fee` | Exact yearly fee for a program, stay, BSAT score and instalment plan |
+  | `get_visit_slots` / `book_visit` | Real slot availability; booking sends the WhatsApp confirmation |
+  | `save_enquiry` | Creates or merges the lead (source `chat`) and returns the counsellor's name |
+  | `register_bsat` | Registers for BSAT and returns the hall ticket number |
+  | `check_application` | Never reveals status; points to the OTP-protected `/track` page |
+  | `handoff_to_counsellor` | Hands the same conversation to the inbox (asks for contact details if missing) |
+  | `note_unanswered` | Logs a question the knowledge base can't answer, for the backlog |
+
+- **Consent (DPDP):** personal details are saved only after the visitor taps **"I agree"**. That button is the only thing that sets consent; the model can't.
+- **Lead scoring:** a booked visit makes the lead **Hot**, and an enquiry or BSAT registration makes it at least **Warm**. Scores never go down.
+- **Safety:**
+  - **Refusals:** server-side refusal fallback is on (`fallbacks: "default"`, beta `server-side-fallback-2026-07-01`). If a request is still refused, the visitor gets a polite reply and an offer of a counsellor.
+  - **Unavailable AI:** if Claude can't be reached (no credentials, network, rate limit, outage) or `ASSISTANT_DISABLED=1`, the rule-based assistant answers that turn, labelled "Quick answer".
+- **Sessions:** each chat is a stored conversation (status `bot`) with a hashed visitor token. History comes from the server, never from the browser; a chat is limited to 40 turns, plus IP rate limits.
+- **Analytics** (`/crm/assistant`, managers): chats, messages, resolution and handoff rate, leads, visits and BSAT registrations created, fallback rate, tool usage, cache hit rate, and **unanswered questions** (phone numbers stripped) to feed back into the content.
+
+**To switch on:** set `ANTHROPIC_API_KEY` (or sign in with `ant auth login`). Every message costs API tokens, roughly a cached ~4k-token prefix plus the conversation per turn. Check `/crm/assistant` for the cache hit rate.
+
+**Not yet (chat):** an eval set and live tuning against real questions, the assistant on WhatsApp (inbound WhatsApp messages still go straight to staff), mobile OTP verification inside the chat before saving, vernacular answers in the rule-based fallback, voice notes and media in the inbox, typing indicators and push notifications (the inbox polls), canned replies, and the chat analytics from §5.
 
 ## WhatsApp (Business Cloud API)
 

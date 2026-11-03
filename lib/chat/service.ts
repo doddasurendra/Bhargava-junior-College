@@ -131,7 +131,39 @@ export async function startWebHandoff(input: WebHandoffInput, now = new Date()) 
   return { conversationId: conv.id, token };
 }
 
-async function visitorConversation(id: string, token: string): Promise<Conversation | null> {
+/** A new assistant session (website chat, before any handoff). */
+export async function startBotConversation() {
+  const token = randomBytes(24).toString('base64url');
+  const conv = await getConversationStore().create({
+    channel: 'web',
+    contactPhone: null,
+    contactName: null,
+    leadId: null,
+    status: 'bot',
+    assigneeId: null,
+    handoffReason: null,
+    handoffAt: null,
+    visitorTokenHash: hashToken(token),
+  });
+  return { conv, token };
+}
+
+/**
+ * Hand an existing assistant conversation to staff. The transcript is already stored, so staff see
+ * exactly what the assistant said. Captures/merges the lead when contact details are given.
+ */
+export async function handoffExisting(conv: Conversation, p: { name: string; phone: string; reason: string; attribution?: Attribution }, now = new Date()) {
+  if (conv.status !== 'bot') return;
+  const st = getConversationStore();
+  const { leadId } = await getStore().captureLead({ name: p.name, phone: p.phone, source: 'chat', consent: true, note: p.reason, attribution: p.attribution });
+  const route = await routeFor(leadId);
+  await st.update(conv.id, { status: route.status, assigneeId: route.assigneeId, leadId, contactName: p.name, contactPhone: p.phone, handoffReason: p.reason.slice(0, 200), handoffAt: now.toISOString(), unread: 1, consentAt: conv.consentAt ?? now.toISOString() });
+  const updated = (await st.get(conv.id))!;
+  const note = await afterHandoff(updated, now);
+  if (note) await postSystem(updated, note);
+}
+
+export async function visitorConversation(id: string, token: string): Promise<Conversation | null> {
   const conv = await getConversationStore().get(id);
   if (!conv || conv.channel !== 'web' || !conv.visitorTokenHash) return null;
   const a = Buffer.from(conv.visitorTokenHash);

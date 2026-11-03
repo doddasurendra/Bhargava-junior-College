@@ -26,6 +26,7 @@ const toConv = (r: Row): Conversation => ({
   createdAt: r.created_at,
   closedAt: r.closed_at,
   closeNote: r.close_note,
+  consentAt: r.consent_at,
 });
 
 const toMsg = (r: Row): ConvMessage => ({ id: r.id, conversationId: r.conversation_id, author: r.author, staffId: r.staff_id, text: r.text, waMessageId: r.wa_message_id, createdAt: r.created_at });
@@ -40,6 +41,8 @@ const COLS: Record<string, string> = {
   closedAt: 'closed_at',
   closeNote: 'close_note',
   unread: 'unread',
+  contactPhone: 'contact_phone',
+  consentAt: 'consent_at',
 };
 
 export function createSupabaseConversationStore(url: string, key: string): ConversationStore {
