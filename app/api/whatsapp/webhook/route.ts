@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { onWhatsAppInbound } from '@/lib/chat/service';
 import { handleWebhook } from '@/lib/whatsapp/service';
 
 export const dynamic = 'force-dynamic';
@@ -18,6 +19,8 @@ export async function POST(req: Request) {
   const raw = await req.text();
   try {
     const r = await handleWebhook(raw, req.headers.get('x-hub-signature-256'));
+    // New messages from families go to the chat inbox (a new conversation is a handoff to staff).
+    for (const m of r.inbound ?? []) await onWhatsAppInbound(m);
     return new NextResponse(r.ok ? 'ok' : 'rejected', { status: r.status });
   } catch (e) {
     console.error('[whatsapp] webhook failed', (e as Error).message);

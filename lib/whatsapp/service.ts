@@ -5,7 +5,7 @@ import { getProgram } from '@/content/programs';
 import { getCrmRepo } from '../crm/repo';
 import { addDays, formatDate, todayIST } from '../dates';
 import { maskPhone } from '../phone';
-import { CloudApiError, sendTemplateMessage, type CloudConfig } from './cloudApi';
+import { CloudApiError, sendTemplateMessage, sendTextMessage, type CloudConfig } from './cloudApi';
 import { createFileMessageStore } from './fileStore';
 import { dueReminders } from './reminders';
 import { createSupabaseMessageStore } from './supabaseStore';
@@ -106,6 +106,36 @@ export async function sendTemplate(req: SendRequest): Promise<SendResult> {
   }
 }
 
+/**
+ * Free-form reply (inbox). The caller must already have checked the 24-hour window.
+ * Returns the outbox row id so the conversation can show delivery ticks.
+ */
+export async function sendFreeText(p: { to: string; text: string; leadId: string | null; actorId: string | null }): Promise<SendResult & { outboxId: string | null }> {
+  const st = getMessageStore();
+  if (await st.isOptedOut(p.to)) return { status: 'skipped', reason: 'The family replied STOP (opted out of WhatsApp).', outboxId: null };
+  const row = await st.insertOutbound({ leadId: p.leadId, to: p.to, template: 'text', body: p.text, status: 'queued', providerId: null, error: null, dedupeKey: null, createdBy: p.actorId });
+  if (!row) return { status: 'skipped', reason: 'Already sent.', outboxId: null };
+  const m = mode();
+  if (m.kind === 'off') {
+    await st.updateOutbound(row.id, { status: 'skipped', error: 'WhatsApp is not configured.' });
+    return { status: 'skipped', reason: 'WhatsApp is not configured.', outboxId: row.id };
+  }
+  if (m.kind === 'dev') {
+    console.info(`[dev whatsapp] text → ${maskPhone(p.to)}: ${p.text.slice(0, 120)}`);
+    await st.updateOutbound(row.id, { status: 'sent', providerId: `dev-${row.id}` });
+    return { status: 'sent', outboxId: row.id };
+  }
+  try {
+    const providerId = await sendTextMessage(m.cfg, p.to, p.text);
+    await st.updateOutbound(row.id, { status: 'sent', providerId });
+    return { status: 'sent', outboxId: row.id };
+  } catch (e) {
+    const msg = e instanceof CloudApiError ? `${e.code ?? ''} ${e.message}`.trim() : (e as Error).message;
+    await st.updateOutbound(row.id, { status: 'failed', error: msg.slice(0, 300) });
+    return { status: 'failed', reason: msg, outboxId: row.id };
+  }
+}
+
 // ---------------------------------------------------------------- website flows
 
 const firstName = (name: string | null | undefined) => (name?.trim().split(/\s+/)[0] || 'there');
@@ -140,7 +170,16 @@ export async function sendOtpCode(phone: string, code: string) {
 
 // ---------------------------------------------------------------- webhook
 
-export async function handleWebhook(rawBody: string, signature: string | null): Promise<{ ok: boolean; status: number }> {
+export interface FreshInbound {
+  from: string;
+  text: string | null;
+  type: string;
+  at: string;
+  leadId: string | null;
+}
+
+/** Returns new (non-duplicate, non-STOP/START) inbound messages for the chat inbox to route. */
+export async function handleWebhook(rawBody: string, signature: string | null): Promise<{ ok: boolean; status: number; inbound?: FreshInbound[] }> {
   const secret = process.env.WHATSAPP_APP_SECRET;
   if (secret) {
     if (!verifySignature(rawBody, signature, secret)) return { ok: false, status: 401 };
@@ -156,6 +195,7 @@ export async function handleWebhook(rawBody: string, signature: string | null): 
   }
   const { statuses, messages } = parseWebhook(json);
   const st = getMessageStore();
+  const inbound: FreshInbound[] = [];
   for (const s of statuses) await st.applyStatus(s.providerId, s.status, s.error);
   for (const m of messages) {
     const lead = await st.leadForPhone(m.from);
@@ -163,10 +203,10 @@ export async function handleWebhook(rawBody: string, signature: string | null): 
     if (!fresh) continue;
     const intent = keywordIntent(m.text);
     if (intent === 'opt_out') await st.setOptOut(m.from, true, 'Replied STOP on WhatsApp');
-    if (intent === 'opt_in') await st.setOptOut(m.from, false, 'Replied START on WhatsApp');
-    // TODO(chat agent): hand other inbound messages to the AI admission assistant / CRM inbox.
+    else if (intent === 'opt_in') await st.setOptOut(m.from, false, 'Replied START on WhatsApp');
+    else inbound.push({ from: m.from, text: m.text, type: m.type, at: m.at, leadId: lead?.id ?? null });
   }
-  return { ok: true, status: 200 };
+  return { ok: true, status: 200, inbound };
 }
 
 // ---------------------------------------------------------------- reminders

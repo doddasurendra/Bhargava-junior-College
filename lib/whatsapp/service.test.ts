@@ -54,8 +54,8 @@ describe('whatsapp service (development mode, file store)', () => {
     process.env.WHATSAPP_APP_SECRET = 'appsecret';
     expect(await svc.handleWebhook(body, 'sha256=bad')).toEqual({ ok: false, status: 401 });
     const sig = `sha256=${createHmac('sha256', 'appsecret').update(body).digest('hex')}`;
-    expect(await svc.handleWebhook(body, sig)).toEqual({ ok: true, status: 200 });
-    expect(await svc.handleWebhook(body, sig)).toEqual({ ok: true, status: 200 }); // retried delivery: idempotent
+    expect(await svc.handleWebhook(body, sig)).toEqual({ ok: true, status: 200, inbound: [] }); // STOP is not routed to the inbox
+    expect(await svc.handleWebhook(body, sig)).toEqual({ ok: true, status: 200, inbound: [] }); // retried delivery: idempotent
     expect(await svc.getMessageStore().isOptedOut('+919555500003')).toBe(true);
     const r = await svc.sendTemplate({ template: 'visit_reminder', to: '+919555500003', params: ['today', '10:00 AM', 'https://maps'] });
     expect(r.status).toBe('skipped');

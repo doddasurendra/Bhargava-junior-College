@@ -87,6 +87,24 @@ Each sign-off happens once (a second attempt is refused) and is written to the a
 
 **Not yet (verification):** a PDF file with WhatsApp/email delivery of receipts (today: print / save as PDF), payment gateway auto-confirmation, DigiLocker fetch, cancelling an issued receipt, and the Student & Parent app login that the College ID unlocks.
 
+## Chat: website assistant and handoff inbox
+
+**Website widget** ("Ask admissions", on every public page):
+- **Fallback assistant:** a rule-based bot (`lib/chat/faqBot.ts`, the "fallback bot" from §5) answers from site content only: courses, fees, BSAT, hostel, visits, tracking, documents, results and contact. It understands common romanised Telugu/Hindi ("fee entha", "kitna").
+- **Honest limits:** it never promises ranks or seats, and says it doesn't know rather than guessing.
+- **Quick replies and nudge:** quick-reply chips, plus a proactive nudge after 20 seconds on the fees and program pages.
+- **Handoff:** "Talk to a counsellor" asks for name, mobile and consent, creates the lead (source `chat`) and opens a conversation with the full transcript. Replies arrive live.
+
+**Inbox** (`/crm/inbox`, for telecallers, counsellors, front desk and managers):
+- **Sources:** website handoffs and *every* WhatsApp message from a family (except STOP/START).
+- **Routing:** a new conversation goes straight to the lead's owner, or to the shared **Waiting** queue that anyone can pick up. Views: Waiting / Mine / All open / Closed, with unread counts and a nav badge, refreshing every few seconds.
+- **Replying:** reply (which picks the conversation up automatically), transfer to a colleague with a note, or close it with a required outcome note. A reply counts as contact on the lead.
+- **24-hour window:** WhatsApp free-text replies are only allowed **within 24 hours of the family's last message**, as WhatsApp requires. After that the inbox explains why and points to templates.
+- **Outside office hours:** the family gets an automatic reply, and a **callback is scheduled** on the lead for the next opening (Mon–Fri 7–5, Sat 9–3 IST).
+- **Privacy:** staff-only notes (transfer reasons, close outcomes) are never shown to the family. Visitors see staff first names only, and a visitor's chat is protected by a random token stored only as a hash.
+
+**Not yet (chat):** the AI admission assistant (LLM + RAG + CRM tool calls, the next phase; it plugs into the same conversations as author `bot`), vernacular answers, voice notes and media in the inbox, typing indicators and push notifications (the inbox polls), canned replies, and the chat analytics from §5.
+
 ## WhatsApp (Business Cloud API)
 
 Code: `lib/whatsapp/`. Templates live in `lib/whatsapp/templates.ts`, the single source of truth, and are listed for submission at **/crm/whatsapp** (managers).

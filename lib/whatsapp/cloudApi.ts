@@ -40,6 +40,11 @@ export function buildTemplatePayload(input: SendInput) {
   };
 }
 
+/** Free-form text: only allowed inside the 24-hour customer-service window. */
+export function buildTextPayload(to: string, body: string) {
+  return { messaging_product: 'whatsapp', recipient_type: 'individual', to: waNumber(to), type: 'text', text: { preview_url: false, body } };
+}
+
 export class CloudApiError extends Error {
   constructor(
     message: string,
@@ -51,11 +56,19 @@ export class CloudApiError extends Error {
 }
 
 /** Returns the provider message id (wamid…). */
-export async function sendTemplateMessage(cfg: CloudConfig, input: SendInput, fetchImpl: typeof fetch = fetch): Promise<string> {
+export function sendTemplateMessage(cfg: CloudConfig, input: SendInput, fetchImpl: typeof fetch = fetch): Promise<string> {
+  return post(cfg, buildTemplatePayload(input), fetchImpl);
+}
+
+export function sendTextMessage(cfg: CloudConfig, to: string, body: string, fetchImpl: typeof fetch = fetch): Promise<string> {
+  return post(cfg, buildTextPayload(to, body), fetchImpl);
+}
+
+async function post(cfg: CloudConfig, payload: unknown, fetchImpl: typeof fetch): Promise<string> {
   const res = await fetchImpl(`https://graph.facebook.com/${GRAPH_VERSION}/${cfg.phoneNumberId}/messages`, {
     method: 'POST',
     headers: { Authorization: `Bearer ${cfg.accessToken}`, 'Content-Type': 'application/json' },
-    body: JSON.stringify(buildTemplatePayload(input)),
+    body: JSON.stringify(payload),
   });
   const data = (await res.json().catch(() => ({}))) as { messages?: { id: string }[]; error?: { message?: string; code?: number } };
   if (!res.ok || !data.messages?.[0]?.id) {

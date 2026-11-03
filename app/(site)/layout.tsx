@@ -1,4 +1,5 @@
 import type { ReactNode } from 'react';
+import { ChatWidget } from '@/components/ChatWidget';
 import { ClientBoot, ExitIntent } from '@/components/ClientWidgets';
 import { Footer, Header, MobileBar, WhatsAppButton } from '@/components/SiteChrome';
 import { JsonLd } from '@/components/ui';
@@ -16,6 +17,7 @@ export default function SiteLayout({ children }: { children: ReactNode }) {
       <Footer />
       <MobileBar />
       <WhatsAppButton />
+      <ChatWidget />
       <ExitIntent />
       <ClientBoot />
       <JsonLd data={organizationJsonLd()} />

@@ -201,7 +201,8 @@ export function createSupabaseCrmRepo(url: string, serviceKey: string): CrmRepo 
     },
 
     async updateLead(id, patch, audit) {
-      check(await sb.from('leads').update(leadPatchRow(patch)).eq('id', id));
+      const row = leadPatchRow(patch);
+      if (Object.keys(row).length) check(await sb.from('leads').update(row).eq('id', id));
       if (audit.length) check(await sb.from('lead_audit').insert(auditRows(id, audit)));
     },
 

@@ -19,6 +19,9 @@ const RULES = {
   'whatsapp.send': [...MANAGE, 'telecaller', 'admission_counsellor', 'front_desk'],
   'whatsapp.bulk': [...MANAGE, 'data_executive'],
   'whatsapp.setup': MANAGE,
+  'inbox.reply': [...MANAGE, 'telecaller', 'admission_counsellor', 'front_desk'],
+  /** see every conversation, not just the waiting queue and your own */
+  'inbox.all': [...MANAGE],
   'lead.decide': [...MANAGE, 'admission_counsellor'],
   'visit.view': [...SEE_ALL_LEADS, 'telecaller', 'admission_counsellor'],
   'visit.checkin': [...MANAGE, 'front_desk', 'telecaller'],

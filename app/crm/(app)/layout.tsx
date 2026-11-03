@@ -3,6 +3,7 @@ import type { ReactNode } from 'react';
 import { logoutAction } from '@/app/crm/actions';
 import { ThemeToggle } from '@/components/HeaderControls';
 import { Crest } from '@/components/ui';
+import { inboxCounts } from '@/lib/chat/inbox';
 import { requireStaff } from '@/lib/crm/auth';
 import { can } from '@/lib/crm/permissions';
 import { ROLE_LABELS } from '@/lib/crm/types';
@@ -11,8 +12,10 @@ export const dynamic = 'force-dynamic';
 
 export default async function CrmShell({ children }: { children: ReactNode }) {
   const user = await requireStaff();
+  const inbox = await inboxCounts(user);
   const nav = [
     { href: '/crm', label: 'My tasks' },
+    ...(can(user, 'inbox.reply') ? [{ href: '/crm/inbox', label: `Chat inbox${inbox.waiting + inbox.unreadMine > 0 ? ` (${inbox.waiting + inbox.unreadMine})` : ''}` }] : []),
     { href: '/crm/leads', label: can(user, 'lead.viewAll') ? 'All leads' : 'My leads' },
     ...(can(user, 'visit.view') ? [{ href: '/crm/visits', label: 'Campus visits' }] : []),
     ...(can(user, 'verify.view') ? [{ href: '/crm/verification', label: 'Verification' }] : []),
