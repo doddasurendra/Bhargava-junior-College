@@ -1,4 +1,5 @@
 import type { Metadata } from 'next';
+import Link from 'next/link';
 import { redirect } from 'next/navigation';
 import { DevLoginForm, PasswordLoginForm } from '@/components/crm/forms';
 import { Crest } from '@/components/ui';
@@ -11,7 +12,7 @@ import { ROLE_LABELS } from '@/lib/crm/types';
 export const metadata: Metadata = { title: 'Sign in' };
 export const dynamic = 'force-dynamic';
 
-export default async function LoginPage() {
+export default async function LoginPage({ searchParams }: { searchParams: Record<string, string | string[] | undefined> }) {
   if (await getStaffSession()) redirect('/crm');
   const dev = devLoginEnabled();
   const staff = dev ? await getCrmRepo().listStaff() : [];
@@ -25,6 +26,11 @@ export default async function LoginPage() {
             <p className="text-sm text-muted">{college.name} · staff only</p>
           </div>
         </div>
+        {searchParams.reset === '1' && (
+          <p role="status" className="mb-4 rounded-xl bg-emerald-50 px-4 py-3 text-sm text-emerald-800 dark:bg-emerald-400/10 dark:text-emerald-200">
+            Password saved. Sign in with it now. Any other open sessions were signed out.
+          </p>
+        )}
         <div className="card p-6">
           {dev ? (
             <>
@@ -33,7 +39,14 @@ export default async function LoginPage() {
               <DevLoginForm staff={staff.map((s) => ({ id: s.id, name: s.fullName, role: s.roles.map((r) => ROLE_LABELS[r]).join(', ') + (requiresMfa(s) ? ' · 2FA' : '') }))} />
             </>
           ) : (
-            <PasswordLoginForm />
+            <>
+              <PasswordLoginForm />
+              <p className="mt-3 text-center text-sm">
+                <Link href="/crm/login/forgot" className="text-muted underline">
+                  Forgot password?
+                </Link>
+              </p>
+            </>
           )}
         </div>
         <p className="mt-4 text-center text-xs text-muted">Every sign-in is recorded. Lost access? Contact the admin office.</p>

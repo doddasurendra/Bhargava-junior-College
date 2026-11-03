@@ -272,8 +272,13 @@ export interface CrmRepo extends VerifyRepo {
     visits: VisitRow[];
     signOffs: { leadId: string; stage: string; at: string }[];
   }>;
+  /** active staff only */
   listStaff(): Promise<Staff[]>;
+  /** including deactivated — for the staff admin page */
+  listAllStaff(): Promise<Staff[]>;
   getStaff(id: string): Promise<Staff | null>;
+  /** Create or update profile + roles together. Throws if no active Super Admin would remain. */
+  saveStaff(s: Staff): Promise<void>;
   listLeads(filter: LeadFilter): Promise<CrmLead[]>;
   getLead(id: string): Promise<CrmLead | null>;
   getLeadHistory(id: string): Promise<LeadHistory>;

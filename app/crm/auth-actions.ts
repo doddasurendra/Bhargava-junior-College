@@ -3,7 +3,7 @@ import { revalidatePath } from 'next/cache';
 import { cookies } from 'next/headers';
 import { redirect } from 'next/navigation';
 import { AuthError } from '@/lib/auth/service';
-import { getAuthService } from '@/lib/auth/store';
+import { getAuthService, getIdentity, getStaffAdmin } from '@/lib/auth/store';
 import { seal } from '@/lib/auth/totp';
 import { clearSession, getPendingMfa, getStaffSession, requestCtx, requireStaff, setActiveRole, setSession } from '@/lib/crm/auth';
 import { pickActiveRole } from '@/lib/crm/permissions';
@@ -102,6 +102,49 @@ export async function dismissCodesAction() {
   await requireStaff();
   cookies().delete({ name: RC_COOKIE, path: '/crm/account' });
   redirect('/crm/account');
+}
+
+// ---------------------------------------------------------------- staff accounts (Super Admin)
+
+const formRoles = (fd: FormData) => fd.getAll('roles').map(String);
+
+export async function createStaffAction(_: ActionState, fd: FormData): Promise<ActionState> {
+  const user = await requireStaff('staff.manage');
+  return guard(async () => {
+    const s = await getStaffAdmin().create(user, { fullName: fd.get('fullName'), email: fd.get('email'), phone: fd.get('phone') || undefined, roles: formRoles(fd) }, requestCtx());
+    return { ok: true, message: getIdentity().emails ? `${s.fullName} added. An invitation to set a password was emailed to ${s.email}.` : `${s.fullName} added. In local development they sign in with the picker.` };
+  }, ['/crm/staff']);
+}
+
+export async function updateStaffAction(_: ActionState, fd: FormData): Promise<ActionState> {
+  const user = await requireStaff('staff.manage');
+  return guard(async () => {
+    await getStaffAdmin().update(user, String(fd.get('staffId') ?? ''), { fullName: fd.get('fullName'), phone: fd.get('phone') || undefined, roles: formRoles(fd), active: fd.get('active') === 'on' }, requestCtx());
+    return { ok: true, message: 'Saved.' };
+  }, ['/crm/staff', '/crm/security']);
+}
+
+export async function sendResetAction(_: ActionState, fd: FormData): Promise<ActionState> {
+  const user = await requireStaff('staff.manage');
+  return guard(async () => {
+    await getStaffAdmin().sendReset(user, String(fd.get('staffId') ?? ''), requestCtx());
+    return { ok: true, message: getIdentity().emails ? 'Password reset email sent.' : 'No email in local development.' };
+  });
+}
+
+// ---------------------------------------------------------------- forgot password (public)
+
+export async function forgotPasswordAction(_: ActionState, fd: FormData): Promise<ActionState> {
+  await getStaffAdmin().requestReset(String(fd.get('email') ?? '').slice(0, 254), requestCtx());
+  return { ok: true, message: 'If that email belongs to a staff account, a link to set a new password is on its way. It works once and expires in an hour.' };
+}
+
+export async function resetPasswordAction(_: ActionState, fd: FormData): Promise<ActionState> {
+  const type = fd.get('type') === 'invite' ? 'invite' : 'recovery';
+  const r = await getStaffAdmin().completeReset(String(fd.get('token') ?? ''), type, String(fd.get('password') ?? ''), String(fd.get('confirm') ?? ''), requestCtx());
+  if (!r.ok) return { error: r.message };
+  clearSession();
+  redirect('/crm/login?reset=1');
 }
 
 // ---------------------------------------------------------------- security (Super Admin)

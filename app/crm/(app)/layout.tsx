@@ -27,6 +27,7 @@ export default async function CrmShell({ children }: { children: ReactNode }) {
     ...(can(user, 'lead.import') ? [{ href: '/crm/import', label: 'Import leads' }] : []),
     ...(can(user, 'whatsapp.setup') ? [{ href: '/crm/assistant', label: 'AI assistant' }] : []),
     ...(can(user, 'whatsapp.setup') ? [{ href: '/crm/whatsapp', label: 'WhatsApp setup' }] : []),
+    ...(can(user, 'staff.manage') ? [{ href: '/crm/staff', label: 'Staff accounts' }] : []),
     ...(can(user, 'security.view') ? [{ href: '/crm/security', label: 'Security' }] : []),
   ];
   return (

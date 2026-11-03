@@ -197,6 +197,13 @@ export function createSupabaseCrmRepo(url: string, serviceKey: string): CrmRepo 
     async listStaff() {
       return rows(await sb.from('profiles').select('id, full_name, email, phone, active, user_roles(role)').eq('active', true).order('full_name')).map(toStaff);
     },
+    async listAllStaff() {
+      return rows(await sb.from('profiles').select('id, full_name, email, phone, active, user_roles(role)').order('full_name')).map(toStaff);
+    },
+    async saveStaff(s) {
+      const { error } = await sb.rpc('admin_save_staff', { p_id: s.id, p_full_name: s.fullName, p_email: s.email ?? '', p_phone: s.phone, p_active: s.active, p_roles: s.roles });
+      if (error) throw new Error(error.message);
+    },
     async getStaff(id) {
       const r = check(await sb.from('profiles').select('id, full_name, email, phone, active, user_roles(role)').eq('id', id).maybeSingle());
       return r ? toStaff(r) : null;

@@ -15,4 +15,5 @@ export const METHOD_LABELS: Record<string, string> = {
   logout: 'Sign out',
   admin: 'Admin action',
   role: 'Role switch',
+  reset: 'Password reset',
 };

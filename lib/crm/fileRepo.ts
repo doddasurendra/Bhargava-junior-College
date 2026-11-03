@@ -180,6 +180,16 @@ export function createFileCrmRepo(): CrmRepo {
 
     listStaff: () => tx((db) => db.staff.filter((s) => s.active), false),
     getStaff: (id) => tx((db) => db.staff.find((s) => s.id === id) ?? null, false),
+    listAllStaff: () => tx((db) => [...db.staff].sort((a, b) => a.fullName.localeCompare(b.fullName)), false),
+    saveStaff: (s) =>
+      tx((db) => {
+        const next = db.staff.filter((x) => x.id !== s.id);
+        const prev = db.staff.find((x) => x.id === s.id);
+        // email is the sign-in identity: set once, never changed here (matches admin_save_staff)
+        next.push({ id: s.id, fullName: s.fullName, phone: s.phone, roles: [...s.roles], active: s.active, email: prev ? prev.email : (s.email?.toLowerCase() ?? null) });
+        if (!next.some((x) => x.active && x.roles.includes('super_admin'))) throw new Error('At least one active Super Admin is required.');
+        db.staff = next;
+      }),
 
     listLeads: (f) =>
       tx((db) => {

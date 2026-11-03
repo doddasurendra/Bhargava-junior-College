@@ -32,6 +32,8 @@ const RULES = {
   'security.view': ['super_admin', 'management'],
   /** reset someone's 2FA, unlock an account */
   'security.manage': ['super_admin'],
+  /** add staff, change roles, deactivate, send password resets */
+  'staff.manage': ['super_admin'],
 } satisfies Record<string, Role[]>;
 
 export type Permission = keyof typeof RULES;
