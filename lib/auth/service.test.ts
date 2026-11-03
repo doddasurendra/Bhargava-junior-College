@@ -138,6 +138,9 @@ describe('staff sign-in', () => {
     const admin = superAdmin;
     expect(await auth.sessionValid(admin, { sv: 0, mfa: true })).toBe(true);
     expect(await auth.sessionValid(admin, { sv: 0, mfa: false })).toBe(false);
+    // a 2FA role with no 2FA on record (e.g. restored database) is sent back to enrol
+    const accounts = { ...superAdmin, id: 'staff-office-x', roles: ['accounts'] } as Staff;
+    expect(await auth.sessionValid(accounts, { sv: 0, mfa: true })).toBe(false);
     expect(await auth.sessionValid(manager, { sv: 0, mfa: false })).toBe(true);
     const sv = await auth.signOutEverywhere('staff-manager', ctx(at(50)));
     expect(sv).toBe(1);

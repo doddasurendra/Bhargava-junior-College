@@ -1,5 +1,5 @@
 import { randomBytes, scryptSync, timingSafeEqual } from 'node:crypto';
-import type { CrmRepo, Role, Staff } from '../crm/types';
+import { ROLE_LABELS, type CrmRepo, type Role, type Staff } from '../crm/types';
 import { generateRecoveryCodes, generateSecret, hashRecovery, looksLikeRecovery, otpauthUri, seal, unseal, verifyTotp } from './totp';
 import type { AuthStore, LoginMethod, StaffAuth } from './types';
 
@@ -226,6 +226,8 @@ export function createAuthService({ store, repo }: { store: AuthStore; repo: Pic
 
     logout: (staffId: string, ctx: Ctx) => log({ staffId, success: true, method: 'logout', reason: 'ok' }, ctx),
 
+    roleSwitched: (staffId: string, from: Role, to: Role, ctx: Ctx) => log({ staffId, success: true, method: 'role', reason: `${ROLE_LABELS[from]} → ${ROLE_LABELS[to]}` }, ctx),
+
     /** Lost phone and no recovery codes: another Super Admin clears 2FA. The user re-enrols at next sign-in. */
     async adminReset2fa(actor: Staff, targetId: string, reason: string, ctx: Ctx) {
       if (!actor.roles.includes('super_admin')) throw new AuthError('Only a Super Admin can reset two-step verification.');
@@ -247,6 +249,8 @@ export function createAuthService({ store, repo }: { store: AuthStore; repo: Pic
       const auth = await store.get(staff.id);
       if ((claims.sv ?? 0) !== auth.sessionVersion) return false;
       if ((requiresMfa(staff) || auth.totpEnabledAt) && !claims.mfa) return false;
+      // a 2FA role whose 2FA is gone (reset, restored database) must sign in again and re-enrol
+      if (requiresMfa(staff) && !auth.totpEnabledAt) return false;
       return true;
     },
   };

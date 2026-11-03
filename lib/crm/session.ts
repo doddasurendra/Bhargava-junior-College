@@ -8,6 +8,8 @@ export const MFA_COOKIE = 'bjc_staff_mfa';
 export const MFA_MAX_AGE_S = 10 * 60;
 /** New recovery codes on their way to the page that shows them once. */
 export const RC_COOKIE = 'bjc_rc';
+/** Which of their roles a multi-role user is working in. */
+export const ROLE_COOKIE = 'bjc_role';
 
 function secret(): string {
   const s = process.env.SESSION_SECRET;

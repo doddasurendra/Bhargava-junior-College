@@ -17,7 +17,8 @@ export default async function AccountPage({ searchParams }: { searchParams: SP }
   const user = await requireStaff();
   const store = getAuthStore();
   const [auth, events] = await Promise.all([store.get(user.id), store.listEvents({ limit: 12, staffId: user.id })]);
-  const required = requiresMfa(user);
+  const allRoles = user.allRoles ?? user.roles;
+  const required = requiresMfa({ roles: allRoles });
   const setup = !auth.totpEnabledAt && searchParams.setup === '1' ? await getAuthService().enrolment(user.id) : null;
   const recoveryLeft = typeof searchParams.recovery === 'string' ? Number(searchParams.recovery) : null;
 
@@ -28,7 +29,7 @@ export default async function AccountPage({ searchParams }: { searchParams: SP }
       {recoveryLeft !== null && Number.isFinite(recoveryLeft) && (
         <p role="status" className={`rounded-xl px-4 py-3 text-sm ${recoveryLeft <= 2 ? 'bg-red-50 text-red-800 dark:bg-red-400/10 dark:text-red-200' : 'bg-gold-100/70 text-ink dark:bg-gold/10'}`}>
           You signed in with a recovery code. {recoveryLeft} {recoveryLeft === 1 ? 'code is' : 'codes are'} left.
-          {recoveryLeft <= 2 ? ' Make new codes below before you run out.' : ''} If you lost your phone, ask {user.roles.includes('super_admin') ? 'another' : 'the'} Super Admin to reset two-step verification so you can set up a new one.
+          {recoveryLeft <= 2 ? ' Make new codes below before you run out.' : ''} If you lost your phone, ask {allRoles.includes('super_admin') ? 'another' : 'the'} Super Admin to reset two-step verification so you can set up a new one.
         </p>
       )}
 
@@ -44,7 +45,10 @@ export default async function AccountPage({ searchParams }: { searchParams: SP }
           </div>
           <div className="sm:col-span-2">
             <dt className="text-xs uppercase tracking-wider text-muted">Roles</dt>
-            <dd className="font-medium text-heading">{user.roles.map((r) => ROLE_LABELS[r]).join(' · ')}</dd>
+            <dd className="font-medium text-heading">
+              {allRoles.map((r) => ROLE_LABELS[r]).join(' · ')}
+              {allRoles.length > 1 && <span className="block text-xs font-normal text-muted">Working as {ROLE_LABELS[user.roles[0]]}. Switch roles from the menu.</span>}
+            </dd>
           </div>
         </dl>
       </Panel>

@@ -3,10 +3,10 @@ import { cookies, headers } from 'next/headers';
 import { redirect } from 'next/navigation';
 import { getAuthService, getPasswordVerifier } from '../auth/store';
 import type { Ctx, FirstStep } from '../auth/service';
-import { can, type Permission } from './permissions';
+import { can, pickActiveRole, type Permission } from './permissions';
 import { getCrmRepo, usingSupabase } from './repo';
-import { decodeToken, encodeToken, MFA_COOKIE, MFA_MAX_AGE_S, SESSION_COOKIE, SESSION_MAX_AGE_S } from './session';
-import type { Staff } from './types';
+import { decodeToken, encodeToken, MFA_COOKIE, MFA_MAX_AGE_S, ROLE_COOKIE, SESSION_COOKIE, SESSION_MAX_AGE_S } from './session';
+import type { Role, Staff } from './types';
 
 export function requestCtx(): Ctx {
   const h = headers();
@@ -19,7 +19,15 @@ export async function getStaffSession(): Promise<Staff | null> {
   if (!claims) return null;
   const staff = await getCrmRepo().getStaff(claims.sub);
   if (!staff || !staff.active || staff.roles.length === 0) return null;
-  return (await getAuthService().sessionValid(staff, claims)) ? staff : null;
+  // 2FA and session checks use every role the person holds, before narrowing to the active one.
+  if (!(await getAuthService().sessionValid(staff, claims))) return null;
+  const active = pickActiveRole(staff.roles, cookies().get(ROLE_COOKIE)?.value)!;
+  return { ...staff, roles: [active], allRoles: staff.roles };
+}
+
+/** Not signed: it can only pick among roles the user already holds (checked on every request). */
+export function setActiveRole(role: Role) {
+  cookies().set(ROLE_COOKIE, role, cookieOpts(SESSION_MAX_AGE_S));
 }
 
 /** For pages and server actions. Redirects to login when signed out; throws when not permitted. */
@@ -40,6 +48,7 @@ export function setSession(staffId: string, sv: number, mfa: boolean) {
 export function clearSession() {
   cookies().delete(SESSION_COOKIE);
   cookies().delete(MFA_COOKIE);
+  cookies().delete(ROLE_COOKIE);
 }
 
 /** Password accepted, second factor still to come. */
@@ -52,6 +61,7 @@ export const devLoginEnabled = () => process.env.NODE_ENV === 'development' && !
 /** null = signed in · 'mfa' = go to the 2FA step · otherwise an error message */
 function finishFirstStep(r: FirstStep): string | 'mfa' | null {
   if (r.kind === 'error') return r.message;
+  cookies().delete(ROLE_COOKIE); // a fresh sign-in starts in the default role
   if (r.kind === 'mfa') {
     cookies().delete(SESSION_COOKIE);
     cookies().set(MFA_COOKIE, encodeToken({ sub: r.staffId }, 'mfa', MFA_MAX_AGE_S), cookieOpts(MFA_MAX_AGE_S));

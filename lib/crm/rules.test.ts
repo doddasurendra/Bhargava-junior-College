@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { decodeSession as decodeSessionForTest, encodeSession as encodeSessionForTest } from './session';
-import { can, canSeeLead } from './permissions';
+import { can, canSeeLead, pickActiveRole } from './permissions';
 import { categoryFromCall, followUp, roundRobin, validateCall, validateDecision, visitFlag } from './rules';
 
 const NOW = new Date('2026-11-02T06:00:00Z'); // 11:30 IST, Monday
@@ -114,6 +114,15 @@ describe('permissions (§7.6)', () => {
     expect(can(manager, 'lead.assign')).toBe(true);
     expect(can({ roles: ['front_desk'] }, 'visit.checkin')).toBe(true);
     expect(can({ roles: ['front_desk'] }, 'lead.call')).toBe(false);
+  });
+  it('multi-role staff work in one role at a time, defaulting to the first in the standard order, never one they lack', () => {
+    expect(pickActiveRole(['accounts', 'management'], undefined)).toBe('management');
+    expect(pickActiveRole(['telecaller', 'accounts'], 'accounts')).toBe('accounts');
+    expect(pickActiveRole(['telecaller', 'accounts'], 'super_admin')).toBe('telecaller');
+    expect(pickActiveRole(['front_desk'], 'garbage')).toBe('front_desk');
+    expect(pickActiveRole([], 'telecaller')).toBeNull();
+    // narrowing really narrows: as a telecaller they can't approve payments
+    expect(can({ roles: [pickActiveRole(['telecaller', 'accounts'], 'telecaller')!] }, 'payment.approve')).toBe(false);
   });
 });
 

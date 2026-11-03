@@ -31,7 +31,7 @@ export const emptyAuth = (staffId: string): StaffAuth => ({
   sessionVersion: 0,
 });
 
-export const LOGIN_METHODS = ['password', 'dev', 'totp', 'recovery', 'enrol', 'logout', 'admin'] as const;
+export const LOGIN_METHODS = ['password', 'dev', 'totp', 'recovery', 'enrol', 'logout', 'admin', 'role'] as const;
 export type LoginMethod = (typeof LOGIN_METHODS)[number];
 
 /** Every sign-in step, success or failure (acceptance criteria: "every login and failed attempt"). */

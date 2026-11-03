@@ -59,6 +59,7 @@ Open http://localhost:3000/crm. In local development (no Supabase) you sign in b
 - **Lost phone:** sign in with a recovery code, or ask *another* Super Admin to **Reset 2FA**. That needs a reason, is audited, signs the user out everywhere, and makes them set up 2FA again at their next sign-in. A Super Admin can't reset their own 2FA, so keep at least two Super Admins, or keep the recovery codes safe.
 - **Sessions:** **My account → Sign out everywhere else** ends every other session. A session cookie without the 2FA step completed is refused for 2FA roles, even if it is still valid. So existing Accounts and Super Admin sessions have to sign in again after this release.
 - Supabase: `supabase/migrations/20261103050000_staff_auth.sql` (the `staff_auth` table, extra `login_audit` columns, and atomic RPCs for failure counting, code replay and recovery codes).
+- **Role switching:** someone with several roles works in one at a time and switches from **Working as** in the menu without signing out. The default is whichever role comes first in the standard role list, which starts with the admin and management roles. The choice is a plain cookie, but on every request the server accepts only roles the person actually holds, so it can only narrow their access. 2FA depends on *all* their roles, so an Accounts person working as Telecaller still needs their code. Each switch is written to the login audit, and a fresh sign-in starts in the default role. Try it as sample staff **Kavya** (Front Desk + Admission Office).
 
 | Built (brief §7) | Where |
 |---|---|
@@ -237,7 +238,7 @@ Code: `lib/whatsapp/`. Templates live in `lib/whatsapp/templates.ts`, the single
 - Hostel check-in alerts and the Sunday parent report (student app phase).
 - SMS fallback.
 
-**Not yet:** direct .xlsx upload, Kanban view, a data-quality report (category mix by school and source), click-to-call telephony and recordings, WhatsApp/SMS templates and campaigns, the AI-handoff chat inbox, the verification checkpoint (documents → fee → receipt → student record → College ID), the staff mobile app, role switching UI, and the 7 PM report (§8 is missing from the brief).
+**Not yet:** direct .xlsx upload, Kanban view, a data-quality report (category mix by school and source), click-to-call telephony and recordings, WhatsApp/SMS templates and campaigns, the AI-handoff chat inbox, the verification checkpoint (documents → fee → receipt → student record → College ID), the staff mobile app, and the 7 PM report (§8 is missing from the brief).
 
 ## Before launch: the college must provide
 

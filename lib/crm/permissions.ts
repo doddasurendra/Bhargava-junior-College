@@ -1,4 +1,4 @@
-import type { CrmLead, Role, Staff } from './types';
+import { ROLES, type CrmLead, type Role, type Staff } from './types';
 
 /**
  * Permissions per brief §7.5–7.6. A user with several roles gets the union of them.
@@ -43,6 +43,17 @@ export function can(user: Pick<Staff, 'roles'>, perm: Permission): boolean {
 /** Telecallers and counsellors see only the leads they own (§7.6). */
 export function canSeeLead(user: Pick<Staff, 'id' | 'roles'>, lead: Pick<CrmLead, 'ownerId'>): boolean {
   return can(user, 'lead.viewAll') || lead.ownerId === user.id;
+}
+
+/**
+ * Acceptance criteria: one user with several roles switches between them without signing out. They work in
+ * one role at a time; the default is whichever comes first in ROLES (admin and management roles lead). A requested role the
+ * user doesn't hold is ignored, so the choice can only narrow what they can do.
+ */
+export function pickActiveRole(roles: Role[], wanted: string | null | undefined): Role | null {
+  if (roles.length === 0) return null;
+  if (wanted && (roles as string[]).includes(wanted)) return wanted as Role;
+  return [...roles].sort((a, b) => ROLES.indexOf(a) - ROLES.indexOf(b))[0];
 }
 
 export const isTelecaller = (s: Pick<Staff, 'roles'>) => s.roles.includes('telecaller');

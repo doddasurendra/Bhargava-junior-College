@@ -86,8 +86,11 @@ export interface Staff {
   fullName: string;
   email: string | null;
   phone: string | null;
+  /** For the signed-in user: just the active role (see `allRoles`). From the repo: every role. */
   roles: Role[];
   active: boolean;
+  /** Signed-in user only: every role they hold, for the role switcher. */
+  allRoles?: Role[];
 }
 
 export interface CrmLead {

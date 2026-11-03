@@ -114,6 +114,8 @@ export const devStaff = {
     { id: 'staff-office', fullName: 'Admission Office', roles: ['admission_office' as const] },
     { id: 'staff-accounts', fullName: 'Accounts', roles: ['accounts' as const] },
     { id: 'staff-adminoffice', fullName: 'Admin Office', roles: ['admin_office' as const] },
+    // one person, two jobs: tries out the role switcher (acceptance criteria)
+    { id: 'staff-kavya', fullName: 'Kavya', roles: ['front_desk' as const, 'admission_office' as const] },
   ],
 };
 

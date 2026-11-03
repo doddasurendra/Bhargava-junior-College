@@ -14,4 +14,5 @@ export const METHOD_LABELS: Record<string, string> = {
   enrol: '2FA setup',
   logout: 'Sign out',
   admin: 'Admin action',
+  role: 'Role switch',
 };

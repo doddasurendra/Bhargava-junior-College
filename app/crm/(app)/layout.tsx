@@ -2,6 +2,7 @@ import Link from 'next/link';
 import type { ReactNode } from 'react';
 import { logoutAction } from '@/app/crm/actions';
 import { ThemeToggle } from '@/components/HeaderControls';
+import { RoleSwitcher } from '@/components/crm/RoleSwitcher';
 import { Crest } from '@/components/ui';
 import { inboxCounts } from '@/lib/chat/inbox';
 import { requireStaff } from '@/lib/crm/auth';
@@ -13,6 +14,9 @@ export const dynamic = 'force-dynamic';
 export default async function CrmShell({ children }: { children: ReactNode }) {
   const user = await requireStaff();
   const inbox = await inboxCounts(user);
+  const allRoles = user.allRoles ?? user.roles;
+  const switchable = allRoles.length > 1;
+  const roleOptions = allRoles.map((r) => ({ value: r, label: ROLE_LABELS[r] }));
   const nav = [
     ...(can(user, 'dashboard.view') ? [{ href: '/crm/dashboard', label: 'Dashboard' }] : []),
     { href: '/crm', label: 'My tasks' },
@@ -46,7 +50,7 @@ export default async function CrmShell({ children }: { children: ReactNode }) {
         </div>
         <div className="hidden border-t border-white/10 px-5 py-4 lg:block">
           <p className="text-sm font-semibold text-white">{user.fullName}</p>
-          <p className="text-xs text-white/60">{user.roles.map((r) => ROLE_LABELS[r]).join(' · ')}</p>
+          {switchable ? <RoleSwitcher roles={roleOptions} active={user.roles[0]} /> : <p className="text-xs text-white/60">{ROLE_LABELS[user.roles[0]]}</p>}
           <div className="mt-3 flex gap-4">
             <Link href="/crm/account" className="text-xs text-white/70 underline hover:text-white">
               My account
@@ -63,6 +67,11 @@ export default async function CrmShell({ children }: { children: ReactNode }) {
             Every lead tracked · every parent followed up on time · every visit with an outcome · every admission verified
           </p>
           <div className="flex shrink-0 items-center gap-2">
+            {switchable && (
+              <div className="lg:hidden">
+                <RoleSwitcher roles={roleOptions} active={user.roles[0]} variant="bar" />
+              </div>
+            )}
             <Link href="/crm/account" className="text-sm text-muted underline lg:hidden">
               {user.fullName}
             </Link>

@@ -5,7 +5,8 @@ import { redirect } from 'next/navigation';
 import { AuthError } from '@/lib/auth/service';
 import { getAuthService } from '@/lib/auth/store';
 import { seal } from '@/lib/auth/totp';
-import { clearSession, getPendingMfa, getStaffSession, requestCtx, requireStaff, setSession } from '@/lib/crm/auth';
+import { clearSession, getPendingMfa, getStaffSession, requestCtx, requireStaff, setActiveRole, setSession } from '@/lib/crm/auth';
+import { pickActiveRole } from '@/lib/crm/permissions';
 import { decodeToken, RC_COOKIE, SESSION_COOKIE } from '@/lib/crm/session';
 import type { ActionState } from './actions';
 
@@ -52,6 +53,22 @@ export async function mfaEnrolAction(_: ActionState, fd: FormData): Promise<Acti
 export async function cancelMfaAction() {
   clearSession();
   redirect('/crm/login');
+}
+
+// ---------------------------------------------------------------- role switch
+
+export async function switchRoleAction(fd: FormData) {
+  const user = await requireStaff();
+  const all = user.allRoles ?? user.roles;
+  const wanted = String(fd.get('role') ?? '');
+  const to = pickActiveRole(all, wanted);
+  if (!to || to !== wanted) redirect('/crm'); // not one of theirs: ignore
+  if (to !== user.roles[0]) {
+    setActiveRole(to);
+    await getAuthService().roleSwitched(user.id, user.roles[0], to, requestCtx());
+  }
+  // The new role may not see the current page, so land on the task list.
+  redirect('/crm');
 }
 
 // ---------------------------------------------------------------- my account
