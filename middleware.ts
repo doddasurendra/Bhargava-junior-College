@@ -6,6 +6,11 @@ import { NextResponse, type NextRequest } from 'next/server';
  */
 export function middleware(req: NextRequest) {
   const { pathname } = req.nextUrl;
+  if (pathname === '/app' || pathname.startsWith('/app/')) {
+    if (pathname.startsWith('/app/login')) return withNoIndex(NextResponse.next());
+    if (!req.cookies.get('bjc_app')) return NextResponse.redirect(new URL('/app/login', req.url));
+    return withNoIndex(NextResponse.next());
+  }
   if (pathname.startsWith('/crm/login')) return withNoIndex(NextResponse.next());
   if (!req.cookies.get('bjc_staff')) return NextResponse.redirect(new URL('/crm/login', req.url));
   return withNoIndex(NextResponse.next());
@@ -16,4 +21,4 @@ function withNoIndex(res: NextResponse) {
   return res;
 }
 
-export const config = { matcher: ['/crm', '/crm/:path*'] };
+export const config = { matcher: ['/crm', '/crm/:path*', '/app', '/app/:path*'] };

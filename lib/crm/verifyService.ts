@@ -3,6 +3,8 @@ import { PAYMENT_MODES } from '@/content/sample';
 import { PROGRAM_SLUGS } from '@/content/programs';
 import { isIsoDate, todayIST } from '../dates';
 import { normalizeIndianMobile } from '../phone';
+import { siteUrl } from '../seo';
+import { sendTemplate } from '../whatsapp/service';
 import { can, canSeeLead } from './permissions';
 import { getCrmRepo } from './repo';
 import { CrmError } from './service';
@@ -147,7 +149,11 @@ export async function createStudentRecord(user: Staff, leadId: string, s: Studen
   if (s.guardianName.trim().length < 2) throw new CrmError('Enter the guardian’s name.');
   if (!phone) throw new CrmError('Enter a valid guardian mobile number.');
   await wrap(() =>
-    getCrmRepo().createStudent(leadId, { fullName: s.fullName.trim(), dob: s.dob, gender: s.gender, program: s.program, stay: s.stay, guardianName: s.guardianName.trim(), guardianPhone: phone }, user.id),
+    getCrmRepo().createStudent(
+      leadId,
+      { fullName: s.fullName.trim(), dob: s.dob, gender: s.gender, program: s.program, stay: s.stay, guardianName: s.guardianName.trim(), guardianPhone: phone, loginPhone: lead.studentPhone && lead.studentPhone !== phone ? lead.studentPhone : null },
+      user.id,
+    ),
   );
 }
 
@@ -156,7 +162,12 @@ export async function generateCollegeId(user: Staff, leadId: string) {
   const step = requireStep(user, steps, 'college_id', lead);
   if (step.blockers.length) throw new CrmError(step.blockers[0]);
   const id = await wrap(() => getCrmRepo().issueCollegeId(leadId, user.id));
-  // TODO(app phase): this unlocks the Student & Parent app login (applicant → student/parent upgrade).
+  // The College ID unlocks the Student & Parent app: the primary guardian was given access in the same
+  // transaction; tell them. (Applicant logins upgrade automatically — profiles are resolved per request.)
+  const student = (await getCrmRepo().getVerification(leadId)).student;
+  if (student) {
+    await sendTemplate({ template: 'app_welcome', to: student.guardianPhone, params: [student.fullName, id, `${siteUrl}/app`], leadId, dedupeKey: `app_welcome:${student.id}:${student.guardianPhone}` }).catch(() => undefined);
+  }
   return id;
 }
 

@@ -106,6 +106,10 @@ export function createFileVerifyRepo(): VerifyRepo {
         if (student.collegeId) throw new RepoConflict('A College ID has already been issued.');
         const id = formatCollegeId(student.program, next(db, collegeIdCounterKey(student.program)));
         student.collegeId = id;
+        // The College ID unlocks the Student & Parent app (§7.4): the primary guardian gets access now.
+        if (!db.guardians.some((g) => g.studentId === student.id && g.phone === student.guardianPhone)) {
+          db.guardians.push({ studentId: student.id, phone: student.guardianPhone, name: student.guardianName, relation: 'guardian', addedBy: actorId, addedAt: new Date().toISOString() });
+        }
         const l = lead(db, leadId);
         l.status = 'admitted';
         l.nextFollowUpAt = null;

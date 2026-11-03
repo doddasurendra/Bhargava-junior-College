@@ -6,6 +6,8 @@ import { VerificationPanel } from '@/components/crm/VerificationPanel';
 import { VERIFY_STATUSES } from '@/lib/crm/verification';
 import { verification } from '@/lib/crm/verifyService';
 import { whatsappForLead } from '@/lib/whatsapp/crm';
+import { guardiansFor } from '@/lib/app/admin';
+import { GuardiansPanel } from '@/components/crm/GuardiansPanel';
 import { WhatsAppPanel } from '@/components/crm/WhatsAppPanel';
 import { visitSlots } from '@/content/sample';
 import { STAGES } from '@/lib/admission';
@@ -32,6 +34,7 @@ export default async function LeadPage({ params }: { params: { id: string } }) {
   const { lead, history, staff, owner, follow } = d;
   const verify = VERIFY_STATUSES.includes(lead.status) && can(user, 'verify.view') ? await verification(user, lead.id) : null;
   const wa = await whatsappForLead(user, lead.id);
+  const appAccess = verify?.record.student?.collegeId ? await guardiansFor(user, lead.id) : null;
   const name = (id: string | null) => (id ? staff.get(id)?.fullName ?? 'Staff' : 'System');
   const defaultFollowUp = `${addDays(todayIST(), 1)}T10:00`;
   const outcomeLabel = (v: string) => CALL_OUTCOMES.find((o) => o.value === v)?.label ?? v;
@@ -176,6 +179,7 @@ export default async function LeadPage({ params }: { params: { id: string } }) {
         </div>
 
         <aside className="space-y-5">
+          {appAccess && <GuardiansPanel leadId={lead.id} guardians={appAccess.guardians} canManage={appAccess.canManage} />}
           <WhatsAppPanel leadId={lead.id} data={wa} user={user} names={name} />
           {can(user, 'lead.assign') && (
             <Panel title="Owner">

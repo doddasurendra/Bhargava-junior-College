@@ -161,6 +161,24 @@ export const numbering = {
   receipt: { prefix: 'BJC', academicYear: '2027-28', seqDigits: 5 },
 };
 
+/**
+ * Weekly mess menu shown in the parent app (brief §3.4: vegetarian kitchen, egg on alternate days).
+ * SAMPLE — the hostel office replaces it each week.
+ */
+export const messMenu = {
+  sample: true,
+  weekOf: '2026-11-02',
+  days: [
+    { day: 'Monday', breakfast: 'Idli, sambar, chutney', lunch: 'Rice, dal, mixed veg curry, curd', snacks: 'Sprouts chaat', dinner: 'Chapati, paneer curry, rice, rasam' },
+    { day: 'Tuesday', breakfast: 'Upma, boiled egg / banana', lunch: 'Rice, sambar, beans fry, curd', snacks: 'Biscuits, tea', dinner: 'Chapati, egg curry / veg kurma, rice' },
+    { day: 'Wednesday', breakfast: 'Pongal, chutney', lunch: 'Rice, tomato dal, cabbage fry, curd', snacks: 'Fruit', dinner: 'Veg biryani, raita' },
+    { day: 'Thursday', breakfast: 'Poori, potato curry, boiled egg / banana', lunch: 'Rice, rasam, brinjal curry, curd', snacks: 'Groundnut chikki', dinner: 'Chapati, dal fry, rice' },
+    { day: 'Friday', breakfast: 'Dosa, chutney', lunch: 'Rice, sambar, aloo fry, curd', snacks: 'Bajji, tea', dinner: 'Chapati, chana masala, rice' },
+    { day: 'Saturday', breakfast: 'Vada, sambar, boiled egg / banana', lunch: 'Lemon rice, dal, papad, curd', snacks: 'Fruit', dinner: 'Chapati, mixed veg, rice' },
+    { day: 'Sunday', breakfast: 'Masala dosa', lunch: 'Veg pulao, paneer curry, curd', snacks: 'Cake, milk', dinner: 'Chapati, dal, rice, sweet' },
+  ],
+};
+
 /** Admissions season for "season to date" on the management dashboard. */
 export const admissionsSeason = { sample: true, label: '2027–29 intake', start: '2026-09-01' };
 

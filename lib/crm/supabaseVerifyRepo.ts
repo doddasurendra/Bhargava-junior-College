@@ -83,7 +83,7 @@ export function createSupabaseVerifyRepo(sb: SupabaseClient): VerifyRepo {
         documents: (ok(docs) ?? []).map((r: Row) => ({ key: r.doc_key, status: r.status, note: r.note, updatedBy: r.updated_by, updatedAt: r.updated_at })),
         payments: (ok(pays) ?? []).map(toPayment),
         student: s
-          ? { id: s.id, leadId, fullName: s.full_name, dob: s.dob, gender: s.gender, program: s.program, stay: s.stay, guardianName: s.guardian_name, guardianPhone: s.guardian_phone, collegeId: s.college_id, createdBy: s.created_by, createdAt: s.created_at }
+          ? { id: s.id, leadId, fullName: s.full_name, dob: s.dob, gender: s.gender, program: s.program, stay: s.stay, guardianName: s.guardian_name, guardianPhone: s.guardian_phone, loginPhone: s.login_phone, collegeId: s.college_id, createdBy: s.created_by, createdAt: s.created_at }
           : null,
         reversals: (ok(revs) ?? []).map(toReversal),
       };
@@ -150,7 +150,7 @@ export function createSupabaseVerifyRepo(sb: SupabaseClient): VerifyRepo {
         await sb.rpc('create_student', {
           p_lead: leadId,
           p_actor: actorId,
-          p: { full_name: s.fullName, dob: s.dob, gender: s.gender, program: s.program, stay: s.stay, guardian_name: s.guardianName, guardian_phone: s.guardianPhone },
+          p: { full_name: s.fullName, dob: s.dob, gender: s.gender, program: s.program, stay: s.stay, guardian_name: s.guardianName, guardian_phone: s.guardianPhone, login_phone: s.loginPhone ?? null },
         }),
       );
     },

@@ -53,6 +53,8 @@ export interface StudentRow {
   stay: 'day' | 'hostel';
   guardianName: string;
   guardianPhone: string;
+  /** the student's own mobile, for the student login (optional) */
+  loginPhone?: string | null;
   collegeId: string | null;
   createdBy: string;
   createdAt: string;

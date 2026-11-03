@@ -87,6 +87,35 @@ Each sign-off happens once (a second attempt is refused) and is written to the a
 
 **Not yet (verification):** a PDF file with WhatsApp/email delivery of receipts (today: print / save as PDF), payment gateway auto-confirmation, DigiLocker fetch, cancelling an issued receipt, and the Student & Parent app login that the College ID unlocks.
 
+## Student & Parent app (`/app`), first slice
+
+The app is an **installable web app (PWA)** on the same backend. Families open `/app` and choose "Add to Home screen" on Android or iOS. Store-listed native apps can wrap it later (e.g. Capacitor) without a second backend.
+
+- **Sign-in:** mobile number plus a 6-digit code on WhatsApp. Sessions last 30 days, in an httpOnly cookie whose audience (`app`) can never pass as a CRM session. Codes are sent only to registered numbers, but the screen says the same thing either way, so it can't be used to discover who is enrolled.
+- **Who sees what:** computed fresh on every request from the phone number.
+
+  | Profile | Who |
+  |---|---|
+  | **Parent** | Each student the number is a guardian of |
+  | **Student** | The student's own number, if their lead had a student phone |
+  | **Applicant** | An enquiry or application without a College ID yet |
+
+  So an **applicant becomes a parent automatically when the College ID is issued**, and removing a guardian takes effect immediately. A number with several profiles (two children, or a child plus a sibling's application) gets a switcher at the top.
+- **Guardians:** issuing the College ID grants the primary guardian access in the same transaction and sends `bjc_app_welcome` on WhatsApp. The admin office can **add more guardians** (several per student) or remove them from the lead page; the last one can't be removed.
+- **Screens:**
+
+  | Screen | What it shows |
+  |---|---|
+  | Home | Digital College ID card, last hostel movement, fees paid, guardians with access. Applicants see the admission timeline, counsellor and visit |
+  | Fees | Payments and official receipts (the same receipt document as the CRM, printable). Only for that phone's own students |
+  | Hostel | Biometric check-in/out log, weekly mess menu (sample), daily schedule, safety and health info |
+
+- **Biometric hostel gate:** `POST /api/hostel/events` with header `x-device-key: $HOSTEL_DEVICE_KEY` and body `{ college_id, direction: "in"|"out", at, device, event_id }`. It's idempotent per device and event, and each new event sends `bjc_hostel_movement` on WhatsApp to every guardian. Without the key configured, the endpoint refuses everything.
+
+**Siblings — decision needed:** leads de-duplicate by mobile number (§4.4), so two children enquiring from the same number merge into one lead. Today a sibling's admission has to be registered under the other parent's number, with the first parent added as a guardian. The proper fix is a "student" level under a family lead in the CRM.
+
+**Not yet (needs §9–12 of the brief, which were cut off):** attendance, tests and the mentor's note (and the Sunday WhatsApp parent report built on them), PTM booking, messaging the class teacher, the monthly wellbeing check-in, warden contacts and the sick-room log, online fee payment, push notifications, offline support, Telugu/Hindi in the app, PNG app icons, and the staff-side logins for faculty, wardens and transport.
+
 ## Management dashboard and the 7 PM report
 
 **`/crm/dashboard`** is for Super Admin, Management, Principal and the Admission Manager. One period filter (**Today / Month to date / Season to date**, India time; season start is `admissionsSeason` in `content/sample.ts`) scopes everything below it.

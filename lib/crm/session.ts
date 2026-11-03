@@ -12,12 +12,15 @@ function secret(): string {
 
 const sign = (body: string) => createHmac('sha256', secret()).update(body).digest('base64url');
 
-export function encodeSession(staffId: string, now = Date.now()): string {
-  const body = Buffer.from(JSON.stringify({ sub: staffId, exp: Math.floor(now / 1000) + SESSION_MAX_AGE_S })).toString('base64url');
+/** `aud` separates staff CRM sessions from Student & Parent app sessions: neither token works for the other. */
+export type Audience = 'crm' | 'app';
+
+export function encodeSession(sub: string, now = Date.now(), aud: Audience = 'crm', maxAgeS = SESSION_MAX_AGE_S): string {
+  const body = Buffer.from(JSON.stringify({ sub, aud, exp: Math.floor(now / 1000) + maxAgeS })).toString('base64url');
   return `${body}.${sign(body)}`;
 }
 
-export function decodeSession(token: string | undefined, now = Date.now()): string | null {
+export function decodeSession(token: string | undefined, now = Date.now(), aud: Audience = 'crm'): string | null {
   if (!token) return null;
   const [body, sig] = token.split('.');
   if (!body || !sig) return null;
@@ -25,8 +28,9 @@ export function decodeSession(token: string | undefined, now = Date.now()): stri
   const given = Buffer.from(sig);
   if (expected.length !== given.length || !timingSafeEqual(expected, given)) return null;
   try {
-    const { sub, exp } = JSON.parse(Buffer.from(body, 'base64url').toString());
+    const { sub, exp, aud: tokenAud } = JSON.parse(Buffer.from(body, 'base64url').toString());
     if (typeof sub !== 'string' || typeof exp !== 'number' || exp * 1000 < now) return null;
+    if ((tokenAud ?? 'crm') !== aud) return null;
     return sub;
   } catch {
     return null;
