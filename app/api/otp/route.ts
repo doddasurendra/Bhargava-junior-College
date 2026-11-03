@@ -1,5 +1,5 @@
 import { clientIp, fail, ok, parseBody, rateLimit } from '@/lib/api';
-import { MessagingNotConfigured, sendOtp } from '@/lib/messaging';
+import { MessagingNotConfigured, mode, sendOtpCode } from '@/lib/whatsapp/service';
 import { issueOtp } from '@/lib/otp';
 import { otpRequestSchema } from '@/lib/validation';
 
@@ -15,9 +15,9 @@ export async function POST(req: Request) {
 
   try {
     const code = await issueOtp(phone);
-    await sendOtp(phone, code);
-    // In local development (no SMS provider) return the code so the flow can be tested.
-    return ok(process.env.NODE_ENV === 'development' && !process.env.MESSAGING_PROVIDER ? { devCode: code } : {});
+    await sendOtpCode(phone, code);
+    // In local development (no WhatsApp provider) return the code so the flow can be tested.
+    return ok(process.env.NODE_ENV === 'development' && mode().kind === 'dev' ? { devCode: code } : {});
   } catch (e) {
     if (e instanceof MessagingNotConfigured) return fail('OTP service is not available right now. Please call the admissions office.', 503);
     console.error('[otp] issue failed', (e as Error).message);

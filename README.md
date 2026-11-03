@@ -87,6 +87,44 @@ Each sign-off happens once (a second attempt is refused) and is written to the a
 
 **Not yet (verification):** a PDF file with WhatsApp/email delivery of receipts (today: print / save as PDF), payment gateway auto-confirmation, DigiLocker fetch, cancelling an issued receipt, and the Student & Parent app login that the College ID unlocks.
 
+## WhatsApp (Business Cloud API)
+
+Code: `lib/whatsapp/`. Templates live in `lib/whatsapp/templates.ts`, the single source of truth, and are listed for submission at **/crm/whatsapp** (managers).
+
+**What gets sent:**
+- **Website (automatic):** an enquiry acknowledgement (or the program brochure PDF for brochure requests, once `brochures.urls` is set), the visit confirmation, the BSAT hall ticket, and the Track-admission OTP (Authentication template with a copy-code button).
+- **Reminders:** visit reminders go **1 day and 2 hours before**, through `/api/cron/whatsapp-reminders`. Call it every 15 minutes with `Authorization: Bearer $CRON_SECRET` (Vercel Cron does this automatically). The day-before reminder is skipped for visits booked less than 24h ahead.
+- **CRM, per lead:** college intro, brochure, location and visit confirmation. Values are filled in from the lead record, never typed by staff.
+- **CRM, bulk:** intro or brochure to selected leads, at most 200 per send. Only opted-in numbers receive it, and the rest are counted as skipped.
+
+**Consent and opt-out:**
+- Website enquiries opt in through the form. Imported and phone-in leads need staff to **record the opt-in** with a note.
+- A **STOP** reply opts the number out everywhere, and only the family can undo it by replying **START**.
+
+**Delivery tracking:**
+- **Outbox:** every message is stored with its status (queued → sent → delivered → read, or failed/skipped) and shown as a thread on the lead.
+- **Dedupe keys:** each automatic message has one, so cron and webhook retries never double-send.
+- **Webhook:** `/api/whatsapp/webhook` checks Meta's signature against the raw body.
+
+**Without credentials:**
+- **Development:** messages are logged (masked) and marked sent with a dev id.
+- **Production:** messages are recorded as *skipped*, and the OTP endpoint returns 503.
+
+**Go-live checklist:**
+1. WhatsApp Business Account plus a verified number for the college.
+2. Submit the 8 templates on /crm/whatsapp and wait for Meta's approval.
+3. Set `MESSAGING_PROVIDER=whatsapp_cloud`, `WHATSAPP_PHONE_NUMBER_ID`, `WHATSAPP_ACCESS_TOKEN` (permanent system-user token), `WHATSAPP_APP_SECRET`, `WHATSAPP_VERIFY_TOKEN` and `CRON_SECRET`.
+4. Register the webhook URL with the verify token and subscribe to `messages`.
+5. Schedule the cron.
+6. Add the brochure PDF URLs.
+
+**Not yet (WhatsApp):**
+- Free-text replies from staff inside the 24-hour window (comes with the chat inbox / AI assistant).
+- Automatic retry of rate-limited sends.
+- Receipt PDFs over WhatsApp.
+- Hostel check-in alerts and the Sunday parent report (student app phase).
+- SMS fallback.
+
 **Not yet:** direct .xlsx upload, Kanban view, a data-quality report (category mix by school and source), click-to-call telephony and recordings, WhatsApp/SMS templates and campaigns, the AI-handoff chat inbox, the verification checkpoint (documents → fee → receipt → student record → College ID), the staff mobile app, role switching UI, 2FA, and the 7 PM report (§8 is missing from the brief).
 
 ## Before launch: the college must provide

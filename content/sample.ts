@@ -161,6 +161,12 @@ export const numbering = {
   receipt: { prefix: 'BJC', academicYear: '2027-28', seqDigits: 5 },
 };
 
+/** Public URLs of the program brochure PDFs, sent as the WhatsApp document header. null = not available yet. */
+export const brochures = {
+  sample: true,
+  urls: { 'iit-jee': null, neet: null, 'long-term-jee': null, 'long-term-neet': null } as Record<string, string | null>,
+};
+
 export const PAYMENT_MODES = [
   { value: 'upi', label: 'UPI' },
   { value: 'card', label: 'Card' },

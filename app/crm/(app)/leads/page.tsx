@@ -8,6 +8,7 @@ import { getCrmRepo } from '@/lib/crm/repo';
 import { listLeads, type Queue } from '@/lib/crm/service';
 import { LEAD_CATEGORIES, LEAD_STATUSES, ROLE_LABELS, STATUS_LABELS, type LeadFilter } from '@/lib/crm/types';
 import { IMPORT_SOURCES } from '@/lib/crm/importer';
+import { TEMPLATES } from '@/lib/whatsapp/templates';
 import { LEAD_SOURCES } from '@/lib/validation';
 
 const ALL_SOURCES = [...LEAD_SOURCES, ...IMPORT_SOURCES.map((s) => s.value)] as const;
@@ -43,6 +44,7 @@ export default async function LeadsPage({ searchParams }: { searchParams: SP }) 
   if (all && ownerParam && staff.some((s) => s.id === ownerParam)) filter.ownerId = ownerParam;
 
   const rows = await listLeads(user, filter, queue);
+  const canBulk = can(user, 'lead.assign') || can(user, 'whatsapp.bulk');
   const assignable = staff.filter((s) => s.roles.some((r) => ['telecaller', 'admission_counsellor', 'admission_manager'].includes(r)));
   const staffOptions = assignable.map((s) => ({ id: s.id, label: `${s.fullName} · ${s.roles.map((r) => ROLE_LABELS[r]).join(', ')}` }));
   const qs = (patch: Record<string, string | undefined>) => {
@@ -106,7 +108,11 @@ export default async function LeadsPage({ searchParams }: { searchParams: SP }) 
         <Link href={queue === 'all' ? '/crm/leads' : `/crm/leads?queue=${queue}`} className="self-center text-sm text-muted underline">Clear</Link>
       </form>
 
-      <BulkForm staff={staffOptions} canAssign={can(user, 'lead.assign')}>
+      <BulkForm
+        staff={staffOptions}
+        canAssign={can(user, 'lead.assign')}
+        waTemplates={can(user, 'whatsapp.bulk') ? TEMPLATES.filter((t) => 'bulk' in t && t.bulk).map((t) => ({ key: t.key, label: t.name.replace(/^bjc_/, '').replace(/_/g, ' ') })) : []}
+      >
         {rows.length === 0 ? (
           <Empty>No leads match.</Empty>
         ) : (
@@ -114,7 +120,7 @@ export default async function LeadsPage({ searchParams }: { searchParams: SP }) 
             <table className="table-base min-w-[900px] text-[13px]">
               <thead>
                 <tr>
-                  {can(user, 'lead.assign') && <th className="w-8" aria-label="Select" />}
+                  {canBulk && <th className="w-8" aria-label="Select" />}
                   <th>Lead</th>
                   <th>Program</th>
                   <th>Category</th>
@@ -128,7 +134,7 @@ export default async function LeadsPage({ searchParams }: { searchParams: SP }) 
               <tbody>
                 {rows.map(({ lead, owner, follow }) => (
                   <tr key={lead.id} className="hover:bg-bg">
-                    {can(user, 'lead.assign') && (
+                    {canBulk && (
                       <td>
                         <input type="checkbox" name="ids" value={lead.id} className="h-4 w-4 accent-maroon" aria-label={`Select ${lead.contactName ?? lead.phone}`} />
                       </td>

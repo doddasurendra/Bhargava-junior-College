@@ -1,6 +1,7 @@
 'use client';
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { useFormState, useFormStatus } from 'react-dom';
+import { waBulkAction } from '@/app/crm/wa-actions';
 import { assignAction, bulkCategoryAction, callAction, checkInAction, decisionAction, loginDevAction, loginPasswordAction, qualifyAction, seedDemoAction, visitOutcomeAction, type ActionState } from '@/app/crm/actions';
 import { CALL_OUTCOMES, LEAD_CATEGORIES, LOST_REASONS, type LeadCategory } from '@/lib/crm/types';
 
@@ -200,22 +201,37 @@ export function AssignForm({ leadId, currentOwner, staff }: { leadId: string; cu
 }
 
 /** Bulk actions over the lead table (§7.6). The table's checkboxes are named `ids`. */
-export function BulkForm({ staff, canAssign, children }: { staff: StaffOption[]; canAssign: boolean; children: ReactNode }) {
+export function BulkForm({
+  staff,
+  canAssign,
+  waTemplates = [],
+  children,
+}: {
+  staff: StaffOption[];
+  canAssign: boolean;
+  /** bulk-capable WhatsApp templates; empty = no bulk WhatsApp for this user */
+  waTemplates?: { key: string; label: string }[];
+  children: ReactNode;
+}) {
   const [assignState, assign] = useFormState(assignAction, {});
   const [catState, setCat] = useFormState(bulkCategoryAction, {});
+  const [waState, sendWa] = useFormState(waBulkAction, {});
   const ref = useRef<HTMLFormElement>(null);
   const [count, setCount] = useState(0);
-  const latest = assignState.error || assignState.message ? assignState : catState;
+  const [latest, setLatest] = useState<ActionState>({});
 
   const sync = () => setCount(ref.current?.querySelectorAll<HTMLInputElement>('input[name=ids]:checked').length ?? 0);
-  useEffect(() => {
+  const clear = () => {
     ref.current?.querySelectorAll<HTMLInputElement>('input[name=ids]').forEach((i) => (i.checked = false));
     sync();
-  }, [assignState, catState]);
+  };
+  useEffect(() => { setLatest(assignState); if (assignState.ok) clear(); }, [assignState]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => { setLatest(catState); if (catState.ok) clear(); }, [catState]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => { setLatest(waState); if (waState.ok) clear(); }, [waState]); // eslint-disable-line react-hooks/exhaustive-deps
 
   return (
     <form ref={ref} onChange={sync}>
-      {canAssign && (
+      {(canAssign || waTemplates.length > 0) && (
         <div className="mb-3 flex flex-wrap items-center gap-2 rounded-xl border border-line bg-surface p-2">
           <label className="flex items-center gap-2 px-2 text-sm">
             <input
@@ -228,27 +244,45 @@ export function BulkForm({ staff, canAssign, children }: { staff: StaffOption[];
             />
             <span className="font-mono">{count}</span> selected
           </label>
-          <select name="ownerId" className="input w-auto py-1.5 text-sm" defaultValue="">
-            <option value="">Assign to…</option>
-            <option value="round_robin">Round-robin (telecallers)</option>
-            {staff.map((s) => (
-              <option key={s.id} value={s.id}>
-                {s.label}
-              </option>
-            ))}
-          </select>
-          <input name="reason" className="input w-48 py-1.5 text-sm" placeholder="Reason (if reassigning)" maxLength={200} />
-          <Submit formAction={assign} className="btn-primary py-1.5">Assign</Submit>
-          <span className="mx-1 h-6 w-px bg-line" />
-          <select name="category" className="input w-auto py-1.5 text-sm" defaultValue="">
-            <option value="">Set category…</option>
-            {LEAD_CATEGORIES.map((c) => (
-              <option key={c} value={c} className="capitalize">
-                {c}
-              </option>
-            ))}
-          </select>
-          <Submit formAction={setCat} className="btn-outline py-1.5">Apply</Submit>
+          {canAssign && (
+            <>
+              <select name="ownerId" className="input w-auto py-1.5 text-sm" defaultValue="">
+                <option value="">Assign to…</option>
+                <option value="round_robin">Round-robin (telecallers)</option>
+                {staff.map((s) => (
+                  <option key={s.id} value={s.id}>
+                    {s.label}
+                  </option>
+                ))}
+              </select>
+              <input name="reason" className="input w-48 py-1.5 text-sm" placeholder="Reason (if reassigning)" maxLength={200} />
+              <Submit formAction={assign} className="btn-primary py-1.5">Assign</Submit>
+              <span className="mx-1 h-6 w-px bg-line" />
+              <select name="category" className="input w-auto py-1.5 text-sm" defaultValue="">
+                <option value="">Set category…</option>
+                {LEAD_CATEGORIES.map((c) => (
+                  <option key={c} value={c} className="capitalize">
+                    {c}
+                  </option>
+                ))}
+              </select>
+              <Submit formAction={setCat} className="btn-outline py-1.5">Apply</Submit>
+            </>
+          )}
+          {waTemplates.length > 0 && (
+            <>
+              <span className="mx-1 h-6 w-px bg-line" />
+              <select name="waTemplate" className="input w-auto py-1.5 text-sm" defaultValue="">
+                <option value="">WhatsApp…</option>
+                {waTemplates.map((t) => (
+                  <option key={t.key} value={t.key}>
+                    {t.label}
+                  </option>
+                ))}
+              </select>
+              <Submit formAction={sendWa} className="btn-outline py-1.5">Send to opted-in</Submit>
+            </>
+          )}
         </div>
       )}
       <Feedback state={latest} />

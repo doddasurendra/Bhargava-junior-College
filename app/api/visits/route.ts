@@ -1,10 +1,9 @@
 import { clientIp, deviceFromUA, fail, ok, parseBody, rateLimit } from '@/lib/api';
 import { formatDate, isIsoDate } from '@/lib/dates';
-import { sendWhatsAppTemplate } from '@/lib/messaging';
+import { visitConfirmation } from '@/lib/whatsapp/service';
 import { getStore, StoreError } from '@/lib/store';
 import { visitRequestSchema } from '@/lib/validation';
 import { slotsFor, validateVisit } from '@/lib/visits';
-import { fullAddress } from '@/content/college';
 
 export const dynamic = 'force-dynamic';
 
@@ -34,8 +33,9 @@ export async function POST(req: Request) {
   const invalid = validateVisit(d.date, d.slot);
   if (invalid) return fail(invalid);
 
+  let visitId: string;
   try {
-    await getStore().createVisit({ ...d, attribution: { ...d.attribution, device: d.attribution?.device ?? deviceFromUA(req) } });
+    ({ visitId } = await getStore().createVisit({ ...d, attribution: { ...d.attribution, device: d.attribution?.device ?? deviceFromUA(req) } }));
   } catch (e) {
     if (e instanceof StoreError && e.code === 'slot_full') return fail('That slot has just filled up. Please pick another time.', 409);
     if (e instanceof StoreError) return fail('That slot is not available. Please pick another time.', 409);
@@ -45,6 +45,6 @@ export async function POST(req: Request) {
 
   const slotLabel = slotsFor(d.date).find((s) => s.slot === d.slot)?.label ?? d.slot;
   const when = `${formatDate(d.date)}, ${slotLabel}`;
-  await sendWhatsAppTemplate(d.phone, 'visit_confirmation', { name: d.name, when, address: fullAddress });
+  await visitConfirmation(visitId, d.name, d.phone, when).catch((e) => console.error('[visits] confirmation failed', (e as Error).message));
   return ok({ when });
 }

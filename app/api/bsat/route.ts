@@ -1,7 +1,7 @@
 import { bsat } from '@/content/sample';
 import { clientIp, deviceFromUA, fail, ok, parseBody, rateLimit } from '@/lib/api';
 import { formatDate, todayIST } from '@/lib/dates';
-import { sendWhatsAppTemplate } from '@/lib/messaging';
+import { bsatRegistered } from '@/lib/whatsapp/service';
 import { getStore, StoreError } from '@/lib/store';
 import { bsatRequestSchema } from '@/lib/validation';
 
@@ -20,7 +20,7 @@ export async function POST(req: Request) {
     // The BSAT form asks for the student's name, so record it as the student on the lead too.
     const { hallTicket, alreadyRegistered } = await getStore().registerBsat({ ...d, studentName: d.name, attribution: { ...d.attribution, device: d.attribution?.device ?? deviceFromUA(req) } });
     if (!alreadyRegistered) {
-      await sendWhatsAppTemplate(d.phone, 'bsat_registration', { name: d.name, hallTicket, date: formatDate(session.date), mode: session.mode });
+      await bsatRegistered(d.name, d.phone, formatDate(session.date), session.mode, hallTicket).catch((e) => console.error('[bsat] message failed', (e as Error).message));
     }
     return ok({ hallTicket, alreadyRegistered, date: formatDate(session.date), mode: session.mode });
   } catch (e) {
