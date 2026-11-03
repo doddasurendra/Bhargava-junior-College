@@ -1,5 +1,6 @@
 import { getProgram } from '@/content/programs';
-import { visitSlots } from '@/content/sample';
+import { getContent } from '@/lib/cms';
+import { slotLabel as labelFor } from '@/lib/visits';
 import { buildTimeline } from '@/lib/admission';
 import { clientIp, fail, ok, parseBody, rateLimit } from '@/lib/api';
 import { formatDate } from '@/lib/dates';
@@ -21,11 +22,11 @@ export async function POST(req: Request) {
   if (result === 'expired') return fail('This code has expired. Please request a new code.', 401);
 
   try {
-    const recs = await getStore().findAdmissions(phone);
+    const [recs, { visitSlots }] = await Promise.all([getStore().findAdmissions(phone), getContent()]);
     if (recs.length === 0) return ok({ found: false });
     // One entry per child in the family (primary lead first, then siblings).
     const children = recs.map((rec) => {
-      const slotLabel = rec.upcomingVisit ? visitSlots.slots.find((s) => s.slot === rec.upcomingVisit!.slot)?.label ?? rec.upcomingVisit.slot : null;
+      const slotLabel = rec.upcomingVisit ? labelFor(rec.upcomingVisit.slot, visitSlots) : null;
       return {
         studentName: rec.studentName ?? rec.contactName,
         program: rec.program ? getProgram(rec.program)?.name ?? null : null,

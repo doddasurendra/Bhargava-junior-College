@@ -5,6 +5,7 @@ import { BacklogTiles, FlaggedCard, FunnelCard, LossesCard, OwnersCard, QualityC
 import { requireStaff } from '@/lib/crm/auth';
 import { getReport } from '@/lib/crm/reports';
 import { formatDate, formatDateTime, isIsoDate } from '@/lib/dates';
+import { formatINR } from '@/lib/fees';
 
 export const metadata = { title: '7 PM report' };
 export const dynamic = 'force-dynamic';
@@ -16,6 +17,9 @@ export default async function ReportPage({ params }: { params: { date: string } 
   const r = await getReport(user, params.date);
   if (!r) notFound();
   const v = (k: string, p: typeof r.today) => p.funnel.find((f) => f.key === k)?.value ?? 0;
+  // Snapshots from before §8 was implemented have no daily block; they show the older funnel rows.
+  const hasDaily = Array.isArray(r.today.daily);
+  const d = (k: string, p: typeof r.today) => { const x = p.daily?.find((f) => f.key === k); return x ? (x.money ? formatINR(x.value) : x.value.toLocaleString('en-IN')) : '–'; };
 
   return (
     <div className="space-y-5 print:space-y-3">
@@ -27,7 +31,8 @@ export default async function ReportPage({ params }: { params: { date: string } 
             Snapshot generated {formatDateTime(r.generatedAt)} · sent to {r.recipients} {r.recipients === 1 ? 'person' : 'people'}
           </p>
         </div>
-        <div className="print:hidden">
+        <div className="flex gap-2 print:hidden">
+          {hasDaily && <a href={`/crm/reports/${r.date}/pdf`} className="btn-outline py-1.5">Download PDF</a>}
           <PrintButton />
         </div>
       </div>
@@ -43,7 +48,15 @@ export default async function ReportPage({ params }: { params: { date: string } 
             </tr>
           </thead>
           <tbody>
-            {r.today.funnel.map((f) => (
+            {hasDaily && r.today.daily.map((f) => (
+              <tr key={f.key}>
+                <td title={f.definition}>{f.label}</td>
+                <td className="text-right font-semibold tabular-nums text-heading">{d(f.key, r.today)}</td>
+                <td className="text-right tabular-nums">{d(f.key, r.mtd)}</td>
+                <td className="text-right tabular-nums">{d(f.key, r.season)}</td>
+              </tr>
+            ))}
+            {!hasDaily && r.today.funnel.map((f) => (
               <tr key={f.key}>
                 <td title={f.definition}>{f.label}</td>
                 <td className="text-right font-semibold tabular-nums text-heading">{f.value}</td>
@@ -51,12 +64,12 @@ export default async function ReportPage({ params }: { params: { date: string } 
                 <td className="text-right tabular-nums">{v(f.key, r.season)}</td>
               </tr>
             ))}
-            <tr>
+            {!hasDaily && <tr>
               <td>Admissions lost</td>
               <td className="text-right font-semibold tabular-nums text-heading">{r.today.losses.total}</td>
               <td className="text-right tabular-nums">{r.mtd.losses.total}</td>
               <td className="text-right tabular-nums">{r.season.losses.total}</td>
-            </tr>
+            </tr>}
           </tbody>
         </table>
       </section>

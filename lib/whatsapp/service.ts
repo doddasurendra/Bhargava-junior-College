@@ -1,5 +1,5 @@
 import 'server-only';
-import { brochures, visitSlots } from '@/content/sample';
+import { getContent } from '../cms';
 import { college, fullAddress, mapsLinkUrl } from '@/content/college';
 import { getProgram } from '@/content/programs';
 import { getCrmRepo } from '../crm/repo';
@@ -8,6 +8,7 @@ import { maskPhone } from '../phone';
 import { CloudApiError, sendTemplateMessage, sendTextMessage, type CloudConfig } from './cloudApi';
 import { createFileMessageStore } from './fileStore';
 import { dueReminders } from './reminders';
+import { slotLabel } from '../visits';
 import { createSupabaseMessageStore } from './supabaseStore';
 import { getTemplate, renderBody, validateParams, type TemplateKey } from './templates';
 import type { MessageStore, OutboundStatus } from './types';
@@ -140,7 +141,8 @@ export async function sendFreeText(p: { to: string; text: string; leadId: string
 
 const firstName = (name: string | null | undefined) => (name?.trim().split(/\s+/)[0] || 'there');
 
-export function enquiryAck(name: string, phone: string, source: string, program?: string | null) {
+export async function enquiryAck(name: string, phone: string, source: string, program?: string | null) {
+  const { brochures } = await getContent();
   const url = program ? brochures.urls[program] : null;
   const p = program ? getProgram(program) : undefined;
   if (source === 'brochure' && url && p) {
@@ -214,14 +216,14 @@ export async function handleWebhook(rawBody: string, signature: string | null): 
 export async function runVisitReminders(now = new Date()) {
   const repo = getCrmRepo();
   const today = todayIST(now);
-  const visits = await repo.listVisits({ from: today, to: addDays(today, 1), statuses: ['scheduled'] });
+  const [visits, { visitSlots }] = await Promise.all([repo.listVisits({ from: today, to: addDays(today, 1), statuses: ['scheduled'] }), getContent()]);
   const due = dueReminders(visits, now);
   const counts = { due: due.length, sent: 0, skipped: 0, failed: 0 };
   for (const d of due) {
     const v = visits.find((x) => x.id === d.visitId)!;
     const lead = await repo.getLead(v.leadId);
     if (!lead) continue;
-    const time = visitSlots.slots.find((s) => s.slot === v.slot)?.label ?? v.slot;
+    const time = slotLabel(v.slot, visitSlots);
     const day = v.date === today ? 'today' : `tomorrow (${formatDate(v.date, { weekday: 'long', day: 'numeric', month: 'short' })})`;
     const r = await sendTemplate({ template: 'visit_reminder', to: lead.phone, params: [day, time, mapsLinkUrl], leadId: lead.id, dedupeKey: d.dedupeKey });
     if (r.status === 'sent') counts.sent++;

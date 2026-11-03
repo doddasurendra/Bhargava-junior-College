@@ -207,7 +207,9 @@ export async function recordVisitOutcome(user: Staff, visitId: string, outcome: 
   const status = counselled ? 'counselled' : 'visited';
   const stage = advanceStage(lead.stage, counselled ? 'counselling' : 'visit');
   const keep = ['decision_pending', 'confirmed', 'lost', 'admitted', 'invalid'].includes(lead.status);
-  await repo.updateLead(lead.id, keep ? { stage } : { status, stage }, [{ action: 'stage_changed', actorId: user.id, field: 'stage', oldValue: lead.stage, newValue: stage }]);
+  const audit: AuditInput[] = [{ action: 'stage_changed', actorId: user.id, field: 'stage', oldValue: lead.stage, newValue: stage }];
+  if (counselled) audit.push({ action: 'counselled', actorId: user.id, field: 'counselling', newValue: 'completed at visit' });
+  await repo.updateLead(lead.id, keep ? { stage } : { status, stage }, audit);
 }
 
 export interface VisitBoardRow {

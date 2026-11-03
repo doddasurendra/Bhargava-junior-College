@@ -1,5 +1,6 @@
 import 'server-only';
-import { brochures, visitSlots } from '@/content/sample';
+import { getContent } from '../cms';
+import { slotLabel } from '../visits';
 import { college, fullAddress, mapsLinkUrl } from '@/content/college';
 import { getProgram } from '@/content/programs';
 import { can, canSeeLead } from '../crm/permissions';
@@ -29,7 +30,7 @@ async function buildSend(lead: CrmLead, key: TemplateKey): Promise<{ req: Omit<S
     case 'brochure': {
       const p = lead.program ? getProgram(lead.program) : undefined;
       if (!p) return { unavailable: 'Set the lead’s program first.' };
-      const url = brochures.urls[p.slug];
+      const url = (await getContent()).brochures.urls[p.slug];
       if (!url) return { unavailable: `No ${p.short} brochure PDF is configured yet.` };
       return { req: { template: key, to: lead.phone, params: [name, p.name, college.phones[0].display], document: { link: url, filename: `${p.short} brochure.pdf` }, leadId: lead.id, requireConsent: true } };
     }
@@ -37,7 +38,7 @@ async function buildSend(lead: CrmLead, key: TemplateKey): Promise<{ req: Omit<S
       const visits = (await getCrmRepo().getLeadHistory(lead.id)).visits.filter((v) => v.status === 'scheduled' && v.date >= todayIST()).sort((a, b) => a.date.localeCompare(b.date));
       const v = visits[0];
       if (!v) return { unavailable: 'No upcoming visit is booked.' };
-      const when = `${formatDate(v.date)}, ${visitSlots.slots.find((s) => s.slot === v.slot)?.label ?? v.slot}`;
+      const when = `${formatDate(v.date)}, ${slotLabel(v.slot, (await getContent()).visitSlots)}`;
       // Re-sending a confirmation is allowed (the family may have lost it), so no dedupe key here.
       return { req: { template: key, to: lead.phone, params: [name, when, fullAddress, mapsLinkUrl], leadId: lead.id, requireConsent: true } };
     }
@@ -112,7 +113,7 @@ export async function bulkSend(user: Staff, ids: string[], key: string) {
   return counts;
 }
 
-export function setupStatus() {
+export async function setupStatus() {
   const m = mode();
   return {
     mode: m.kind,
@@ -126,6 +127,6 @@ export function setupStatus() {
     },
     webhookUrl: `${siteUrl}/api/whatsapp/webhook`,
     cronUrl: `${siteUrl}/api/cron/whatsapp-reminders`,
-    brochures: Object.entries(brochures.urls).map(([slug, url]) => ({ program: getProgram(slug)?.name ?? slug, configured: Boolean(url) })),
+    brochures: Object.entries((await getContent()).brochures.urls).map(([slug, url]) => ({ program: getProgram(slug)?.name ?? slug, configured: Boolean(url) })),
   };
 }

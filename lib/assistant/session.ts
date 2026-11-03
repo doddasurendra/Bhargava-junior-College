@@ -1,5 +1,6 @@
 import 'server-only';
 import { reply as fallbackReply } from '../chat/faqBot';
+import { getContent } from '../cms';
 import { getConversationStore, handoffExisting, startBotConversation, visitorConversation } from '../chat/service';
 import type { Conversation } from '../chat/types';
 import type { Attribution } from '../validation';
@@ -81,7 +82,7 @@ export async function assistantTurn(p: { c?: string; t?: string; text: string; a
   } catch (e) {
     if (!(e instanceof AssistantUnavailable)) console.error('[assistant] turn failed', (e as Error).message);
     // Fallback: the rule-based assistant, which only answers from site content.
-    const fb = fallbackReply(p.text);
+    const fb = fallbackReply(p.text, await getContent());
     await st.addMessage({ conversationId: conv.id, author: 'bot', staffId: null, text: fb.text, waMessageId: null });
     await recordTurn({
       conversationId: conv.id,

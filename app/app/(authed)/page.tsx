@@ -2,7 +2,7 @@ import Link from 'next/link';
 import { Crest } from '@/components/ui';
 import { college } from '@/content/college';
 import { getProgram } from '@/content/programs';
-import { visitSlots } from '@/content/sample';
+import { getContent } from '@/lib/cms';
 import { profileData, requireAppUser } from '@/lib/app/service';
 import { formatDate, formatDateTime } from '@/lib/dates';
 import { formatINR } from '@/lib/fees';
@@ -35,6 +35,7 @@ function Timeline({ steps }: { steps: Awaited<ReturnType<typeof profileData>>['t
 }
 
 export default async function AppHome() {
+  const { visitSlots } = await getContent();
   const u = await requireAppUser();
   const p = u.active;
 

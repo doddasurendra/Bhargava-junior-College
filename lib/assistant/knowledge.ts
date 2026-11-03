@@ -1,17 +1,20 @@
 /**
- * The assistant's knowledge base, rendered from the same content the website shows (content/*.ts), so the
+ * The assistant's knowledge base, rendered from the same content the website shows (the CMS), so the
  * assistant can only state what the site states. The knowledge base is small (a few thousand tokens), so it
  * goes into the system prompt whole and is prompt-cached instead of needing a vector store; once the CMS
  * adds blog posts, resources and long FAQs, switch to retrieval over those.
  *
  * Deterministic output: no dates, no random ordering — any byte change invalidates the prompt cache.
  */
-import { college, fullAddress, testimonials } from '@/content/college';
+import { college, fullAddress } from '@/content/college';
 import { programIncludes, programs } from '@/content/programs';
-import { admissionDocuments, bsat, faculty, faqs, fees, hostel, results, visitSlots } from '@/content/sample';
+import type { Content } from '../cms/blocks';
 import { formatINR } from '../fees';
 
-export function buildKnowledge(): string {
+export function buildKnowledge(c: Content): string {
+  const { bsat, faculty, faqs, fees, hostel, results, visitSlots } = c;
+  const admissionDocuments = c.documentChecklist.default.map((d) => d.label);
+  const testimonials = c.testimonials.items;
   const sample = (s: boolean) => (s ? ' [SAMPLE DATA — the college has not yet confirmed this; say "currently listed" and suggest confirming with a counsellor]' : '');
   const lines: string[] = [];
   lines.push(`# ${college.name}`);
@@ -56,7 +59,9 @@ export function buildKnowledge(): string {
 
   lines.push(`\n## Faculty${sample(faculty.sample)}`);
   lines.push(faculty.items.map((f) => `${f.name} (${f.subject}, ${f.years} years)`).join('; ') + '.');
-  lines.push(`Parent testimonials from: ${testimonials.map((t) => `${t.name} (${t.role})`).join('; ')}.`);
+  
+
+  if (testimonials.length) lines.push(`Parent testimonials from: ${testimonials.map((t) => (t.role ? `${t.name} (${t.role})` : t.name)).join('; ')}.`);
 
   lines.push(`\n## FAQs${sample(faqs.sample)}`);
   for (const f of faqs.items) lines.push(`Q: ${f.q} A: ${f.a}`);

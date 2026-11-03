@@ -8,7 +8,7 @@ const CAT: Record<string, string> = { utility: 'Utility', marketing: 'Marketing'
 
 export default async function WhatsAppSetupPage() {
   await requireStaff('whatsapp.setup');
-  const s = setupStatus();
+  const s = await setupStatus();
   const Flag = ({ on }: { on: boolean }) => <span className={`font-mono text-xs font-semibold ${on ? 'text-emerald-700 dark:text-emerald-300' : 'text-red-600 dark:text-red-300'}`}>{on ? 'set' : 'missing'}</span>;
 
   return (

@@ -1,7 +1,7 @@
 import Link from 'next/link';
 import { SeedDemoButton } from '@/components/crm/forms';
 import { CategoryBadge, Empty, FollowUpBadge, Panel, programShort, Stat } from '@/components/crm/ui';
-import { visitSlots } from '@/content/sample';
+import { getContent } from '@/lib/cms';
 import { devLoginEnabled, requireStaff } from '@/lib/crm/auth';
 import { can } from '@/lib/crm/permissions';
 import { dashboard, type LeadRow } from '@/lib/crm/service';
@@ -33,6 +33,7 @@ function LeadList({ rows, showOwner }: { rows: LeadRow[]; showOwner: boolean }) 
 }
 
 export default async function CrmHome() {
+  const { visitSlots } = await getContent();
   const user = await requireStaff();
   const d = await dashboard(user);
   const all = can(user, 'lead.viewAll');

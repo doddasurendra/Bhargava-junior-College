@@ -1,7 +1,7 @@
 import Link from 'next/link';
 import { CheckInButtons, VisitOutcomeForm } from '@/components/crm/forms';
 import { CategoryBadge, Empty, programShort } from '@/components/crm/ui';
-import { visitSlots } from '@/content/sample';
+import { getContent } from '@/lib/cms';
 import { requireStaff } from '@/lib/crm/auth';
 import { can } from '@/lib/crm/permissions';
 import { visitBoard, type VisitBoardRow } from '@/lib/crm/service';
@@ -10,6 +10,7 @@ import { addDays, formatDate, todayIST } from '@/lib/dates';
 export const metadata = { title: 'Campus visits' };
 
 export default async function VisitsPage() {
+  const { visitSlots } = await getContent();
   const user = await requireStaff('visit.view');
   const today = todayIST();
   const rows = await visitBoard(user, today, addDays(today, 7));

@@ -4,7 +4,9 @@ import { college } from '@/content/college';
 import { formatOpening, isOfficeOpen, nextOpening } from '../chat/hours';
 import { formatDate, todayIST } from '../dates';
 import { buildKnowledge } from './knowledge';
-import { runTool, TOOLS, type ToolContext, type ToolEffects } from './tools';
+import { buildTools, runTool, type ToolContext, type ToolEffects } from './tools';
+import { getContent } from '../cms';
+import type { Content } from '../cms/blocks';
 
 export const ASSISTANT_MODEL = 'claude-opus-5-5';
 const MAX_TOOL_ROUNDS = 6;
@@ -45,8 +47,18 @@ function getClient(): Anthropic {
   return client;
 }
 
-/** Frozen prefix: rules + knowledge base, cached. Nothing per-request may go in here. */
-const SYSTEM: Anthropic.Beta.BetaTextBlockParam[] = [{ type: 'text', text: `${SYSTEM_RULES}\n\n<knowledge_base>\n${buildKnowledge()}\n</knowledge_base>`, cache_control: { type: 'ephemeral' } }];
+/**
+ * Frozen prefix: rules + knowledge base, cached. Nothing per-request may go in here. Rebuilt only when the CMS
+ * content object changes (a new object after each save or cache refresh); the text is deterministic, so an
+ * unchanged CMS gives byte-identical prompts and the prompt cache stays warm.
+ */
+let built: { content: Content; system: Anthropic.Beta.BetaTextBlockParam[]; tools: ReturnType<typeof buildTools> } | null = null;
+function promptFor(content: Content) {
+  if (built?.content !== content) {
+    built = { content, system: [{ type: 'text', text: `${SYSTEM_RULES}\n\n<knowledge_base>\n${buildKnowledge(content)}\n</knowledge_base>`, cache_control: { type: 'ephemeral' } }], tools: buildTools(content) };
+  }
+  return built;
+}
 
 export interface Turn {
   role: 'user' | 'assistant';
@@ -74,6 +86,7 @@ function mergeEffects(a: ToolEffects, b?: ToolEffects): ToolEffects {
 
 export async function runAssistant(history: Turn[], ctx: ToolContext, now = new Date()): Promise<AssistantResult> {
   const anthropic = getClient();
+  const prompt = promptFor(await getContent());
   const open = isOfficeOpen(now);
   // Per-turn facts go in a mid-conversation system message after the latest user message, so the
   // cached system prompt and earlier history stay byte-identical.
@@ -96,8 +109,8 @@ export async function runAssistant(history: Turn[], ctx: ToolContext, now = new 
         max_tokens: 8000,
         // Chat route: low effort keeps replies quick; thinking stays adaptive (Opus 5.5 default).
         output_config: { effort: 'low' },
-        system: SYSTEM,
-        tools: TOOLS,
+        system: prompt.system,
+        tools: prompt.tools,
         messages,
         // A safety-classifier decline is retried server-side on Anthropic's recommended fallback model.
         betas: ['server-side-fallback-2026-07-01'],

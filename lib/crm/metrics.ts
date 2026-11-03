@@ -1,6 +1,5 @@
 /**
- * Management dashboard and 7 PM report metrics (brief §6.8, §7.2, §7.3, §7.5, §8 — §8 was truncated in the
- * brief we received, so the definitions below are ours; each is stated on the dashboard). Pure: unit tested.
+ * Management dashboard and 7 PM report metrics (brief §8, with §6.8, §7.2, §7.3, §7.5). Pure: unit tested.
  * All day boundaries are India Standard Time.
  */
 import { addDays, todayIST } from '../dates';
@@ -14,6 +13,125 @@ export interface MetricsData {
   visits: VisitRow[];
   signOffs: { leadId: string; stage: string; at: string }[];
   staff: Staff[];
+  payments?: { leadId: string; amount: number; approvedAt: string }[];
+  admitted?: { leadId: string; program: string; collegeId: string }[];
+}
+
+/** §8: "filter by program, source, school, owner" */
+export interface MetricsFilter {
+  program?: string;
+  source?: string;
+  school?: string;
+  ownerId?: string;
+}
+
+/** Marketing spend (content/marketing manager) and seat targets (CMS) for cost per lead and seats vs target. */
+export interface MetricsExtras {
+  spend?: { source: string; month: string; amount: number }[];
+  targets?: Record<string, number>;
+}
+
+/** Keeps only the leads matching the filter, and the calls, visits, audit and payments that belong to them. */
+export function filterData(data: MetricsData, f: MetricsFilter): MetricsData {
+  if (!f.program && !f.source && !f.school && !f.ownerId) return data;
+  const leads = data.leads.filter(
+    (l) =>
+      (!f.program || l.program === f.program) &&
+      (!f.source || l.firstSource === f.source || l.lastSource === f.source) &&
+      (!f.school || (l.school ?? '').toLowerCase() === f.school.toLowerCase()) &&
+      (!f.ownerId || l.ownerId === f.ownerId),
+  );
+  const ids = new Set(leads.map((l) => l.id));
+  return {
+    ...data,
+    leads,
+    calls: data.calls.filter((c) => ids.has(c.leadId)),
+    audit: data.audit.filter((a) => ids.has(a.leadId)),
+    visits: data.visits.filter((v) => ids.has(v.leadId)),
+    signOffs: data.signOffs.filter((s) => ids.has(s.leadId)),
+    payments: data.payments?.filter((p) => ids.has(p.leadId)),
+    admitted: data.admitted?.filter((s) => ids.has(s.leadId)),
+  };
+}
+
+/**
+ * The 10 daily tracking parameters of §8, in the brief's order. Each has a written definition shown on the
+ * dashboard and in the 7 PM report.
+ */
+export function dailyParameters(data: MetricsData, p: Period) {
+  const inP = (iso: string | null | undefined) => inPeriod(iso, p);
+  const audit = data.audit.filter((a) => inP(a.at));
+  const distinct = (rows: { leadId: string }[]) => new Set(rows.map((r) => r.leadId)).size;
+  const interested = new Set([
+    ...data.calls.filter((c) => inP(c.createdAt) && (c.interest === 'hot' || c.interest === 'warm')).map((c) => c.leadId),
+    ...audit.filter((a) => a.action === 'qualified' && (a.newValue === 'hot' || a.newValue === 'warm')).map((a) => a.leadId),
+  ]);
+  const lost = audit.filter((a) => (a.action === 'decision' || a.action === 'status_changed') && a.newValue === 'lost');
+  const fees = (data.payments ?? []).filter((x) => inP(x.approvedAt)).reduce((s, x) => s + x.amount, 0);
+  return [
+    { key: 'collected', label: 'Total leads collected', value: data.leads.filter((l) => inP(l.createdAt)).length, money: false, definition: 'New leads created in the period from every source, after de-duplication by mobile number.' },
+    { key: 'allocated', label: 'Leads allocated', value: distinct(audit.filter((a) => a.action === 'assigned' || a.action === 'reassigned')), money: false, definition: 'Distinct leads given an owner (or a new owner) in the period.' },
+    { key: 'calls', label: 'Calls completed', value: data.calls.filter((c) => inP(c.createdAt)).length, money: false, definition: 'Calls logged with a mandatory outcome in the period.' },
+    { key: 'interested', label: 'Parents interested', value: interested.size, money: false, definition: 'Distinct leads marked Hot or Warm (on a call or by qualification) in the period.' },
+    { key: 'visits_scheduled', label: 'Campus visits scheduled', value: data.visits.filter((v) => inP(v.createdAt)).length, money: false, definition: 'Visits booked in the period (website, chat, WhatsApp or CRM).' },
+    { key: 'visits_actual', label: 'Actual campus visits', value: distinct(audit.filter((a) => a.action === 'visit_arrived')), money: false, definition: 'Families marked Arrived by the front desk in the period.' },
+    { key: 'counselled', label: 'Counselling completed', value: distinct(audit.filter((a) => a.action === 'counselled')), money: false, definition: 'Leads whose admission counselling was recorded as completed in the period.' },
+    { key: 'confirmed', label: 'Admissions confirmed', value: distinct(audit.filter((a) => a.action === 'decision' && a.newValue === 'confirmed')), money: false, definition: 'Leads whose admission decision was recorded as Confirmed in the period.' },
+    { key: 'fees', label: 'Fees collected', value: fees, money: true, definition: 'Rupees in payments approved by Accounts in the period (online and offline).' },
+    { key: 'lost', label: 'Leads lost', value: distinct(lost), money: false, definition: 'Leads closed as Lost (with a mandatory reason) in the period.' },
+  ];
+}
+
+export type DailyParameter = ReturnType<typeof dailyParameters>[number];
+
+const CHAT_SOURCES = ['chat', 'assistant', 'whatsapp', 'chat_handoff'];
+
+/** §8 "plus" panels that the funnel and owner tables don't already cover. */
+export function managementExtras(data: MetricsData, p: Period, extras: MetricsExtras = {}) {
+  const inP = (iso: string | null | undefined) => inPeriod(iso, p);
+  const audit = data.audit.filter((a) => inP(a.at));
+  const newLeads = data.leads.filter((l) => inP(l.createdAt));
+  const arrived = new Set(audit.filter((a) => a.action === 'visit_arrived').map((a) => a.leadId)).size;
+  const noShow = audit.filter((a) => a.action === 'visit_no_show').length;
+
+  // quality mix of leads created in the period
+  const mix = { hot: 0, warm: 0, cold: 0, invalid: 0, unqualified: 0 };
+  for (const l of newLeads) mix[l.category ?? 'unqualified']++;
+
+  // cost per lead and source ROI: spend in months overlapping the period
+  const months = new Set<string>();
+  for (let d = p.from; d <= p.to; d = addDays(d, 1)) months.add(d.slice(0, 7));
+  const spendBy = new Map<string, number>();
+  for (const s of extras.spend ?? []) if (months.has(s.month)) spendBy.set(s.source, (spendBy.get(s.source) ?? 0) + s.amount);
+  const admittedIds = new Set((data.admitted ?? []).map((a) => a.leadId));
+  const bySource = new Map<string, { leads: number; confirmed: number }>();
+  for (const l of newLeads) {
+    const r = bySource.get(l.firstSource) ?? { leads: 0, confirmed: 0 };
+    r.leads++;
+    if (l.status === 'confirmed' || l.status === 'admitted' || admittedIds.has(l.id)) r.confirmed++;
+    bySource.set(l.firstSource, r);
+  }
+  const roi = [...new Set([...bySource.keys(), ...spendBy.keys()])]
+    .map((source) => {
+      const r = bySource.get(source) ?? { leads: 0, confirmed: 0 };
+      const spend = spendBy.get(source) ?? 0;
+      return { source, spend, leads: r.leads, confirmed: r.confirmed, costPerLead: spend && r.leads ? Math.round(spend / r.leads) : null, costPerAdmission: spend && r.confirmed ? Math.round(spend / r.confirmed) : null };
+    })
+    .sort((a, b) => b.spend - a.spend || b.leads - a.leads);
+
+  // seats filled vs target per program (College IDs issued this season)
+  const filled = new Map<string, number>();
+  for (const s of data.admitted ?? []) filled.set(s.program, (filled.get(s.program) ?? 0) + 1);
+  const seats = Object.entries(extras.targets ?? {}).map(([program, target]) => ({ program, target, filled: filled.get(program) ?? 0, pct: pct(filled.get(program) ?? 0, target) }));
+
+  return {
+    quality: mix,
+    noShowRate: pct(noShow, arrived + noShow),
+    noShows: noShow,
+    chatLeads: newLeads.filter((l) => CHAT_SOURCES.includes(l.firstSource)).length,
+    roi,
+    seats,
+  };
 }
 
 export type PeriodKey = 'today' | 'mtd' | 'season';
@@ -42,7 +160,7 @@ const inPeriod = (iso: string | null | undefined, p: Period) => {
 };
 const pct = (n: number, d: number) => (d ? Math.round((n / d) * 100) : null);
 
-export function computeMetrics(data: MetricsData, p: Period, now: Date = new Date()) {
+export function computeMetrics(data: MetricsData, p: Period, now: Date = new Date(), extras: MetricsExtras = {}) {
   const active = data.leads.filter((l) => l.status !== 'invalid' || inPeriod(l.createdAt, p));
   const open = data.leads.filter((l) => !CLOSED_STATUSES.includes(l.status));
   const calls = data.calls.filter((c) => inPeriod(c.createdAt, p));
@@ -152,6 +270,9 @@ export function computeMetrics(data: MetricsData, p: Period, now: Date = new Dat
 
   return {
     period: p,
+    /** §8 — the 10 daily tracking parameters */
+    daily: dailyParameters(data, p),
+    extras: managementExtras(data, p, extras),
     funnel,
     calls: { total: calls.length, connected: connected.length, connectRate: pct(connected.length, calls.length) },
     noShows: noShows.length,

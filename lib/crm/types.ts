@@ -271,6 +271,10 @@ export interface CrmRepo extends VerifyRepo {
     audit: AuditEntry[];
     visits: VisitRow[];
     signOffs: { leadId: string; stage: string; at: string }[];
+    /** approved payments, approved since `sinceIso` */
+    payments: { leadId: string; amount: number; approvedAt: string }[];
+    /** every student with a College ID (for seats filled vs target) */
+    admitted: { leadId: string; program: string; collegeId: string }[];
   }>;
   /** active staff only */
   listStaff(): Promise<Staff[]>;

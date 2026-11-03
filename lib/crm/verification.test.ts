@@ -1,10 +1,13 @@
+import { defaultContent } from '../cms/blocks';
 import { describe, expect, it } from 'vitest';
 import { canApproveReversal, canRequestReversal, canSignOff, checklistFor, formatCollegeId, formatReceiptNo, outstandingDocuments, reversalCascade, rupeesInWords, stepStates, type PaymentRow, type VerificationRecord } from './verification';
+
+const C = defaultContent();
 
 const empty: VerificationRecord = { signOffs: [], documents: [], payments: [], student: null, reversals: [] };
 const pay = (p: Partial<PaymentRow>): PaymentRow => ({ id: 'p', leadId: 'l', amount: 50000, mode: 'upi', reference: null, paidOn: '2026-11-02', status: 'approved', recordedBy: 's', recordedAt: '', approvedBy: null, approvedAt: null, receiptNo: null, receiptAt: null, ...p });
 const signed = (...stages: string[]) => stages.map((stage) => ({ stage: stage as never, signedOffBy: 's', at: '2026-11-02T10:00:00Z', note: null }));
-const blockers = (v: VerificationRecord, stage: string, status: 'confirmed' | 'open' = 'confirmed') => stepStates(status, 'iit-jee', v).find((s) => s.stage === stage)!.blockers;
+const blockers = (v: VerificationRecord, stage: string, status: 'confirmed' | 'open' = 'confirmed') => stepStates(status, 'iit-jee', v, { checklist: C.documentChecklist, numbering: C.numbering }).find((s) => s.stage === stage)!.blockers;
 
 describe('verification gate (§7.4)', () => {
   it('application needs a confirmed decision', () => {
@@ -13,7 +16,7 @@ describe('verification gate (§7.4)', () => {
   });
 
   it('documents: required must be verified, "if applicable" can be N/A', () => {
-    const list = checklistFor('iit-jee');
+    const list = checklistFor('iit-jee', C.documentChecklist);
     const all = list.map((d) => ({ key: d.key, status: 'verified' as const, note: null, updatedBy: null, updatedAt: null }));
     expect(outstandingDocuments(list, all)).toEqual([]);
     const naCaste = all.map((d) => (d.key === 'caste_income' ? { ...d, status: 'not_applicable' as const } : d));
@@ -78,10 +81,10 @@ describe('reversals', () => {
 
 describe('numbering', () => {
   it('formats College IDs and receipt numbers', () => {
-    expect(formatCollegeId('iit-jee', 1)).toBe('BJC-2027-JEE-0001');
-    expect(formatCollegeId('long-term-neet', 123)).toBe('BJC-2027-LTN-0123');
-    expect(() => formatCollegeId('unknown', 1)).toThrow();
-    expect(formatReceiptNo(42)).toBe('BJC/2027-28/00042');
+    expect(formatCollegeId('iit-jee', 1, C.numbering.collegeId)).toBe('BJC-2027-JEE-0001');
+    expect(formatCollegeId('long-term-neet', 123, C.numbering.collegeId)).toBe('BJC-2027-LTN-0123');
+    expect(() => formatCollegeId('unknown', 1, C.numbering.collegeId)).toThrow();
+    expect(formatReceiptNo(42, C.numbering.receipt)).toBe('BJC/2027-28/00042');
   });
   it('writes amounts in Indian words', () => {
     expect(rupeesInWords(155000)).toBe('Rupees One Lakh Fifty Five Thousand Only');

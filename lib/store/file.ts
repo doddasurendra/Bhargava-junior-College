@@ -1,7 +1,8 @@
 import { promises as fs } from 'node:fs';
 import path from 'node:path';
 import { randomUUID } from 'node:crypto';
-import { bsat, devStaff, visitSlots } from '@/content/sample';
+import { devStaff } from '@/content/sample';
+import { BLOCKS, type BlockKey, type Content } from '../cms/blocks';
 import type { StageKey } from '../admission';
 import type { AuditEntry, CallLog, ImportBatch, Staff, VisitStatus } from '../crm/types';
 import type { DocRow, PaymentRow, ReversalRow, StageSignOff, StudentRow } from '../crm/verification';
@@ -11,6 +12,7 @@ import type { AssistantTurnRow } from '../assistant/analytics';
 import type { DailyReport } from '../crm/reports';
 import type { Guardian, HostelEvent } from '../app/types';
 import type { LoginEvent, StaffAuth } from '../auth/types';
+import type { Rec } from '../records/types';
 import { StoreError, type AdmissionRecord, type LeadInput, type OtpRecord, type Store } from './types';
 
 /**
@@ -88,12 +90,13 @@ export interface DB {
   hostelEvents: HostelEvent[];
   staffAuth: StaffAuth[];
   loginAudit: LoginEvent[];
+  records: Record<string, Rec<unknown>[]>;
   counters: Record<string, number>;
   seq: { bsat: number };
 }
 
 const FILE = path.join(process.cwd(), '.data', 'dev-db.json');
-const empty = (): DB => ({ leads: [], touchpoints: [], visits: [], bsat: [], otps: [], staff: [], calls: [], audit: [], importBatches: [], signOffs: [], documents: [], payments: [], students: [], reversals: [], waMessages: [], waInbound: [], waOptOuts: [], conversations: [], convMessages: [], assistantTurns: [], dailyReports: [], guardians: [], hostelEvents: [], staffAuth: [], loginAudit: [], counters: {}, seq: { bsat: 0 } });
+const empty = (): DB => ({ leads: [], touchpoints: [], visits: [], bsat: [], otps: [], staff: [], calls: [], audit: [], importBatches: [], signOffs: [], documents: [], payments: [], students: [], reversals: [], waMessages: [], waInbound: [], waOptOuts: [], conversations: [], convMessages: [], assistantTurns: [], dailyReports: [], guardians: [], hostelEvents: [], staffAuth: [], loginAudit: [], records: {}, counters: {}, seq: { bsat: 0 } });
 
 async function load(): Promise<DB> {
   let db: DB;
@@ -125,6 +128,13 @@ export function tx<T>(fn: (db: DB) => T | Promise<T>, write = true): Promise<T> 
   });
   queue = run.catch(() => undefined);
   return run;
+}
+
+/** A CMS block as saved in this file store (or its sample default) — for checks that run inside a transaction. */
+export function cmsBlock<K extends BlockKey>(db: DB, key: K): Content[K] {
+  const saved = (db.records.cms ?? []).find((r) => r.id === key) as Rec<{ value: unknown }> | undefined;
+  const parsed = saved ? BLOCKS[key].schema.safeParse(saved.data.value) : null;
+  return (parsed?.success ? parsed.data : BLOCKS[key].schema.parse(BLOCKS[key].default)) as Content[K];
 }
 
 export function pushAudit(db: DB, leadId: string, entry: Omit<AuditEntry, 'id' | 'at' | 'leadId'>) {
@@ -183,7 +193,7 @@ export function createFileStore(): Store {
 
     createVisit: (input) =>
       tx((db) => {
-        const cfg = visitSlots.slots.find((s) => s.slot === input.slot);
+        const cfg = cmsBlock(db, 'visitSlots').slots.find((s) => s.slot === input.slot);
         if (!cfg) throw new StoreError('invalid_slot');
         const booked = db.visits.filter((v) => v.date === input.date && v.slot === input.slot && (v.status === 'scheduled' || v.status === 'arrived')).length;
         if (booked >= cfg.capacity) throw new StoreError('slot_full');
@@ -197,7 +207,7 @@ export function createFileStore(): Store {
 
     registerBsat: (input) =>
       tx((db) => {
-        if (!bsat.sessions.some((s) => s.id === input.sessionId)) throw new StoreError('invalid_session');
+        if (!cmsBlock(db, 'bsat').sessions.some((s) => s.id === input.sessionId)) throw new StoreError('invalid_session');
         const { lead } = upsertLead(db, { ...input, source: 'bsat' });
         const existing = db.bsat.find((r) => r.leadId === lead.id);
         if (existing) return { hallTicket: existing.hallTicket, alreadyRegistered: true };

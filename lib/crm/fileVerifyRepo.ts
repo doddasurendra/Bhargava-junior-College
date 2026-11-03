@@ -1,6 +1,6 @@
 import { randomUUID } from 'node:crypto';
 import { STAGES } from '../admission';
-import { pushAudit, tx, type DB, type FileLead } from '../store/file';
+import { cmsBlock, pushAudit, tx, type DB, type FileLead } from '../store/file';
 import { RepoConflict, type VerifyRepo } from './types';
 import { collegeIdCounterKey, formatCollegeId, formatReceiptNo, GATE_STAGES, receiptCounterKey, reversalCascade, type VerifyStage } from './verification';
 
@@ -81,7 +81,8 @@ export function createFileVerifyRepo(): VerifyRepo {
         const now = new Date().toISOString();
         const issued: string[] = [];
         for (const p of db.payments.filter((x) => x.leadId === leadId && x.status === 'approved' && !x.receiptNo)) {
-          p.receiptNo = formatReceiptNo(next(db, receiptCounterKey()));
+          const rc = cmsBlock(db, 'numbering').receipt;
+          p.receiptNo = formatReceiptNo(next(db, receiptCounterKey(rc)), rc);
           p.receiptAt = now;
           issued.push(p.receiptNo);
         }
@@ -104,7 +105,8 @@ export function createFileVerifyRepo(): VerifyRepo {
         const student = db.students.find((x) => x.leadId === leadId);
         if (!student) throw new RepoConflict('There is no student record.');
         if (student.collegeId) throw new RepoConflict('A College ID has already been issued.');
-        const id = formatCollegeId(student.program, next(db, collegeIdCounterKey(student.program)));
+        const cc = cmsBlock(db, 'numbering').collegeId;
+        const id = formatCollegeId(student.program, next(db, collegeIdCounterKey(student.program, cc)), cc);
         student.collegeId = id;
         // The College ID unlocks the Student & Parent app (§7.4): the primary guardian gets access now.
         if (!db.guardians.some((g) => g.studentId === student.id && g.phone === student.guardianPhone)) {

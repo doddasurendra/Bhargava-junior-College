@@ -1,5 +1,8 @@
+import { defaultContent } from '../cms/blocks';
 import { describe, expect, it } from 'vitest';
 import { answer, detectIntent, reply } from './faqBot';
+
+const F = defaultContent();
 import { isOfficeOpen, nextOpening } from './hours';
 import { canFreeText, routeConversation } from './rules';
 
@@ -36,11 +39,11 @@ describe('rule-based assistant', () => {
     expect(detectIntent('Is there a swimming pool?')).toBe('unknown');
   });
   it('never promises ranks and hands off when unsure', () => {
-    expect(answer('rank').text).toMatch(/never promise/);
-    expect(reply('swimming pool?')).toMatchObject({ intent: 'unknown', offerHandoff: true });
+    expect(answer('rank', F).text).toMatch(/never promise/);
+    expect(reply('swimming pool?', F)).toMatchObject({ intent: 'unknown', offerHandoff: true });
   });
   it('answers fees from the configured fee table', () => {
-    expect(answer('fees').text).toContain('₹1,35,000');
+    expect(answer('fees', F).text).toContain('₹1,35,000');
   });
 });
 

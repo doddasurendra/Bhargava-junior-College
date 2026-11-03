@@ -3,7 +3,7 @@ import { LeadForm } from '@/components/forms';
 import { Check, Crest, Faq, initials, JsonLd, SampleBadge, Section } from '@/components/ui';
 import { college, mapsEmbedUrl, testimonials } from '@/content/college';
 import { programs } from '@/content/programs';
-import { bsat, faculty, faqs, fees, results } from '@/content/sample';
+import { getContent } from '@/lib/cms';
 import { formatDate, todayIST } from '@/lib/dates';
 import { formatINR } from '@/lib/fees';
 import { faqJsonLd } from '@/lib/seo';
@@ -17,7 +17,8 @@ const why = [
   { title: 'Results you can verify', body: 'Each topper card links to the official scorecard. No unverifiable claims.', href: '/results' },
 ];
 
-export default function HomePage() {
+export default async function HomePage() {
+  const { bsat, faculty, faqs, fees, results } = await getContent();
   const nextBsat = bsat.sessions.find((s) => s.date >= todayIST());
   return (
     <>

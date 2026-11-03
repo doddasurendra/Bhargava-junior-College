@@ -1,11 +1,11 @@
 'use client';
 import { useState } from 'react';
-import { bsat } from '@/content/sample';
+import type { Content } from '@/lib/cms/blocks';
 import { getAttribution, postJson } from '@/lib/attribution';
 import { formatDate } from '@/lib/dates';
 import { Consent, Field, FormError, Honeypot, PhoneInput, Success } from './forms';
 
-export function BsatForm({ upcomingIds }: { upcomingIds: string[] }) {
+export function BsatForm({ upcomingIds, bsat }: { upcomingIds: string[]; bsat: Pick<Content['bsat'], 'sessions' | 'resultsWithin'> }) {
   const sessions = bsat.sessions.filter((s) => upcomingIds.includes(s.id));
   const [name, setName] = useState('');
   const [phone, setPhone] = useState('');

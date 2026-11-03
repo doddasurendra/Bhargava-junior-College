@@ -1,5 +1,10 @@
 /** Admission verification checkpoint (brief §7.4). Pure rules — unit tested in verification.test.ts. */
-import { documentChecklist, numbering, type ChecklistItem } from '@/content/sample';
+import type { ChecklistItem } from '@/content/sample';
+import type { Content } from '../cms/blocks';
+
+/** Live checklist and numbering come from the CMS (getContent / cmsBlock). */
+export type ChecklistCfg = Content['documentChecklist'];
+export type NumberingCfg = Content['numbering'];
 import type { LeadStatus, Role, Staff } from './types';
 
 export const VERIFY_STEPS = [
@@ -111,8 +116,8 @@ export const canApproveReversal = (user: Pick<Staff, 'id' | 'roles'>, r: Pick<Re
 
 export const VERIFY_STATUSES: LeadStatus[] = ['confirmed', 'admitted'];
 
-export function checklistFor(program: string | null): ChecklistItem[] {
-  return (program && documentChecklist.byProgram[program]) || documentChecklist.default;
+export function checklistFor(program: string | null, cfg: ChecklistCfg): ChecklistItem[] {
+  return (program && cfg.byProgram[program]) || cfg.default;
 }
 
 export function canSignOff(user: Pick<Staff, 'roles'>, stage: VerifyStage): boolean {
@@ -136,7 +141,7 @@ export interface StepState {
   blockers: string[];
 }
 
-export function stepStates(leadStatus: LeadStatus, program: string | null, v: VerificationRecord): StepState[] {
+export function stepStates(leadStatus: LeadStatus, program: string | null, v: VerificationRecord, cfg: { checklist: ChecklistCfg; numbering: NumberingCfg }): StepState[] {
   const signed = (s: VerifyStage) => v.signOffs.find((x) => x.stage === s) ?? null;
   const approved = v.payments.filter((p) => p.status === 'approved');
   const pending = v.payments.filter((p) => p.status === 'pending_approval');
@@ -148,7 +153,7 @@ export function stepStates(leadStatus: LeadStatus, program: string | null, v: Ve
         if (!VERIFY_STATUSES.includes(leadStatus)) blockers.push('The admission decision must be Confirmed first.');
         break;
       case 'documents':
-        for (const d of outstandingDocuments(checklistFor(program), v.documents)) blockers.push(`${d.label}: not yet ${d.required ? 'verified' : 'verified or marked N/A'}`);
+        for (const d of outstandingDocuments(checklistFor(program, cfg.checklist), v.documents)) blockers.push(`${d.label}: not yet ${d.required ? 'verified' : 'verified or marked N/A'}`);
         break;
       case 'fee':
         if (approved.length === 0) blockers.push('No approved payment yet.');
@@ -162,14 +167,14 @@ export function stepStates(leadStatus: LeadStatus, program: string | null, v: Ve
         break;
       case 'college_id':
         for (const s of GATE_STAGES) if (!signed(s)) blockers.push(`${VERIFY_STEPS.find((x) => x.stage === s)!.label}: not signed off`);
-        if (v.student && !numbering.collegeId.programCodes[v.student.program]) blockers.push('The student record has no valid program.');
+        if (v.student && !cfg.numbering.collegeId.programCodes[v.student.program]) blockers.push('The student record has no valid program.');
         break;
     }
     return { stage: step.stage, label: step.label, owner: step.owner, done: signed(step.stage), blockers };
   });
 }
 
-export function formatCollegeId(program: string, seq: number, cfg = numbering.collegeId): string {
+export function formatCollegeId(program: string, seq: number, cfg: NumberingCfg['collegeId']): string {
   const code = cfg.programCodes[program];
   if (!code) throw new Error(`No College ID code for program ${program}`);
   return cfg.template
@@ -178,13 +183,13 @@ export function formatCollegeId(program: string, seq: number, cfg = numbering.co
     .replace('{SEQ}', String(seq).padStart(cfg.seqDigits, '0'));
 }
 
-export const collegeIdCounterKey = (program: string, cfg = numbering.collegeId) => `college_id:${cfg.year}:${cfg.programCodes[program]}`;
+export const collegeIdCounterKey = (program: string, cfg: NumberingCfg['collegeId']) => `college_id:${cfg.year}:${cfg.programCodes[program]}`;
 
-export function formatReceiptNo(seq: number, cfg = numbering.receipt): string {
+export function formatReceiptNo(seq: number, cfg: NumberingCfg['receipt']): string {
   return `${cfg.prefix}/${cfg.academicYear}/${String(seq).padStart(cfg.seqDigits, '0')}`;
 }
 
-export const receiptCounterKey = (cfg = numbering.receipt) => `receipt:${cfg.academicYear}`;
+export const receiptCounterKey = (cfg: NumberingCfg['receipt']) => `receipt:${cfg.academicYear}`;
 
 /** Amount in words for the receipt (Indian numbering). */
 export function rupeesInWords(n: number): string {

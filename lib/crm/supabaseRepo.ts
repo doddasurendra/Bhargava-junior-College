@@ -163,12 +163,14 @@ export function createSupabaseCrmRepo(url: string, serviceKey: string): CrmRepo 
           if (page.length < 1000) return out;
         }
       };
-      const [leads, calls, audit, visits, signOffs] = await Promise.all([
+      const [leads, calls, audit, visits, signOffs, payments, admitted] = await Promise.all([
         all((a, b) => sb.from('leads').select('*').is('merged_into', null).order('created_at').range(a, b)),
         all((a, b) => sb.from('call_logs').select('*').gte('created_at', since).order('created_at').range(a, b)),
-        all((a, b) => sb.from('lead_audit').select('*').gte('at', since).in('action', ['decision', 'status_changed', 'visit_no_show']).order('at').range(a, b)),
+        all((a, b) => sb.from('lead_audit').select('*').gte('at', since).in('action', ['decision', 'status_changed', 'visit_no_show', 'visit_arrived', 'assigned', 'reassigned', 'qualified', 'counselled']).order('at').range(a, b)),
         all((a, b) => sb.from('visits').select('*').or(`created_at.gte."${since}",outcome_at.gte."${since}",status.in.(scheduled,arrived)`).order('created_at').range(a, b)),
         all((a, b) => sb.from('admission_stage_events').select('lead_id, stage, completed_at').gte('completed_at', since).order('completed_at').range(a, b)),
+        all((a, b) => sb.from('payments').select('lead_id, amount, approved_at').eq('status', 'approved').gte('approved_at', since).order('approved_at').range(a, b)),
+        all((a, b) => sb.from('students').select('lead_id, program, college_id').not('college_id', 'is', null).order('created_at').range(a, b)),
       ]);
       return {
         leads: leads.map(toLead),
@@ -176,6 +178,8 @@ export function createSupabaseCrmRepo(url: string, serviceKey: string): CrmRepo 
         audit: audit.map((r) => ({ id: String(r.id), leadId: r.lead_id, actorId: r.actor_id, action: r.action, field: r.field, oldValue: r.old_value, newValue: r.new_value, reason: r.reason, at: r.at })),
         visits: visits.map(toVisit),
         signOffs: signOffs.map((r) => ({ leadId: r.lead_id, stage: r.stage, at: r.completed_at })),
+        payments: payments.map((r) => ({ leadId: r.lead_id, amount: Number(r.amount), approvedAt: r.approved_at })),
+        admitted: admitted.map((r) => ({ leadId: r.lead_id, program: r.program, collegeId: r.college_id })),
       };
     },
 

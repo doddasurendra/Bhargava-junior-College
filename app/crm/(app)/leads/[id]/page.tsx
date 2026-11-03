@@ -9,7 +9,7 @@ import { whatsappForLead } from '@/lib/whatsapp/crm';
 import { guardiansFor } from '@/lib/app/admin';
 import { GuardiansPanel } from '@/components/crm/GuardiansPanel';
 import { WhatsAppPanel } from '@/components/crm/WhatsAppPanel';
-import { visitSlots } from '@/content/sample';
+import { getContent } from '@/lib/cms';
 import { STAGES } from '@/lib/admission';
 import { requireStaff } from '@/lib/crm/auth';
 import { can } from '@/lib/crm/permissions';
@@ -24,6 +24,7 @@ export const metadata = { title: 'Lead' };
 type Event = { at: string; kind: string; title: string; body?: string | null; who?: string | null };
 
 export default async function LeadPage({ params }: { params: { id: string } }) {
+  const { visitSlots } = await getContent();
   const user = await requireStaff();
   let d;
   try {

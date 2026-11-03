@@ -3,7 +3,7 @@ import Link from 'next/link';
 import { PageHero, Section } from '@/components/ui';
 import { college } from '@/content/college';
 import { programIncludes, programs } from '@/content/programs';
-import { fees } from '@/content/sample';
+import { getContent } from '@/lib/cms';
 import { formatINR } from '@/lib/fees';
 
 export const metadata: Metadata = {
@@ -12,7 +12,8 @@ export const metadata: Metadata = {
   alternates: { canonical: '/programs' },
 };
 
-export default function ProgramsPage() {
+export default async function ProgramsPage() {
+  const { fees } = await getContent();
   return (
     <>
       <PageHero eyebrow="Programs" title="Choose the path that fits your goal" intro="Two integrated programs alongside the TS Intermediate Board, and two one-year Long Term programs for repeat attempts.">

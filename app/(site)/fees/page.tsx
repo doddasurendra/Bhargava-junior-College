@@ -2,16 +2,19 @@ import type { Metadata } from 'next';
 import Link from 'next/link';
 import { FeeCalculator } from '@/components/FeeCalculator';
 import { PageHero, Section } from '@/components/ui';
-import { bsat, fees } from '@/content/sample';
+import { getContent, type Content } from '@/lib/cms';
 import { formatINR } from '@/lib/fees';
 
-export const metadata: Metadata = {
+export async function generateMetadata(): Promise<Metadata> {
+  const { fees } = await getContent();
+  return {
   title: `Fee structure ${fees.academicYear} & scholarship calculator`,
   description: 'Full fee table for IIT-JEE and NEET programs with hostel and transport, plus a calculator for BSAT scholarships and instalments. No form required.',
   alternates: { canonical: '/fees' },
-};
+  };
+}
 
-const rows: { label: string; two: number; long: number; note?: string }[] = [
+const feeRows = (fees: Content['fees']):  { label: string; two: number; long: number; note?: string }[] => [
   { label: 'Tuition', two: fees.twoYear.tuition, long: fees.longTerm.tuition },
   { label: 'Study material & test series', two: fees.twoYear.material, long: fees.longTerm.material },
   { label: 'Admission fee', two: fees.twoYear.admission, long: fees.longTerm.admission, note: 'one time' },
@@ -20,7 +23,9 @@ const rows: { label: string; two: number; long: number; note?: string }[] = [
   { label: 'Transport (day scholars)', two: fees.transport, long: fees.transport, note: 'optional' },
 ];
 
-export default function FeesPage() {
+export default async function FeesPage() {
+  const { bsat, fees } = await getContent();
+  const rows = feeRows(fees);
   return (
     <>
       <PageHero eyebrow={`Fees ${fees.academicYear}`} title="Every fee, in the open" intro="No form to fill and no call needed to see what you will pay. Use the calculator to include your BSAT scholarship and choose instalments." badge={fees.sample} />
@@ -65,7 +70,7 @@ export default function FeesPage() {
       </Section>
 
       <Section id="calculator" eyebrow="Calculator" title="Work out your fee" intro="Choose a program, stay option, BSAT score and payment plan." className="bg-surface">
-        <FeeCalculator />
+        <FeeCalculator fees={fees} bsat={bsat} />
       </Section>
     </>
   );

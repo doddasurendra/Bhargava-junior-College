@@ -2,7 +2,8 @@ import 'server-only';
 import type Anthropic from '@anthropic-ai/sdk';
 import { z } from 'zod';
 import { getProgram, PROGRAM_SLUGS } from '@/content/programs';
-import { bsat, visitSlots } from '@/content/sample';
+import { getContent } from '../cms';
+import type { Content } from '../cms/blocks';
 import { getConversationStore } from '../chat/service';
 import { getCrmRepo } from '../crm/repo';
 import { formatDate, todayIST } from '../dates';
@@ -10,15 +11,15 @@ import { calculateFee, formatINR, STAY_OPTIONS } from '../fees';
 import { normalizeIndianMobile } from '../phone';
 import { getStore, StoreError } from '../store';
 import type { Attribution } from '../validation';
-import { slotsFor, validateVisit } from '../visits';
+import { slotLabel, slotsFor, validateVisit } from '../visits';
 import { bsatRegistered, visitConfirmation } from '../whatsapp/service';
 
 type Tool = Anthropic.Beta.BetaTool;
 
 const nullableString = { type: ['string', 'null'] } as const;
 
-/** Strict schemas: every property required (nullable where optional), no extra properties. */
-export const TOOLS: Tool[] = [
+/** Strict schemas: every property required (nullable where optional), no extra properties. Built from the CMS slots and BSAT sessions. */
+export const buildTools = ({ visitSlots, bsat }: Pick<Content, 'visitSlots' | 'bsat'>): Tool[] => [
   {
     name: 'calculate_fee',
     description:
@@ -150,9 +151,10 @@ export async function runTool(nameOf: string, input: unknown, ctx: ToolContext):
   try {
     switch (nameOf) {
       case 'calculate_fee': {
+        const { fees, bsat } = await getContent();
         const i = z.object({ program: z.enum(PROGRAM_SLUGS), stay: z.enum(['day', 'day-transport', 'hostel-nonac', 'hostel-ac']), bsat_score: z.number().min(0).max(100).nullable(), ssc_10_gpa: z.boolean(), instalments: z.union([z.literal(1), z.literal(3), z.literal(10)]) }).parse(input);
         const p = getProgram(i.program)!;
-        const r = calculateFee({ track: p.track, stay: i.stay, bsatScore: i.bsat_score, ssc10Gpa: i.ssc_10_gpa, instalments: i.instalments });
+        const r = calculateFee({ track: p.track, stay: i.stay, bsatScore: i.bsat_score, ssc10Gpa: i.ssc_10_gpa, instalments: i.instalments }, fees, bsat);
         return ok(
           { program: p.name, lines: r.lines.map((l) => `${l.label}: ${formatINR(l.amount)}`), scholarship_percent: r.scholarshipPct, year_1_total: formatINR(r.yearOne), year_2_total: r.yearTwo === null ? null : formatINR(r.yearTwo), per_instalment: `${r.instalments} × ${formatINR(r.perInstalment)}`, note: 'Estimate from the published (sample) fee table; final fee is in the admission letter.' },
           { links: [{ label: 'Fee calculator', href: '/fees#calculator' }] },
@@ -160,10 +162,11 @@ export async function runTool(nameOf: string, input: unknown, ctx: ToolContext):
       }
       case 'get_visit_slots': {
         const { date } = z.object({ date: z.string() }).parse(input);
-        const invalid = validateVisit(date, visitSlots.slots[0].slot);
+        const { visitSlots } = await getContent();
+        const invalid = validateVisit(date, visitSlots.slots[0].slot, visitSlots);
         if (invalid && !/slot/.test(invalid)) return err(invalid);
         const booked = await getStore().slotBookings(date);
-        return ok({ date: formatDate(date), slots: slotsFor(date).map((s) => ({ slot: s.slot, label: s.label, places_left: Math.max(0, s.capacity - (booked[s.slot] ?? 0)) })) });
+        return ok({ date: formatDate(date), slots: slotsFor(date, visitSlots).map((s) => ({ slot: s.slot, label: s.label, places_left: Math.max(0, s.capacity - (booked[s.slot] ?? 0)) })) });
       }
       case 'save_enquiry': {
         if (!ctx.consent) return CONSENT_REQUIRED();
@@ -178,7 +181,8 @@ export async function runTool(nameOf: string, input: unknown, ctx: ToolContext):
       case 'book_visit': {
         if (!ctx.consent) return CONSENT_REQUIRED();
         const i = z.object({ name, phone, date: z.string(), slot: z.string(), program, family_size: z.number().int().min(1).max(8) }).parse(input);
-        const invalid = validateVisit(i.date, i.slot);
+        const { visitSlots } = await getContent();
+        const invalid = validateVisit(i.date, i.slot, visitSlots);
         if (invalid) return err(invalid);
         const { visitId } = await getStore().createVisit({ name: i.name, phone: i.phone, date: i.date, slot: i.slot, familySize: i.family_size, program: i.program ?? undefined, consent: true, attribution: ctx.attribution });
         const lead = await getStore().captureLead({ name: i.name, phone: i.phone, source: 'chat', consent: true, attribution: ctx.attribution });
@@ -191,6 +195,7 @@ export async function runTool(nameOf: string, input: unknown, ctx: ToolContext):
       case 'register_bsat': {
         if (!ctx.consent) return CONSENT_REQUIRED();
         const i = z.object({ student_name: name, phone, stream: z.enum(['MPC', 'BiPC']), session_id: z.string() }).parse(input);
+        const { bsat } = await getContent();
         const session = bsat.sessions.find((s) => s.id === i.session_id);
         if (!session || session.date < todayIST()) return err('That test date has passed or does not exist. Offer an upcoming session.');
         const r = await getStore().registerBsat({ name: i.student_name, studentName: i.student_name, phone: i.phone, stream: i.stream, sessionId: i.session_id, consent: true, attribution: ctx.attribution });

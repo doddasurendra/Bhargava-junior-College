@@ -1,5 +1,5 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
-import { numbering } from '@/content/sample';
+import { BLOCKS } from '../cms/blocks';
 import { RepoConflict, type VerifyRepo } from './types';
 import type { PaymentRow, ReversalRow } from './verification';
 
@@ -62,6 +62,12 @@ const toPayment = (r: Row): PaymentRow => ({
 });
 
 export function createSupabaseVerifyRepo(sb: SupabaseClient): VerifyRepo {
+  /** The CMS numbering block (records table), read at the moment a number is issued. */
+  const numbering = async () => {
+    const { data } = await sb.from('records').select('data').eq('collection', 'cms').eq('id', 'numbering').maybeSingle();
+    const parsed = data ? BLOCKS.numbering.schema.safeParse((data.data as { value: unknown }).value) : null;
+    return parsed?.success ? parsed.data : BLOCKS.numbering.schema.parse(BLOCKS.numbering.default);
+  };
   const audit = async (leadId: string, actorId: string, action: string, field: string, newValue: string, reason: string | null = null, oldValue: string | null = null) => {
     ok(await sb.from('lead_audit').insert({ lead_id: leadId, actor_id: actorId, action, field, old_value: oldValue, new_value: newValue, reason }));
   };
@@ -141,7 +147,7 @@ export function createSupabaseVerifyRepo(sb: SupabaseClient): VerifyRepo {
     },
 
     async issueReceipts(leadId, actorId) {
-      const r = numbering.receipt;
+      const r = (await numbering()).receipt;
       return (ok(await sb.rpc('issue_receipts', { p_lead: leadId, p_actor: actorId, p_counter: `receipt:${r.academicYear}`, p_prefix: `${r.prefix}/${r.academicYear}`, p_digits: r.seqDigits })) ?? []) as string[];
     },
 
@@ -156,7 +162,7 @@ export function createSupabaseVerifyRepo(sb: SupabaseClient): VerifyRepo {
     },
 
     async issueCollegeId(leadId, actorId) {
-      const c = numbering.collegeId;
+      const c = (await numbering()).collegeId;
       return ok(await sb.rpc('issue_college_id', { p_lead: leadId, p_actor: actorId, p_template: c.template, p_year: c.year, p_codes: c.programCodes, p_digits: c.seqDigits })) as string;
     },
   };

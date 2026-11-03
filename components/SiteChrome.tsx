@@ -4,6 +4,7 @@ import { programs } from '@/content/programs';
 import { getDict, getLang } from '@/lib/i18n-server';
 import { LangSwitch, MobileMenu, NavLink, ThemeToggle } from './HeaderControls';
 import { Crest } from './ui';
+import type { Content } from '@/lib/cms/blocks';
 
 function navItems(t: ReturnType<typeof getDict>) {
   return [
@@ -72,10 +73,11 @@ export function Header() {
   );
 }
 
-export function Footer() {
+export function Footer({ social }: { social: Content['social'] }) {
+  const socials = ([['Instagram', social.instagram], ['YouTube', social.youtube], ['Facebook', social.facebook], ['Google reviews', social.googleBusiness]] as const).filter(([, u]) => u);
   return (
     <footer className="bg-navy-950 text-white/75">
-      <div className="container-x grid gap-10 py-14 md:grid-cols-2 lg:grid-cols-[1.4fr_1fr_1fr_1.2fr]">
+      <div className="container-x grid gap-10 py-14 md:grid-cols-2 lg:grid-cols-[1.3fr_1fr_1fr_1fr_1.2fr]">
         <div>
           <div className="flex items-center gap-3">
             <Crest size={56} />
@@ -87,6 +89,17 @@ export function Footer() {
           <p className="mt-4 max-w-sm text-sm leading-6">
             IIT-JEE and NEET UG with the TS Intermediate Board, on a single campus in Saroornagar. Run by {college.society}.
           </p>
+          {socials.length > 0 && (
+            <ul className="mt-4 flex flex-wrap gap-3 text-sm">
+              {socials.map(([label, href]) => (
+                <li key={label}>
+                  <a href={href!} target="_blank" rel="noopener noreferrer" className="underline hover:text-white">
+                    {label}
+                  </a>
+                </li>
+              ))}
+            </ul>
+          )}
         </div>
         <div>
           <p className="font-semibold text-white">Programs</p>
@@ -114,7 +127,33 @@ export function Footer() {
               ['/scholarship', 'BSAT scholarship test'],
               ['/visit', 'Book a campus visit'],
               ['/track', 'Track your admission'],
-              ['/hostel', 'Hostel & campus life'],
+              ['/apply', 'Apply online'],
+              ['/hostel', 'Hostel'],
+            ].map(([href, label]) => (
+              <li key={href}>
+                <Link href={href} className="hover:text-white">
+                  {label}
+                </Link>
+              </li>
+            ))}
+          </ul>
+        </div>
+        <div>
+          <p className="font-semibold text-white">Explore</p>
+          <ul className="mt-3 space-y-2 text-sm">
+            {[
+              ['/results', 'Results'],
+              ['/resources', 'Free resources'],
+              ['/mock-test', 'Free mock test'],
+              ['/predictor', 'Rank & college predictor'],
+              ['/campus', 'Campus & gallery'],
+              ['/faculty', 'Faculty'],
+              ['/blog', 'Blog & exam news'],
+              ['/parents', 'Parent corner'],
+              ['/downloads', 'Downloads'],
+              ['/careers', 'Careers'],
+              ['/about', 'About us'],
+              ['/login', 'Log in'],
             ].map(([href, label]) => (
               <li key={href}>
                 <Link href={href} className="hover:text-white">

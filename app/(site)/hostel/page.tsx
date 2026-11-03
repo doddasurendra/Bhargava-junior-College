@@ -1,7 +1,7 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
 import { Check, PageHero, Section } from '@/components/ui';
-import { fees, hostel } from '@/content/sample';
+import { getContent } from '@/lib/cms';
 import { formatINR } from '@/lib/fees';
 
 export const metadata: Metadata = {
@@ -26,7 +26,8 @@ function List({ title, items }: { title: string; items: string[] }) {
   );
 }
 
-export default function HostelPage() {
+export default async function HostelPage() {
+  const { fees, hostel } = await getContent();
   return (
     <>
       <PageHero eyebrow="Hostel & campus life" title="A hostel parents can see into" intro={`${hostel.blocks}. Every check-in and check-out sends a WhatsApp alert to parents.`} badge={hostel.sample}>

@@ -1,17 +1,21 @@
 import type { Metadata } from 'next';
 import { BsatForm } from '@/components/BsatForm';
 import { JsonLd, PageHero, SampleBadge, Section } from '@/components/ui';
-import { bsat } from '@/content/sample';
+import { getContent } from '@/lib/cms';
 import { formatDate, todayIST } from '@/lib/dates';
 import { bsatEventsJsonLd } from '@/lib/seo';
 
-export const metadata: Metadata = {
+export async function generateMetadata(): Promise<Metadata> {
+  const { bsat } = await getContent();
+  return {
   title: 'BSAT: Bhargava Scholarship & Admission Test',
   description: `Register for BSAT, a ${bsat.durationMin}-minute scholarship test for Class 10 students. Up to ${bsat.cap}% off tuition. Campus and online dates.`,
   alternates: { canonical: '/scholarship' },
-};
+  };
+}
 
-export default function ScholarshipPage() {
+export default async function ScholarshipPage() {
+  const { bsat } = await getContent();
   const today = todayIST();
   const upcoming = bsat.sessions.filter((s) => s.date >= today);
   return (
@@ -83,12 +87,12 @@ export default function ScholarshipPage() {
                 Register now <SampleBadge show={bsat.sample} />
               </h2>
               <p className="mb-5 mt-1 text-sm text-muted">You get a hall ticket number immediately.</p>
-              <BsatForm upcomingIds={upcoming.map((s) => s.id)} />
+              <BsatForm upcomingIds={upcoming.map((s) => s.id)} bsat={{ sessions: bsat.sessions, resultsWithin: bsat.resultsWithin }} />
             </div>
           </div>
         </div>
       </Section>
-      {bsatEventsJsonLd()
+      {bsatEventsJsonLd(bsat)
         .filter((e) => e.startDate >= today)
         .map((e) => (
           <JsonLd key={e.startDate} data={e} />

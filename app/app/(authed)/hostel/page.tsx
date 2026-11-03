@@ -1,13 +1,14 @@
 import { redirect } from 'next/navigation';
 import { SampleBadge } from '@/components/ui';
 import { college } from '@/content/college';
-import { hostel, messMenu } from '@/content/sample';
+import { getContent } from '@/lib/cms';
 import { profileData, requireAppUser } from '@/lib/app/service';
 import { formatDate, formatDateTime, todayIST, weekday } from '@/lib/dates';
 
 export const metadata = { title: 'Hostel' };
 
 export default async function AppHostel() {
+  const { hostel, messMenu } = await getContent();
   const u = await requireAppUser();
   if (!u.active || u.active.kind === 'applicant') redirect('/app');
   const d = await profileData(u.active);

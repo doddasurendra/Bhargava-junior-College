@@ -3,7 +3,7 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { college } from '@/content/college';
-import { CHIPS, GREETING, reply as localReply } from '@/lib/chat/faqBot';
+import { CHIPS, GREETING, reply as localReply, type BotFacts } from '@/lib/chat/faqBot';
 import { getAttribution, postJson } from '@/lib/attribution';
 import { Consent, PhoneInput } from './forms';
 
@@ -43,7 +43,7 @@ interface TurnResponse {
   handoffForm: { reason: string } | null;
 }
 
-export function ChatWidget() {
+export function ChatWidget({ facts }: { facts: BotFacts }) {
   const pathname = usePathname();
   const [open, setOpen] = useState(false);
   const [lines, setLines] = useState<Line[]>([{ key: 'g', from: 'bot', text: GREETING.text }]);
@@ -170,7 +170,7 @@ export function ChatWidget() {
     if (!r.ok || !r.c || !r.t) {
       if (r.error?.includes('counsellor now')) return poll();
       // Network or server trouble: answer locally from site content.
-      const fb = localReply(text);
+      const fb = localReply(text, facts);
       setLines((l) => [...l, { key: `fb${Date.now()}`, from: 'bot', text: fb.text, links: fb.links, quick: true }]);
       if (fb.intent === 'handoff') setStage('form');
       return;

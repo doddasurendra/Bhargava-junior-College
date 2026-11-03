@@ -1,5 +1,9 @@
-import { bsat as bsatData, fees as feeData, type BsatData, type FeeData } from '@/content/sample';
 import type { Track } from '@/content/programs';
+import type { Content } from './cms/blocks';
+
+/** Live values come from the CMS (`getContent()`); client components receive them as props. */
+export type FeeData = Content['fees'];
+export type BsatData = Content['bsat'];
 
 export type Stay = 'day' | 'day-transport' | 'hostel-nonac' | 'hostel-ac';
 
@@ -25,7 +29,7 @@ export interface FeeLine {
   kind?: 'discount' | 'one-time';
 }
 
-export function scholarshipPercent(score: number | null | undefined, ssc10Gpa = false, data: BsatData = bsatData): number {
+export function scholarshipPercent(score: number | null | undefined, ssc10Gpa: boolean, data: Pick<BsatData, 'slabs' | 'gpaBonus' | 'cap'>): number {
   let pct = 0;
   if (typeof score === 'number' && Number.isFinite(score)) {
     pct = data.slabs.find((s) => score >= s.min)?.pct ?? 0;
@@ -34,7 +38,7 @@ export function scholarshipPercent(score: number | null | undefined, ssc10Gpa = 
   return Math.min(pct, data.cap);
 }
 
-export function stayFee(stay: Stay, data: FeeData = feeData): { label: string; amount: number } | null {
+export function stayFee(stay: Stay, data: FeeData): { label: string; amount: number } | null {
   switch (stay) {
     case 'hostel-ac':
       return { label: 'Hostel AC (incl. food)', amount: data.hostelAc };
@@ -47,9 +51,9 @@ export function stayFee(stay: Stay, data: FeeData = feeData): { label: string; a
   }
 }
 
-export function calculateFee(input: FeeInput, data: FeeData = feeData) {
+export function calculateFee(input: FeeInput, data: FeeData, bsat: Pick<BsatData, 'slabs' | 'gpaBonus' | 'cap'>) {
   const base = input.track === 'two-year' ? data.twoYear : data.longTerm;
-  const scholarshipPct = scholarshipPercent(input.bsatScore, input.ssc10Gpa);
+  const scholarshipPct = scholarshipPercent(input.bsatScore, input.ssc10Gpa ?? false, bsat);
   const scholarship = Math.round((base.tuition * scholarshipPct) / 100);
   const stay = stayFee(input.stay, data);
 

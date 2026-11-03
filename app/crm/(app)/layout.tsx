@@ -7,6 +7,7 @@ import { Crest } from '@/components/ui';
 import { inboxCounts } from '@/lib/chat/inbox';
 import { requireStaff } from '@/lib/crm/auth';
 import { can } from '@/lib/crm/permissions';
+import { BLOCK_KEYS, canEditBlock } from '@/lib/cms/blocks';
 import { ROLE_LABELS } from '@/lib/crm/types';
 
 export const dynamic = 'force-dynamic';
@@ -27,6 +28,8 @@ export default async function CrmShell({ children }: { children: ReactNode }) {
     ...(can(user, 'lead.import') ? [{ href: '/crm/import', label: 'Import leads' }] : []),
     ...(can(user, 'whatsapp.setup') ? [{ href: '/crm/assistant', label: 'AI assistant' }] : []),
     ...(can(user, 'whatsapp.setup') ? [{ href: '/crm/whatsapp', label: 'WhatsApp setup' }] : []),
+    ...(BLOCK_KEYS.some((k) => canEditBlock(user.roles, k)) ? [{ href: '/crm/cms', label: 'Website content' }] : []),
+    ...(can(user, 'marketing.spend') ? [{ href: '/crm/marketing', label: 'Marketing spend' }] : []),
     ...(can(user, 'staff.manage') ? [{ href: '/crm/staff', label: 'Staff accounts' }] : []),
     ...(can(user, 'security.view') ? [{ href: '/crm/security', label: 'Security' }] : []),
   ];

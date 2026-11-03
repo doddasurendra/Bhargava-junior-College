@@ -3,7 +3,7 @@ import Link from 'next/link';
 import { LeadForm } from '@/components/forms';
 import { Check, PageHero, Section } from '@/components/ui';
 import { college } from '@/content/college';
-import { admissionDocuments } from '@/content/sample';
+import { getContent } from '@/lib/cms';
 
 export const metadata: Metadata = {
   title: `Admissions ${college.admissionsOpen}: process and documents`,
@@ -21,7 +21,8 @@ const steps = [
   { title: 'College ID', body: 'Once every step is signed off, the College ID is issued and the student and parent app is unlocked.' },
 ];
 
-export default function AdmissionsPage() {
+export default async function AdmissionsPage() {
+  const admissionDocuments = (await getContent()).documentChecklist.default.map((d) => d.label);
   return (
     <>
       <PageHero eyebrow={`Admissions ${college.admissionsOpen}`} title="How admission works" intro="Seven clear steps. You can track each one online, with the person responsible and the date.">

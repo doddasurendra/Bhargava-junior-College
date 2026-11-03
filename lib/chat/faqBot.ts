@@ -5,7 +5,10 @@
  */
 import { college, fullAddress } from '@/content/college';
 import { programs } from '@/content/programs';
-import { bsat, fees, hostel } from '@/content/sample';
+import type { Content } from '../cms/blocks';
+
+/** The live CMS facts the bot quotes (server: getContent(); browser widget: passed in from the site layout). */
+export type BotFacts = Pick<Content, 'fees' | 'bsat' | 'hostel'>;
 import { formatINR } from '../fees';
 
 export interface BotReply {
@@ -53,7 +56,8 @@ export function detectIntent(text: string): Intent | 'handoff' | 'unknown' {
   return 'unknown';
 }
 
-export function answer(intent: Intent | 'handoff' | 'unknown'): BotReply {
+export function answer(intent: Intent | 'handoff' | 'unknown', facts: BotFacts): BotReply {
+  const { fees, bsat, hostel } = facts;
   switch (intent) {
     case 'courses':
       return {
@@ -64,7 +68,7 @@ export function answer(intent: Intent | 'handoff' | 'unknown'): BotReply {
     case 'fees':
       return {
         intent,
-        text: `Tuition is ${formatINR(fees.twoYear.tuition)} a year for the 2-year JEE/NEET programs and ${formatINR(fees.longTerm.tuition)} for Long Term, plus ${formatINR(fees.twoYear.material)} for study material and tests. Hostel is ${formatINR(fees.hostelNonAc)} (non-AC) or ${formatINR(fees.hostelAc)} (AC) including food. You can pay in 1, 3 or 10 instalments.`,
+        text: `Tuition is ${formatINR(fees.twoYear.tuition)} a year for the 2-year JEE/NEET programs and ${formatINR(fees.longTerm.tuition)} for Long Term, plus ${formatINR(fees.twoYear.material)} for study material and tests. Hostel is ${formatINR(fees.hostelNonAc)} (non-AC) or ${formatINR(fees.hostelAc)} (AC) including food. You can pay in ${fees.instalmentOptions.join(', ')} instalments.`,
         links: [{ label: 'Fee calculator', href: '/fees#calculator' }],
       };
     case 'scholarship':
@@ -98,6 +102,6 @@ export function answer(intent: Intent | 'handoff' | 'unknown'): BotReply {
   }
 }
 
-export function reply(text: string): BotReply {
-  return answer(detectIntent(text));
+export function reply(text: string, facts: BotFacts): BotReply {
+  return answer(detectIntent(text), facts);
 }

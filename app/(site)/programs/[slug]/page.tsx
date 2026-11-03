@@ -5,7 +5,7 @@ import { LeadForm } from '@/components/forms';
 import { Check, initials, JsonLd, PageHero, SampleBadge, Section } from '@/components/ui';
 import { college } from '@/content/college';
 import { getProgram, programIncludes, programs } from '@/content/programs';
-import { faculty, fees } from '@/content/sample';
+import { getContent } from '@/lib/cms';
 import { formatINR } from '@/lib/fees';
 import { courseJsonLd } from '@/lib/seo';
 
@@ -23,7 +23,8 @@ export function generateMetadata({ params }: { params: { slug: string } }): Meta
   };
 }
 
-export default function ProgramPage({ params }: { params: { slug: string } }) {
+export default async function ProgramPage({ params }: { params: { slug: string } }) {
+  const { faculty, fees } = await getContent();
   const p = getProgram(params.slug);
   if (!p) notFound();
   const base = p.track === 'two-year' ? fees.twoYear : fees.longTerm;

@@ -1,4 +1,4 @@
-import { bsat } from '@/content/sample';
+import { getContent } from '@/lib/cms';
 import { clientIp, deviceFromUA, fail, ok, parseBody, rateLimit } from '@/lib/api';
 import { formatDate, todayIST } from '@/lib/dates';
 import { bsatRegistered } from '@/lib/whatsapp/service';
@@ -13,6 +13,7 @@ export async function POST(req: Request) {
   if ('error' in parsed) return fail(parsed.error);
   const d = parsed.data;
 
+  const { bsat } = await getContent();
   const session = bsat.sessions.find((s) => s.id === d.sessionId);
   if (!session || session.date < todayIST()) return fail('Please choose an upcoming test date.');
 

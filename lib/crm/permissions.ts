@@ -34,6 +34,8 @@ const RULES = {
   'security.manage': ['super_admin'],
   /** add staff, change roles, deactivate, send password resets */
   'staff.manage': ['super_admin'],
+  /** ad spend per source for cost per lead (§8, §9A content/marketing manager) */
+  'marketing.spend': ['super_admin', 'management', 'data_executive'],
 } satisfies Record<string, Role[]>;
 
 export type Permission = keyof typeof RULES;

@@ -1,3 +1,4 @@
+import { defaultContent } from '../cms/blocks';
 import { mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
@@ -60,12 +61,12 @@ beforeEach(() => agent.__setClientForTests(null));
 
 describe('knowledge base and tool schemas', () => {
   it('is deterministic (prompt-cache safe) and labels unconfirmed data', () => {
-    expect(knowledge.buildKnowledge()).toBe(knowledge.buildKnowledge());
-    expect(knowledge.buildKnowledge()).toContain('SAMPLE DATA');
-    expect(knowledge.buildKnowledge()).toContain('₹1,35,000');
+    expect(knowledge.buildKnowledge(defaultContent())).toBe(knowledge.buildKnowledge(defaultContent()));
+    expect(knowledge.buildKnowledge(defaultContent())).toContain('SAMPLE DATA');
+    expect(knowledge.buildKnowledge(defaultContent())).toContain('₹1,35,000');
   });
   it('every tool is strict with all properties required and no extra properties', () => {
-    for (const t of tools.TOOLS) {
+    for (const t of tools.buildTools(defaultContent())) {
       const s = t.input_schema as unknown as { properties: Record<string, unknown>; required: string[]; additionalProperties: boolean };
       expect(t.strict, t.name).toBe(true);
       expect(s.additionalProperties, t.name).toBe(false);

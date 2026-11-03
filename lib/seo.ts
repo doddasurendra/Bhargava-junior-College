@@ -1,6 +1,6 @@
 import { college, testimonials } from '@/content/college';
 import type { Program } from '@/content/programs';
-import { bsat } from '@/content/sample';
+import type { Content } from './cms/blocks';
 
 export const siteUrl = (process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000').replace(/\/$/, '');
 
@@ -55,7 +55,7 @@ export function faqJsonLd(items: { q: string; a: string }[]) {
   };
 }
 
-export function bsatEventsJsonLd() {
+export function bsatEventsJsonLd(bsat: Pick<Content['bsat'], 'sessions'>) {
   return bsat.sessions.map((s) => ({
     '@context': 'https://schema.org',
     '@type': 'Event',

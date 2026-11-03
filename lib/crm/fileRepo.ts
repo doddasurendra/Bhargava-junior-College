@@ -172,6 +172,8 @@ export function createFileCrmRepo(): CrmRepo {
           audit: db.audit.filter((a) => a.at >= since),
           visits: db.visits.filter((v) => v.createdAt >= since || v.status === 'scheduled' || v.status === 'arrived' || (v.outcomeAt ?? '') >= since).map(toVisit),
           signOffs: db.signOffs.filter((s) => s.at >= since).map((s) => ({ leadId: s.leadId, stage: s.stage, at: s.at })),
+          payments: db.payments.filter((p) => p.status === 'approved' && (p.approvedAt ?? '') >= since).map((p) => ({ leadId: p.leadId, amount: p.amount, approvedAt: p.approvedAt! })),
+          admitted: db.students.filter((s) => s.collegeId).map((s) => ({ leadId: s.leadId, program: s.program, collegeId: s.collegeId! })),
         }),
         false,
       ),

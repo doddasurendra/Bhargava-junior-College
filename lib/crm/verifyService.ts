@@ -4,6 +4,12 @@ import { PROGRAM_SLUGS } from '@/content/programs';
 import { isIsoDate, todayIST } from '../dates';
 import { normalizeIndianMobile } from '../phone';
 import { siteUrl } from '../seo';
+import { getContent } from '../cms';
+
+async function verifyCfg() {
+  const c = await getContent();
+  return { checklist: c.documentChecklist, numbering: c.numbering };
+}
 import { sendTemplate } from '../whatsapp/service';
 import { can, canSeeLead } from './permissions';
 import { getCrmRepo } from './repo';
@@ -29,8 +35,8 @@ async function load(user: Staff, leadId: string) {
   const repo = getCrmRepo();
   const lead = await repo.getLead(leadId);
   if (!lead || !canSeeLead(user, lead)) throw new CrmError('Lead not found.');
-  const record = await repo.getVerification(leadId);
-  return { lead, record, steps: stepStates(lead.status, lead.program, record) };
+  const [record, cfg] = await Promise.all([repo.getVerification(leadId), verifyCfg()]);
+  return { lead, record, cfg, steps: stepStates(lead.status, lead.program, record, cfg) };
 }
 
 function requireStep(user: Staff, steps: ReturnType<typeof stepStates>, stage: VerifyStage, lead: CrmLead) {
@@ -51,8 +57,8 @@ async function wrap<T>(fn: () => Promise<T>): Promise<T> {
 }
 
 export async function verification(user: Staff, leadId: string) {
-  const { lead, record, steps } = await load(user, leadId);
-  return { lead, record, steps, checklist: checklistFor(lead.program) };
+  const { lead, record, steps, cfg } = await load(user, leadId);
+  return { lead, record, steps, checklist: checklistFor(lead.program, cfg.checklist) };
 }
 
 /** Application, documents and fee are signed off explicitly; receipt, student record and College ID by their actions. */
@@ -64,9 +70,9 @@ export async function signOff(user: Staff, leadId: string, stage: 'application' 
 }
 
 export async function updateDocument(user: Staff, leadId: string, key: string, status: DocStatus, note: string | null) {
-  const { lead, steps } = await load(user, leadId);
+  const { lead, steps, cfg } = await load(user, leadId);
   requireStep(user, steps, 'documents', lead);
-  const item = checklistFor(lead.program).find((d) => d.key === key);
+  const item = checklistFor(lead.program, cfg.checklist).find((d) => d.key === key);
   if (!item) throw new CrmError('Unknown document.');
   if (!DOC_STATUSES.includes(status)) throw new CrmError('Unknown document status.');
   if (status === 'not_applicable' && item.required) throw new CrmError(`${item.label} is required and cannot be marked not applicable.`);
@@ -215,10 +221,11 @@ export async function verificationQueue(user: Staff): Promise<QueueRow[]> {
   if (!can(user, 'verify.view')) throw new CrmError('You cannot view admission verification.');
   const repo = getCrmRepo();
   const leads = (await Promise.all(VERIFY_STATUSES.map((status) => repo.listLeads({ status })))).flat().filter((l) => canSeeLead(user, l));
+  const cfg = await verifyCfg();
   const rows = await Promise.all(
     leads.map(async (lead) => {
       const record = await repo.getVerification(lead.id);
-      const steps = stepStates(lead.status, lead.program, record);
+      const steps = stepStates(lead.status, lead.program, record, cfg);
       const pending = steps.filter((s) => !s.done);
       // Several steps can be open at once (e.g. documents and fee); "mine" if any open, unblocked step is mine.
       const mine = pending.some((s) => canSignOff(user, s.stage) && (s.blockers.length === 0 || s.stage === 'documents' || s.stage === 'fee'));

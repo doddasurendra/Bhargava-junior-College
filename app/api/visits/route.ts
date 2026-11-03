@@ -3,7 +3,8 @@ import { formatDate, isIsoDate } from '@/lib/dates';
 import { visitConfirmation } from '@/lib/whatsapp/service';
 import { getStore, StoreError } from '@/lib/store';
 import { visitRequestSchema } from '@/lib/validation';
-import { slotsFor, validateVisit } from '@/lib/visits';
+import { slotLabel, slotsFor, validateVisit } from '@/lib/visits';
+import { getContent } from '@/lib/cms';
 
 export const dynamic = 'force-dynamic';
 
@@ -12,9 +13,9 @@ export async function GET(req: Request) {
   const date = new URL(req.url).searchParams.get('date');
   if (!isIsoDate(date)) return fail('Invalid date');
   try {
-    const booked = await getStore().slotBookings(date);
+    const [booked, { visitSlots }] = await Promise.all([getStore().slotBookings(date), getContent()]);
     return ok({
-      slots: slotsFor(date).map((s) => ({ slot: s.slot, label: s.label, available: Math.max(0, s.capacity - (booked[s.slot] ?? 0)) })),
+      slots: slotsFor(date, visitSlots).map((s) => ({ slot: s.slot, label: s.label, available: Math.max(0, s.capacity - (booked[s.slot] ?? 0)) })),
     });
   } catch (e) {
     console.error('[visits] availability failed', (e as Error).message);
@@ -30,7 +31,8 @@ export async function POST(req: Request) {
   if ('error' in parsed) return fail(parsed.error);
   const d = parsed.data;
 
-  const invalid = validateVisit(d.date, d.slot);
+  const { visitSlots } = await getContent();
+  const invalid = validateVisit(d.date, d.slot, visitSlots);
   if (invalid) return fail(invalid);
 
   let visitId: string;
@@ -43,8 +45,7 @@ export async function POST(req: Request) {
     return fail('Something went wrong. Please call us or try again.', 500);
   }
 
-  const slotLabel = slotsFor(d.date).find((s) => s.slot === d.slot)?.label ?? d.slot;
-  const when = `${formatDate(d.date)}, ${slotLabel}`;
+  const when = `${formatDate(d.date)}, ${slotLabel(d.slot, visitSlots)}`;
   await visitConfirmation(visitId, d.name, d.phone, when).catch((e) => console.error('[visits] confirmation failed', (e as Error).message));
   return ok({ when });
 }

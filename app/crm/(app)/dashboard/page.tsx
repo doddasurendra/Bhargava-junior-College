@@ -2,8 +2,10 @@ import Link from 'next/link';
 import { previewReportAction } from '@/app/crm/report-actions';
 import { TrendChart } from '@/components/crm/charts';
 import { BacklogTiles, FlaggedCard, FunnelCard, LossesCard, OwnersCard, QualityCard, SourcesCard } from '@/components/crm/dashboardSections';
+import { DailyParameters, QualityMix, SeatsVsTarget, SourceRoi, VisitAndChat } from '@/components/crm/dashboardExtras';
+import { programs } from '@/content/programs';
 import { requireStaff } from '@/lib/crm/auth';
-import type { PeriodKey } from '@/lib/crm/metrics';
+import type { MetricsFilter, PeriodKey } from '@/lib/crm/metrics';
 import { dashboard } from '@/lib/crm/reports';
 import { formatDate, formatDateTime } from '@/lib/dates';
 
@@ -12,10 +14,20 @@ export const dynamic = 'force-dynamic';
 
 const KEYS: PeriodKey[] = ['today', 'mtd', 'season'];
 
-export default async function DashboardPage({ searchParams }: { searchParams: { p?: string } }) {
+type SP = Record<string, string | string[] | undefined>;
+const one = (v: string | string[] | undefined) => (Array.isArray(v) ? v[0] : v) || undefined;
+
+export default async function DashboardPage({ searchParams }: { searchParams: SP }) {
   const user = await requireStaff('dashboard.view');
-  const key = (KEYS.find((k) => k === searchParams.p) ?? 'today') as PeriodKey;
-  const { metrics: m, series, periods, season } = await dashboard(user, key);
+  const key = (KEYS.find((k) => k === one(searchParams.p)) ?? 'today') as PeriodKey;
+  const filter: MetricsFilter = { program: one(searchParams.program), source: one(searchParams.source), school: one(searchParams.school)?.slice(0, 120), ownerId: one(searchParams.owner) };
+  const { metrics: m, series, periods, season, options } = await dashboard(user, key, filter);
+  const filtered = Boolean(filter.program || filter.source || filter.school || filter.ownerId);
+  const qs = (p: string) => {
+    const s = new URLSearchParams({ p });
+    for (const [k, v] of Object.entries({ program: filter.program, source: filter.source, school: filter.school, owner: filter.ownerId })) if (v) s.set(k, v);
+    return `/crm/dashboard?${s}`;
+  };
 
   return (
     <div className="space-y-5">
@@ -38,7 +50,7 @@ export default async function DashboardPage({ searchParams }: { searchParams: { 
       {/* One filter row scopes everything below it. */}
       <nav aria-label="Period" className="flex flex-wrap gap-1.5">
         {KEYS.map((k) => (
-          <Link key={k} href={`/crm/dashboard?p=${k}`} className={`chip px-3.5 py-1.5 text-sm ${k === key ? 'chip-active' : ''}`}>
+          <Link key={k} href={qs(k)} className={`chip px-3.5 py-1.5 text-sm ${k === key ? 'chip-active' : ''}`}>
             {periods[k].label}
             <span className="ml-1.5 text-[11px] opacity-70">
               {periods[k].from === periods[k].to ? formatDate(periods[k].from, { day: 'numeric', month: 'short' }) : `${formatDate(periods[k].from, { day: 'numeric', month: 'short' })} – ${formatDate(periods[k].to, { day: 'numeric', month: 'short' })}`}
@@ -46,6 +58,45 @@ export default async function DashboardPage({ searchParams }: { searchParams: { 
           </Link>
         ))}
       </nav>
+
+      <form method="get" className="flex flex-wrap items-center gap-2" aria-label="Filter the dashboard">
+        <input type="hidden" name="p" value={key} />
+        <select name="program" defaultValue={filter.program ?? ''} className="input w-auto py-1.5 text-sm" aria-label="Program">
+          <option value="">All programs</option>
+          {programs.map((p) => (
+            <option key={p.slug} value={p.slug}>{p.short}</option>
+          ))}
+        </select>
+        <select name="source" defaultValue={filter.source ?? ''} className="input w-auto py-1.5 text-sm" aria-label="Source">
+          <option value="">All sources</option>
+          {options.sources.map((s) => (
+            <option key={s} value={s}>{s.replace(/_/g, ' ')}</option>
+          ))}
+        </select>
+        <select name="school" defaultValue={filter.school ?? ''} className="input w-auto max-w-[14rem] py-1.5 text-sm" aria-label="School">
+          <option value="">All schools</option>
+          {options.schools.map((s) => (
+            <option key={s} value={s}>{s}</option>
+          ))}
+        </select>
+        <select name="owner" defaultValue={filter.ownerId ?? ''} className="input w-auto py-1.5 text-sm" aria-label="Owner">
+          <option value="">All owners</option>
+          {options.owners.map((o) => (
+            <option key={o.id} value={o.id}>{o.name}</option>
+          ))}
+        </select>
+        <button className="btn-outline py-1.5">Apply</button>
+        {filtered && (
+          <Link href={`/crm/dashboard?p=${key}`} className="text-sm text-muted underline">Clear filters</Link>
+        )}
+      </form>
+
+      <section>
+        <h2 className="mb-2 text-xs font-semibold uppercase tracking-wider text-muted">Daily tracking: {periods[key].label.toLowerCase()}{filtered ? ' (filtered)' : ''}</h2>
+        <DailyParameters m={m} />
+      </section>
+
+      <VisitAndChat m={m} />
 
       <section>
         <h2 className="mb-2 text-xs font-semibold uppercase tracking-wider text-muted">Right now</h2>
@@ -80,10 +131,17 @@ export default async function DashboardPage({ searchParams }: { searchParams: { 
         <SourcesCard m={m} />
       </div>
 
+      <div className="grid gap-5 xl:grid-cols-2">
+        <QualityMix m={m} />
+        <SeatsVsTarget m={m} />
+      </div>
+
+      <SourceRoi m={m} />
+
       <QualityCard m={m} />
 
       <p className="text-xs text-muted">
-        Definitions: hover any funnel row. Section 8 of the brief (dashboard metrics) was not available when this was built; metrics follow §6.8, §7.1–7.5 and can be adjusted in <span className="font-mono">lib/crm/metrics.ts</span>.
+        Definitions are under each figure (§8 of the brief). The backlog and owner tables are live; the period figures follow the filters above.
       </p>
     </div>
   );

@@ -1,11 +1,15 @@
 import 'server-only';
 import { createClient } from '@supabase/supabase-js';
-import { admissionsSeason } from '@/content/sample';
+import { getContent } from '../cms';
+import { sendEmail } from '../email';
+import { reportEmailHtml, reportPdf } from './reportPdf';
+import { getRecordStore } from '../records';
+import { marketingSpend } from '../records/collections';
 import { addDays, formatDate, todayIST } from '../dates';
 import { siteUrl } from '../seo';
 import { tx } from '../store/file';
 import { sendTemplate } from '../whatsapp/service';
-import { computeMetrics, dailySeries, periods, type Metrics, type PeriodKey } from './metrics';
+import { computeMetrics, dailySeries, filterData, periods, type Metrics, type MetricsData, type MetricsExtras, type MetricsFilter, type PeriodKey } from './metrics';
 import { can } from './permissions';
 import { getCrmRepo } from './repo';
 import { CrmError } from './service';
@@ -15,17 +19,39 @@ const istMidnight = (date: string) => new Date(`${date}T00:00:00+05:30`).toISOSt
 
 async function load(now: Date) {
   const repo = getCrmRepo();
+  const { season } = await getContent();
   const seriesFrom = addDays(todayIST(now), -29);
-  const since = istMidnight(seriesFrom < admissionsSeason.start ? seriesFrom : admissionsSeason.start);
-  const [data, staff] = await Promise.all([repo.exportForMetrics(since), repo.listStaff()]);
-  return { data: { ...data, staff }, seriesFrom };
+  const since = istMidnight(seriesFrom < season.start ? seriesFrom : season.start);
+  const [data, staff, spend] = await Promise.all([repo.exportForMetrics(since), repo.listStaff(), marketingSpend.list(getRecordStore())]);
+  const extras: MetricsExtras = { spend: spend.map((r) => r.data), targets: season.seatTargets };
+  return { data: { ...data, staff } as MetricsData, seriesFrom, season, extras };
 }
 
-export async function dashboard(user: Staff, key: PeriodKey, now = new Date()) {
+export async function dashboard(user: Staff, key: PeriodKey, filter: MetricsFilter = {}, now = new Date()) {
   if (!can(user, 'dashboard.view')) throw new CrmError('Only management can see the dashboard.');
-  const { data, seriesFrom } = await load(now);
-  const ps = periods(admissionsSeason.start, now);
-  return { metrics: computeMetrics(data, ps[key], now), series: dailySeries(data, seriesFrom, todayIST(now)), periods: ps, season: admissionsSeason };
+  const { data: all, seriesFrom, season, extras } = await load(now);
+  const data = filterData(all, filter);
+  const ps = periods(season.start, now);
+  // filter options come from the unfiltered data so a filter can always be changed back
+  const schools = [...new Set(all.leads.map((l) => l.school).filter((s): s is string => Boolean(s)))].sort().slice(0, 300);
+  const sources = [...new Set(all.leads.map((l) => l.firstSource))].sort();
+  return { metrics: computeMetrics(data, ps[key], now, extras), series: dailySeries(data, seriesFrom, todayIST(now)), periods: ps, season, options: { schools, sources, owners: all.staff.filter((s) => s.roles.some((r) => r === 'telecaller' || r === 'admission_counsellor' || r === 'admission_manager')).map((s) => ({ id: s.id, name: s.fullName })) } };
+}
+
+/** §8 cost per lead: marketing spend entries (content/marketing manager). */
+export async function addSpend(user: Staff, input: { source: string; month: string; amount: number; note: string | null }) {
+  if (!can(user, 'marketing.spend')) throw new CrmError('Only marketing or management can enter ad spend.');
+  return marketingSpend.put(getRecordStore(), { ...input, enteredBy: user.id });
+}
+
+export async function listSpend(user: Staff) {
+  if (!can(user, 'marketing.spend') && !can(user, 'dashboard.view')) throw new CrmError('Not permitted.');
+  return (await marketingSpend.list(getRecordStore())).sort((a, b) => b.data.month.localeCompare(a.data.month));
+}
+
+export async function removeSpend(user: Staff, id: string) {
+  if (!can(user, 'marketing.spend')) throw new CrmError('Not permitted.');
+  await marketingSpend.remove(getRecordStore(), id);
 }
 
 // ---------------------------------------------------------------- 7 PM report snapshots
@@ -88,23 +114,32 @@ export async function listReports(user: Staff): Promise<{ date: string; generate
  * snapshot is replaced and each person gets the message at most once a day.
  */
 export async function generateDailyReport(now = new Date(), opts: { send?: boolean } = {}) {
-  const { data } = await load(now);
-  const ps = periods(admissionsSeason.start, now);
+  const { data, season, extras } = await load(now);
+  const ps = periods(season.start, now);
   const date = todayIST(now);
-  const today = computeMetrics(data, ps.today, now);
-  const report: DailyReport = { date, generatedAt: now.toISOString(), today, mtd: computeMetrics(data, ps.mtd, now), season: computeMetrics(data, ps.season, now), recipients: 0 };
+  const today = computeMetrics(data, ps.today, now, extras);
+  const report: DailyReport = { date, generatedAt: now.toISOString(), today, mtd: computeMetrics(data, ps.mtd, now, extras), season: computeMetrics(data, ps.season, now, extras), recipients: 0 };
 
   let sent = 0;
+  let emailed = 0;
   if (opts.send !== false) {
-    const v = (k: string) => String(today.funnel.find((f) => f.key === k)?.value ?? 0);
-    const params = [formatDate(date, { weekday: 'short', day: 'numeric', month: 'short' }), v('leads'), v('visits_held'), v('confirmed'), String(today.backlog.escalated48), String(today.backlog.visitsNeedingOutcome), `${siteUrl}/crm/reports/${date}`];
-    for (const s of data.staff.filter((x) => x.active && x.phone && x.roles.some((r) => REPORT_ROLES.includes(r)))) {
+    const v = (k: string) => String(today.daily.find((f) => f.key === k)?.value ?? 0);
+    const params = [formatDate(date, { weekday: 'short', day: 'numeric', month: 'short' }), v('collected'), v('visits_actual'), v('confirmed'), String(today.backlog.escalated48), String(today.backlog.visitsNeedingOutcome), `${siteUrl}/crm/reports/${date}`];
+    const recipients = data.staff.filter((x) => x.active && x.roles.some((r) => REPORT_ROLES.includes(r)));
+    for (const s of recipients.filter((x) => x.phone)) {
       const r = await sendTemplate({ template: 'daily_report', to: s.phone!, params, actorId: null, dedupeKey: `daily_report:${date}:${s.id}` });
       // A re-run finds today's message already sent (dedupe) — it still counts as delivered to that person.
       if (r.status === 'sent' || r.reason === 'Already sent.') sent++;
     }
+    // §8: also by email, with the PDF on letterhead attached
+    const to = recipients.map((s) => s.email).filter((e): e is string => Boolean(e));
+    if (to.length) {
+      const pdf = await reportPdf(report);
+      const r = await sendEmail({ to, subject: `Bhargava admissions: 7 PM report for ${formatDate(date)}`, html: reportEmailHtml(report, `${siteUrl}/crm/reports/${date}`), attachments: [{ filename: `BJC-daily-report-${date}.pdf`, content: pdf, contentType: 'application/pdf' }], dedupeKey: `daily_report_email:${date}` });
+      if (r.status === 'sent' || r.status === 'logged') emailed = to.length;
+    }
   }
-  report.recipients = sent;
+  report.recipients = sent + emailed;
   await saveReport(report);
-  return { date, recipients: sent, flagged: today.flagged.length };
+  return { date, recipients: sent, emailed, flagged: today.flagged.length };
 }

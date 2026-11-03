@@ -3,6 +3,7 @@ import { VisitBooking } from '@/components/VisitBooking';
 import { Check, PageHero, Section } from '@/components/ui';
 import { college, fullAddress, mapsLinkUrl } from '@/content/college';
 import { bookableDates } from '@/lib/visits';
+import { getContent } from '@/lib/cms';
 
 export const metadata: Metadata = {
   title: 'Book a campus visit',
@@ -12,14 +13,15 @@ export const metadata: Metadata = {
 
 export const dynamic = 'force-dynamic';
 
-export default function VisitPage() {
+export default async function VisitPage() {
+  const { visitSlots } = await getContent();
   return (
     <>
       <PageHero eyebrow="Campus visit" title="See the campus before you decide" intro="Choose a slot from Monday to Saturday. A counsellor will show you the classrooms, labs, library and hostel, and answer your questions on programs, fees and scholarships." />
       <Section>
         <div className="grid gap-10 lg:grid-cols-[1.6fr_1fr]">
           <div className="card p-5 sm:p-8">
-            <VisitBooking dates={bookableDates()} />
+            <VisitBooking dates={bookableDates(visitSlots)} />
           </div>
           <aside className="space-y-4">
             <div className="card p-6">

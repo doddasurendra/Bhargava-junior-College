@@ -1,7 +1,7 @@
 import type { Metadata } from 'next';
 import { ResultsGrid } from '@/components/ClientWidgets';
 import { PageHero, Section } from '@/components/ui';
-import { results } from '@/content/sample';
+import { getContent } from '@/lib/cms';
 
 export const metadata: Metadata = {
   title: 'Results & Hall of Fame: JEE, NEET and Intermediate',
@@ -9,7 +9,8 @@ export const metadata: Metadata = {
   alternates: { canonical: '/results' },
 };
 
-export default function ResultsPage() {
+export default async function ResultsPage() {
+  const { results } = await getContent();
   return (
     <>
       <PageHero eyebrow="Hall of fame" title="Results, and how to check them" intro="Filter by exam and year. Each topper card links to the official scorecard once it has been verified." badge={results.sample} />
@@ -24,7 +25,7 @@ export default function ResultsPage() {
         </div>
       </section>
       <Section>
-        <ResultsGrid />
+        <ResultsGrid results={results} />
       </Section>
     </>
   );

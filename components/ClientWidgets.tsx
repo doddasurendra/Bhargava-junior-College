@@ -3,7 +3,8 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useEffect, useRef, useState } from 'react';
 import { programs, type ProgramSlug } from '@/content/programs';
-import { results, type ResultType } from '@/content/sample';
+import type { ResultType } from '@/content/sample';
+import type { Content } from '@/lib/cms/blocks';
 import { captureFirstTouch } from '@/lib/attribution';
 import { LeadForm } from './forms';
 import { initials, SampleBadge } from './ui';
@@ -70,7 +71,7 @@ export function ExitIntent() {
   );
 }
 
-export function ResultsGrid() {
+export function ResultsGrid({ results }: { results: Content['results'] }) {
   const [filter, setFilter] = useState<'all' | ResultType>('all');
   const years = Array.from(new Set(results.items.map((r) => r.year))).sort((a, b) => b - a);
   const [year, setYear] = useState(years[0]);

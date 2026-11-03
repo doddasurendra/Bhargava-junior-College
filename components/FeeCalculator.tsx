@@ -1,12 +1,12 @@
 'use client';
 import { useMemo, useState } from 'react';
 import { programs, type ProgramSlug } from '@/content/programs';
-import { fees } from '@/content/sample';
-import { calculateFee, formatINR, STAY_OPTIONS, type Stay } from '@/lib/fees';
+import { calculateFee, formatINR, STAY_OPTIONS, type BsatData, type FeeData, type Stay } from '@/lib/fees';
 import { LeadForm } from './forms';
 import { SampleBadge } from './ui';
 
-export function FeeCalculator({ initialProgram = 'iit-jee' }: { initialProgram?: ProgramSlug }) {
+/** Fee data comes from the CMS on the server and is passed in, so the calculator always matches the fee table. */
+export function FeeCalculator({ initialProgram = 'iit-jee', fees, bsat }: { initialProgram?: ProgramSlug; fees: FeeData; bsat: Pick<BsatData, 'slabs' | 'gpaBonus' | 'cap'> }) {
   const [slug, setSlug] = useState<ProgramSlug>(initialProgram);
   const [stay, setStay] = useState<Stay>('hostel-nonac');
   const [score, setScore] = useState('');
@@ -16,7 +16,7 @@ export function FeeCalculator({ initialProgram = 'iit-jee' }: { initialProgram?:
 
   const program = programs.find((p) => p.slug === slug)!;
   const scoreNum = score === '' ? null : Math.min(100, Math.max(0, Number(score)));
-  const r = useMemo(() => calculateFee({ track: program.track, stay, bsatScore: scoreNum, ssc10Gpa: gpa, instalments }), [program.track, stay, scoreNum, gpa, instalments]);
+  const r = useMemo(() => calculateFee({ track: program.track, stay, bsatScore: scoreNum, ssc10Gpa: gpa, instalments }, fees, bsat), [program.track, stay, scoreNum, gpa, instalments, fees, bsat]);
 
   const summary = `${program.name}, ${STAY_OPTIONS.find((s) => s.value === stay)?.label}, BSAT ${scoreNum ?? 'not taken'}${gpa ? ', SSC 10 GPA' : ''}, ${r.instalments} instalment(s): year 1 ${formatINR(r.yearOne)}`;
 
