@@ -58,7 +58,8 @@ export interface Store {
   slotBookings(date: string): Promise<Record<string, number>>;
   createVisit(input: VisitInput): Promise<{ visitId: string }>;
   registerBsat(input: BsatInput): Promise<{ hallTicket: string; alreadyRegistered: boolean }>;
-  findAdmission(phone: string): Promise<AdmissionRecord | null>;
+  /** The family's admissions for a parent phone: the primary lead, then siblings. Empty if unknown. */
+  findAdmissions(phone: string): Promise<AdmissionRecord[]>;
   putOtp(rec: OtpRecord): Promise<void>;
   getOtp(phone: string): Promise<OtpRecord | null>;
   patchOtp(phone: string, patch: Partial<OtpRecord>): Promise<void>;

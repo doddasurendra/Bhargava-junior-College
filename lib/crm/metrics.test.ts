@@ -27,6 +27,7 @@ const lead = (p: Partial<CrmLead>): CrmLead => ({
   assignedAt: null,
   firstSource: 'callback',
   lastSource: 'callback',
+  siblingOf: null,
   nextFollowUpAt: null,
   lastContactAt: null,
   lostReason: null,

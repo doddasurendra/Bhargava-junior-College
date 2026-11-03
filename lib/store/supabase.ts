@@ -59,35 +59,36 @@ export function createSupabaseStore(url: string, serviceKey: string): Store {
       return { hallTicket: row.hall_ticket, alreadyRegistered: row.already_registered };
     },
 
-    async findAdmission(phone) {
-      const { data: lead, error } = await sb
-        .from('leads')
-        .select('id, contact_name, student_name, program, stage, next_follow_up_at, owner:profiles!leads_owner_id_fkey(full_name)')
-        .eq('phone', phone)
-        .is('merged_into', null)
-        .maybeSingle();
+    async findAdmissions(phone) {
+      const cols = 'id, contact_name, student_name, program, stage, next_follow_up_at, created_at, owner:profiles!leads_owner_id_fkey(full_name)';
+      const { data: primary, error } = await sb.from('leads').select(cols).eq('phone', phone).is('merged_into', null).is('sibling_of', null).maybeSingle();
       if (error) throw new Error(error.message);
-      if (!lead) return null;
+      if (!primary) return [];
+      const { data: siblings, error: e2 } = await sb.from('leads').select(cols).eq('sibling_of', primary.id).is('merged_into', null).order('created_at');
+      if (e2) throw new Error(e2.message);
 
-      const [{ data: events }, { data: visit }] = await Promise.all([
-        sb.from('admission_stage_events').select('stage, completed_at, owner:profiles!admission_stage_events_owner_id_fkey(full_name)').eq('lead_id', lead.id),
-        sb.from('visits').select('visit_date, slot').eq('lead_id', lead.id).eq('status', 'scheduled').gte('visit_date', todayIST()).order('visit_date').limit(1).maybeSingle(),
-      ]);
-
-      return {
-        studentName: lead.student_name,
-        contactName: lead.contact_name,
-        program: lead.program,
-        completedStage: lead.stage as StageKey,
-        events: (events ?? []).map((e) => ({
-          stage: e.stage as StageKey,
-          at: e.completed_at,
-          owner: firstName(one(e.owner as { full_name: string } | { full_name: string }[] | null)?.full_name),
-        })),
-        owner: firstName(one(lead.owner as { full_name: string } | { full_name: string }[] | null)?.full_name),
-        nextUpdate: lead.next_follow_up_at,
-        upcomingVisit: visit ? { date: visit.visit_date, slot: visit.slot } : null,
-      };
+      return Promise.all(
+        [primary, ...(siblings ?? [])].map(async (lead) => {
+          const [{ data: events }, { data: visit }] = await Promise.all([
+            sb.from('admission_stage_events').select('stage, completed_at, owner:profiles!admission_stage_events_owner_id_fkey(full_name)').eq('lead_id', lead.id),
+            sb.from('visits').select('visit_date, slot').eq('lead_id', lead.id).eq('status', 'scheduled').gte('visit_date', todayIST()).order('visit_date').limit(1).maybeSingle(),
+          ]);
+          return {
+            studentName: lead.student_name,
+            contactName: lead.contact_name,
+            program: lead.program,
+            completedStage: lead.stage as StageKey,
+            events: (events ?? []).map((e) => ({
+              stage: e.stage as StageKey,
+              at: e.completed_at,
+              owner: firstName(one(e.owner as { full_name: string } | { full_name: string }[] | null)?.full_name),
+            })),
+            owner: firstName(one(lead.owner as { full_name: string } | { full_name: string }[] | null)?.full_name),
+            nextUpdate: lead.next_follow_up_at,
+            upcomingVisit: visit ? { date: visit.visit_date, slot: visit.slot } : null,
+          };
+        }),
+      );
     },
 
     async putOtp(rec) {

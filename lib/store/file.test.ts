@@ -29,8 +29,34 @@ describe('file store', () => {
     expect(a.isNew).toBe(true);
     expect(b.isNew).toBe(false);
     expect(b.leadId).toBe(a.leadId);
-    const rec = await store.findAdmission('+919000000001');
+    const [rec] = await store.findAdmissions('+919000000001');
     expect(rec?.program).toBe('neet');
+  });
+
+  it('siblings: own lead per child under the primary; web, import and tracking all respect the family', async () => {
+    const { createFileCrmRepo } = await import('../crm/fileRepo');
+    const repo = createFileCrmRepo();
+    const phone = '+919000000050';
+    const { leadId: primary } = await store.captureLead({ ...base, name: 'Lakshmi', phone, source: 'callback', program: 'iit-jee', studentName: 'Ravi' });
+    await repo.updateLead(primary, { ownerId: 'staff-priya', category: 'hot' }, []);
+
+    const sib = await repo.createSibling(primary, { studentName: 'Ramya', classLevel: 'Class 10', program: 'neet', school: 'ZPHS' }, 'staff-priya');
+    const sibLead = await repo.getLead(sib);
+    expect(sibLead).toMatchObject({ phone, siblingOf: primary, ownerId: 'staff-priya', studentName: 'Ramya', program: 'neet', firstSource: 'sibling', category: null, stage: 'enquiry' });
+    // A sibling of a sibling still hangs off the family root.
+    const third = await repo.createSibling(sib, { studentName: 'Ravi Jr', classLevel: null, program: null, school: null }, 'staff-priya');
+    expect((await repo.getLead(third))?.siblingOf).toBe(primary);
+    expect((await repo.familyOf(sib)).map((l) => l.studentName)).toEqual(['Ravi', 'Ramya', 'Ravi Jr']);
+
+    // A new web enquiry from the same number still merges into the primary, not a sibling.
+    const again = await store.captureLead({ ...base, phone, source: 'brochure' });
+    expect(again).toEqual({ leadId: primary, isNew: false });
+    // So does an import row.
+    await repo.importLeads([{ line: 2, phone, studentPhone: null, studentName: 'x', parentName: 'y', school: null, classLevel: null, board: null, area: null, program: null, note: null }], { fileName: 'f.csv', source: 'school_data', actorId: 'staff-manager', totalRows: 1, invalid: 0, duplicatesInFile: 0 });
+    expect((await repo.getLead(sib))?.lastSource).toBe('sibling');
+
+    // Track admission shows every child.
+    expect((await store.findAdmissions(phone)).map((r) => r.studentName)).toEqual(['Ravi', 'Ramya', 'Ravi Jr']);
   });
 
   it('enforces slot capacity, including under concurrent bookings', async () => {

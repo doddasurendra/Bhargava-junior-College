@@ -11,7 +11,7 @@ import { IMPORT_SOURCES } from '@/lib/crm/importer';
 import { TEMPLATES } from '@/lib/whatsapp/templates';
 import { LEAD_SOURCES } from '@/lib/validation';
 
-const ALL_SOURCES = [...LEAD_SOURCES, ...IMPORT_SOURCES.map((s) => s.value)] as const;
+const ALL_SOURCES = [...LEAD_SOURCES, ...IMPORT_SOURCES.map((s) => s.value), 'sibling'] as const;
 
 export const metadata = { title: 'Leads' };
 
@@ -141,7 +141,8 @@ export default async function LeadsPage({ searchParams }: { searchParams: SP }) 
                     )}
                     <td>
                       <Link href={`/crm/leads/${lead.id}`} className="font-semibold text-heading hover:underline">
-                        {lead.contactName ?? lead.studentName ?? 'Unnamed'}
+                        {(lead.siblingOf ? lead.studentName : null) ?? lead.contactName ?? lead.studentName ?? 'Unnamed'}
+                        {lead.siblingOf && <span className="ml-1.5 rounded-full bg-navy/10 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-navy dark:bg-white/10 dark:text-white">sibling</span>}
                       </Link>
                       <a href={`tel:${lead.phone}`} className="block font-mono text-xs text-muted hover:text-ink">{lead.phone}</a>
                     </td>

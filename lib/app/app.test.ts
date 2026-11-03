@@ -19,6 +19,10 @@ const adminOffice = { id: 'staff-adminoffice', fullName: 'Admin Office', email: 
 /** Walks a lead through the whole verification gate and issues the College ID. */
 async function admit(phone: string, studentName: string, program: 'iit-jee' | 'neet', stay: 'day' | 'hostel', studentPhone?: string) {
   const { leadId } = await store.captureLead({ name: 'Parent', phone, consent: true, source: 'callback', program });
+  return admitLead(leadId, phone, studentName, program, stay, studentPhone);
+}
+
+async function admitLead(leadId: string, phone: string, studentName: string, program: 'iit-jee' | 'neet', stay: 'day' | 'hostel', studentPhone?: string) {
   await repo.updateLead(leadId, { status: 'confirmed', stage: 'counselling' }, []);
   await repo.signOffStage(leadId, 'application', 'staff-anil', null);
   await repo.signOffStage(leadId, 'documents', 'staff-office', null);
@@ -72,11 +76,10 @@ describe('Student & Parent app', () => {
   it('one parent switches between two children; several guardians sign in for the same child', async () => {
     const mum = '+919888800010';
     const a = await admit(mum, 'Keerthana', 'neet', 'day');
-    // Leads de-duplicate by mobile (brief §4.4), so a sibling's admission is registered on the other
-    // parent's number and the first parent is given access as a guardian.
-    const sibling = await admit('+919888800012', 'Sai Charan', 'iit-jee', 'hostel');
-    await admin.addGuardian(adminOffice, sibling.leadId, { name: 'Mother', phone: mum, relation: 'mother' });
-    expect((await app.resolveProfiles(mum)).map((p) => p.name).sort()).toEqual(['Keerthana', 'Sai Charan']);
+    // Siblings: the second child is a sibling lead in the same family (same phone), admitted on its own.
+    const sibLead = await repo.createSibling(a.leadId, { studentName: 'Sai Charan', classLevel: 'Class 10', program: 'iit-jee', school: null }, 'staff-priya');
+    await admitLead(sibLead, mum, 'Sai Charan', 'iit-jee', 'hostel');
+    expect((await app.resolveProfiles(mum)).map((p) => `${p.kind}:${p.name}`).sort()).toEqual(['parent:Keerthana', 'parent:Sai Charan']);
 
     const dad = '+919888800011';
     await admin.addGuardian(adminOffice, a.leadId, { name: 'Father', phone: dad, relation: 'father' });

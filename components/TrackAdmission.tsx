@@ -7,7 +7,58 @@ import { postJson } from '@/lib/attribution';
 import { formatDateTime } from '@/lib/dates';
 import { Field, FormError, PhoneInput } from './forms';
 
-type Result = { found: false } | { found: true; studentName: string | null; program: string | null; owner: string | null; nextUpdate: string | null; upcomingVisit: string | null; timeline: TimelineStep[] };
+type Child = { studentName: string | null; program: string | null; owner: string | null; nextUpdate: string | null; upcomingVisit: string | null; timeline: TimelineStep[] };
+type Result = { found: false } | { found: true; children: Child[] };
+
+function ChildStatus({ child }: { child: Child }) {
+  return (
+    <div className="card overflow-hidden">
+      <div className="bg-navy p-5 text-white sm:p-6">
+        <p className="text-xs uppercase tracking-[0.16em] text-gold-300">Admission status</p>
+        <p className="mt-1 font-display text-2xl">{child.studentName ?? 'Your application'}</p>
+        {child.program && <p className="text-sm text-white/75">{child.program}</p>}
+      </div>
+      <ol className="relative space-y-0 p-5 sm:p-6">
+        {child.timeline.map((s, i) => (
+          <li key={s.key} className="relative flex gap-4 pb-6 last:pb-0">
+            {i < child.timeline.length - 1 && <span aria-hidden className={`absolute left-[13px] top-7 h-[calc(100%-1.25rem)] w-0.5 ${s.status === 'done' ? 'bg-gold' : 'bg-line'}`} />}
+            <span
+              aria-hidden
+              className={`relative z-10 grid h-7 w-7 shrink-0 place-items-center rounded-full text-xs font-bold ${
+                s.status === 'done' ? 'bg-gold text-navy-950' : s.status === 'current' ? 'bg-maroon text-white ring-4 ring-maroon/20' : 'border-2 border-line bg-surface text-muted'
+              }`}
+            >
+              {s.status === 'done' ? '✓' : i + 1}
+            </span>
+            <div className="min-w-0 pt-0.5">
+              <p className={`font-semibold ${s.status === 'pending' ? 'text-muted' : 'text-heading'}`}>
+                {s.label} {s.status === 'current' && <span className="ml-1 rounded-full bg-maroon/10 px-2 py-0.5 text-[11px] font-semibold text-maroon dark:text-gold">In progress</span>}
+              </p>
+              <p className="text-xs text-muted">
+                {s.owner}
+                {s.at && ` · ${formatDateTime(s.at)}`}
+              </p>
+            </div>
+          </li>
+        ))}
+      </ol>
+      <div className="grid gap-3 border-t border-line p-5 text-sm sm:grid-cols-3 sm:p-6">
+        <p>
+          <span className="block text-xs uppercase tracking-wider text-muted">Your contact</span>
+          {child.owner ?? 'Admissions office'}
+        </p>
+        <p>
+          <span className="block text-xs uppercase tracking-wider text-muted">Upcoming visit</span>
+          {child.upcomingVisit ?? '—'}
+        </p>
+        <p>
+          <span className="block text-xs uppercase tracking-wider text-muted">Next update by</span>
+          {child.nextUpdate ? formatDateTime(child.nextUpdate) : '—'}
+        </p>
+      </div>
+    </div>
+  );
+}
 
 export function TrackAdmission() {
   const [phone, setPhone] = useState('');
@@ -54,50 +105,11 @@ export function TrackAdmission() {
       );
     }
     return (
-      <div className="card overflow-hidden">
-        <div className="bg-navy p-5 text-white sm:p-6">
-          <p className="text-xs uppercase tracking-[0.16em] text-gold-300">Admission status</p>
-          <p className="mt-1 font-display text-2xl">{result.studentName ?? 'Your application'}</p>
-          {result.program && <p className="text-sm text-white/75">{result.program}</p>}
-        </div>
-        <ol className="relative space-y-0 p-5 sm:p-6">
-          {result.timeline.map((s, i) => (
-            <li key={s.key} className="relative flex gap-4 pb-6 last:pb-0">
-              {i < result.timeline.length - 1 && <span aria-hidden className={`absolute left-[13px] top-7 h-[calc(100%-1.25rem)] w-0.5 ${s.status === 'done' ? 'bg-gold' : 'bg-line'}`} />}
-              <span
-                aria-hidden
-                className={`relative z-10 grid h-7 w-7 shrink-0 place-items-center rounded-full text-xs font-bold ${
-                  s.status === 'done' ? 'bg-gold text-navy-950' : s.status === 'current' ? 'bg-maroon text-white ring-4 ring-maroon/20' : 'border-2 border-line bg-surface text-muted'
-                }`}
-              >
-                {s.status === 'done' ? '✓' : i + 1}
-              </span>
-              <div className="min-w-0 pt-0.5">
-                <p className={`font-semibold ${s.status === 'pending' ? 'text-muted' : 'text-heading'}`}>
-                  {s.label} {s.status === 'current' && <span className="ml-1 rounded-full bg-maroon/10 px-2 py-0.5 text-[11px] font-semibold text-maroon dark:text-gold">In progress</span>}
-                </p>
-                <p className="text-xs text-muted">
-                  {s.owner}
-                  {s.at && ` · ${formatDateTime(s.at)}`}
-                </p>
-              </div>
-            </li>
-          ))}
-        </ol>
-        <div className="grid gap-3 border-t border-line p-5 text-sm sm:grid-cols-3 sm:p-6">
-          <p>
-            <span className="block text-xs uppercase tracking-wider text-muted">Your contact</span>
-            {result.owner ?? 'Admissions office'}
-          </p>
-          <p>
-            <span className="block text-xs uppercase tracking-wider text-muted">Upcoming visit</span>
-            {result.upcomingVisit ?? '—'}
-          </p>
-          <p>
-            <span className="block text-xs uppercase tracking-wider text-muted">Next update by</span>
-            {result.nextUpdate ? formatDateTime(result.nextUpdate) : '—'}
-          </p>
-        </div>
+      <div className="space-y-5">
+        {result.children.length > 1 && <p className="text-sm text-muted">{result.children.length} children are registered with this number.</p>}
+        {result.children.map((c, n) => (
+          <ChildStatus key={n} child={c} />
+        ))}
       </div>
     );
   }

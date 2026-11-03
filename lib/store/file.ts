@@ -43,6 +43,8 @@ export interface FileLead {
   lastContactAt?: string | null;
   lostReason?: string | null;
   lostCompetitor?: string | null;
+  /** sibling's lead → the family's primary lead */
+  siblingOf?: string | null;
 }
 
 export interface FileVisit {
@@ -128,7 +130,8 @@ export function pushAudit(db: DB, leadId: string, entry: Omit<AuditEntry, 'id' |
 
 function upsertLead(db: DB, input: LeadInput & { source: string }): { lead: FileLead; isNew: boolean } {
   const now = new Date().toISOString();
-  let lead = db.leads.find((l) => l.phone === input.phone);
+  // De-duplicate by mobile into the family's primary lead; siblings are created explicitly by staff.
+  let lead = db.leads.find((l) => l.phone === input.phone && !l.siblingOf);
   const isNew = !lead;
   if (!lead) {
     lead = {
@@ -202,22 +205,28 @@ export function createFileStore(): Store {
         return { hallTicket, alreadyRegistered: false };
       }),
 
-    findAdmission: (phone) =>
-      tx((db): AdmissionRecord | null => {
-        const lead = db.leads.find((l) => l.phone === phone);
-        if (!lead) return null;
-        const visit = db.visits.filter((v) => v.leadId === lead.id && v.status === 'scheduled').sort((a, b) => a.date.localeCompare(b.date))[0];
-        const owner = lead.ownerId ? db.staff.find((s) => s.id === lead.ownerId) : null;
-        return {
-          studentName: lead.studentName,
-          contactName: lead.contactName,
-          program: lead.program,
-          completedStage: lead.stage,
-          events: [{ stage: 'enquiry', at: lead.createdAt, owner: null }],
-          owner: owner ? owner.fullName.split(' ')[0] : null,
-          nextUpdate: lead.nextFollowUpAt ?? null,
-          upcomingVisit: visit ? { date: visit.date, slot: visit.slot } : null,
-        };
+    findAdmissions: (phone) =>
+      tx((db): AdmissionRecord[] => {
+        const primary = db.leads.find((l) => l.phone === phone && !l.siblingOf);
+        if (!primary) return [];
+        const family = [primary, ...db.leads.filter((l) => l.siblingOf === primary.id).sort((a, b) => a.createdAt.localeCompare(b.createdAt))];
+        return family.map((lead) => {
+          const visit = db.visits.filter((v) => v.leadId === lead.id && v.status === 'scheduled').sort((a, b) => a.date.localeCompare(b.date))[0];
+          const owner = lead.ownerId ? db.staff.find((s) => s.id === lead.ownerId) : null;
+          return {
+            studentName: lead.studentName,
+            contactName: lead.contactName,
+            program: lead.program,
+            completedStage: lead.stage,
+            events: [
+              { stage: 'enquiry' as const, at: lead.createdAt, owner: null },
+              ...db.signOffs.filter((s) => s.leadId === lead.id).map((s) => ({ stage: s.stage, at: s.at, owner: null })),
+            ],
+            owner: owner ? owner.fullName.split(' ')[0] : null,
+            nextUpdate: lead.nextFollowUpAt ?? null,
+            upcomingVisit: visit ? { date: visit.date, slot: visit.slot } : null,
+          };
+        });
       }, false),
 
     putOtp: (rec) =>

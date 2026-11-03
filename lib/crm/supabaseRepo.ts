@@ -22,6 +22,7 @@ const toLead = (r: Row): CrmLead => ({
   stage: r.stage,
   ownerId: r.owner_id,
   assignedAt: r.assigned_at,
+  siblingOf: r.sibling_of,
   firstSource: r.first_source,
   lastSource: r.last_source,
   nextFollowUpAt: r.next_follow_up_at,
@@ -137,6 +138,19 @@ export function createSupabaseCrmRepo(url: string, serviceKey: string): CrmRepo 
         merged += res[0]?.merged ?? 0;
       }
       return { batchId: batch.id, created, merged };
+    },
+
+    async familyOf(leadId) {
+      const l = check(await sb.from('leads').select('id, sibling_of').eq('id', leadId).maybeSingle()) as Row | null;
+      if (!l) return [];
+      const rootId = l.sibling_of ?? l.id;
+      const family = rows(await sb.from('leads').select('*').is('merged_into', null).or(`id.eq.${rootId},sibling_of.eq.${rootId}`).order('created_at'));
+      return family.map(toLead).sort((a, b) => Number(Boolean(a.siblingOf)) - Number(Boolean(b.siblingOf)));
+    },
+
+    async createSibling(primaryId, s, actorId) {
+      const id = check(await sb.rpc('create_sibling', { p_lead: primaryId, p_actor: actorId, p: { student_name: s.studentName, class_level: s.classLevel, program: s.program, school: s.school } })) as string;
+      return id;
     },
 
     async exportForMetrics(since) {

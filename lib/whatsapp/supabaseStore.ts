@@ -30,7 +30,7 @@ export function createSupabaseMessageStore(url: string, key: string): MessageSto
   const sb = createClient(url, key, { auth: { persistSession: false, autoRefreshToken: false } });
   return {
     async leadForPhone(phone) {
-      const r = ok(await sb.from('leads').select('id, consent').is('merged_into', null).or(`phone.eq.${phone},student_phone.eq.${phone}`).limit(1).maybeSingle()) as Row | null;
+      const r = ok(await sb.from('leads').select('id, consent').is('merged_into', null).is('sibling_of', null).or(`phone.eq.${phone},student_phone.eq.${phone}`).limit(1).maybeSingle()) as Row | null;
       return r ? { id: r.id, consent: Boolean(r.consent) } : null;
     },
 

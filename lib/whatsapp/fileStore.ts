@@ -7,7 +7,8 @@ export function createFileMessageStore(): MessageStore {
   return {
     leadForPhone: (phone) =>
       tx((db) => {
-        const l = db.leads.find((x) => x.phone === phone || x.studentPhone === phone);
+        // The family's primary lead (siblings share the parent phone and its consent).
+        const l = db.leads.find((x) => !x.siblingOf && (x.phone === phone || x.studentPhone === phone));
         return l ? { id: l.id, consent: Boolean(l.consentAt) } : null;
       }, false),
 
@@ -46,7 +47,7 @@ export function createFileMessageStore(): MessageStore {
       tx((db) => {
         db.waOptOuts = db.waOptOuts.filter((o) => o.phone !== phone);
         if (optedOut) db.waOptOuts.push({ phone, at: new Date().toISOString(), source });
-        const l = db.leads.find((x) => x.phone === phone || x.studentPhone === phone);
+        const l = db.leads.find((x) => !x.siblingOf && (x.phone === phone || x.studentPhone === phone));
         if (l) pushAudit(db, l.id, { actorId: null, action: optedOut ? 'whatsapp_opt_out' : 'whatsapp_opt_in', field: 'whatsapp', oldValue: null, newValue: source, reason: null });
       }),
 

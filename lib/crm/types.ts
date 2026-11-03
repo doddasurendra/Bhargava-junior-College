@@ -110,6 +110,8 @@ export interface CrmLead {
   assignedAt: string | null;
   firstSource: string;
   lastSource: string;
+  /** set on a sibling's lead: the family's primary lead (same parent phone). Primary leads have null. */
+  siblingOf: string | null;
   nextFollowUpAt: string | null;
   lastContactAt: string | null;
   lostReason: string | null;
@@ -194,6 +196,13 @@ export interface LeadHistory {
   visits: VisitRow[];
 }
 
+export interface SiblingInput {
+  studentName: string;
+  classLevel: string | null;
+  program: string | null;
+  school: string | null;
+}
+
 export interface ImportMeta {
   fileName: string;
   source: string;
@@ -245,6 +254,10 @@ export interface CrmRepo extends VerifyRepo {
   /** Create new leads or merge into existing ones (fill blanks only), recording one import batch. */
   importLeads(records: ImportRecord[], meta: ImportMeta): Promise<{ batchId: string; created: number; merged: number }>;
   listImportBatches(limit?: number): Promise<ImportBatch[]>;
+  /** The family of a lead: its primary lead first, then siblings in creation order. */
+  familyOf(leadId: string): Promise<CrmLead[]>;
+  /** A sibling's lead under the family's primary lead, sharing the parent phone. */
+  createSibling(primaryId: string, s: SiblingInput, actorId: string): Promise<string>;
   /**
    * Everything the management dashboard needs: all active leads (current state), and calls, audit entries,
    * sign-offs since `sinceIso`, plus visits created since then or still awaiting an outcome.

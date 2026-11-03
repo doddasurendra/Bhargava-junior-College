@@ -4,6 +4,7 @@ import { addDays, todayIST } from '../dates';
 import { can, canSeeLead, isCounsellor } from './permissions';
 import { getCrmRepo } from './repo';
 import { categoryFromCall, followUp, roundRobin, validateCall, validateDecision, visitFlag, type CallInput, type DecisionInput, type FollowUpInfo } from './rules';
+import { PROGRAM_SLUGS } from '@/content/programs';
 import { parseCsv } from './csv';
 import { buildRecords, IMPORT_SOURCES, MAX_IMPORT_ROWS, validateMapping, type ImportDefaults, type ImportRecord, type ImportSource, type Mapping, type RejectedRow } from './importer';
 import type { AuditInput, CrmLead, LeadCategory, LeadFilter, LeadPatch, Staff, VisitRow } from './types';
@@ -233,6 +234,28 @@ export async function visitBoard(user: Staff, from: string, to: string, includeO
       return { visit, lead, owner: lead?.ownerId ? staff.get(lead.ownerId) ?? null : null, flag: visitFlag(visit) };
     })
     .filter((r) => r.lead && canSeeLead(user, r.lead));
+}
+
+// ---------------------------------------------------------------- families (siblings)
+
+export async function family(user: Staff, leadId: string) {
+  const lead = await visibleLead(user, leadId);
+  const members = await getCrmRepo().familyOf(lead.id);
+  // Siblings owned by a colleague are listed (so nobody double-calls the family) but not linked.
+  return members.map((m) => ({ lead: m, visible: canSeeLead(user, m), isCurrent: m.id === lead.id }));
+}
+
+/** "Add another child": a sibling's own lead in the same family (same parent phone, owner and consent). */
+export async function addSibling(user: Staff, leadId: string, s: { studentName: string; classLevel: string | null; program: string | null; school: string | null }) {
+  if (!can(user, 'lead.call')) throw new CrmError('You cannot add children to a family.');
+  const lead = await visibleLead(user, leadId);
+  const name = s.studentName.trim();
+  if (name.length < 2) throw new CrmError('Enter the child’s name.');
+  const members = await getCrmRepo().familyOf(lead.id);
+  if (members.some((m) => (m.studentName ?? '').trim().toLowerCase() === name.toLowerCase())) throw new CrmError(`${name} is already in this family.`);
+  if (members.length >= 6) throw new CrmError('A family can have at most 6 children here. Contact the admin office.');
+  if (s.program && !(PROGRAM_SLUGS as readonly string[]).includes(s.program)) throw new CrmError('Choose a valid program.');
+  return getCrmRepo().createSibling(lead.id, { studentName: name.slice(0, 80), classLevel: s.classLevel?.slice(0, 40) || null, program: s.program || null, school: s.school?.trim().slice(0, 120) || null }, user.id);
 }
 
 // ---------------------------------------------------------------- import (§7.1 step 1)

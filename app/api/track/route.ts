@@ -21,18 +21,21 @@ export async function POST(req: Request) {
   if (result === 'expired') return fail('This code has expired. Please request a new code.', 401);
 
   try {
-    const rec = await getStore().findAdmission(phone);
-    if (!rec) return ok({ found: false });
-    const slotLabel = rec.upcomingVisit ? visitSlots.slots.find((s) => s.slot === rec.upcomingVisit!.slot)?.label ?? rec.upcomingVisit.slot : null;
-    return ok({
-      found: true,
-      studentName: rec.studentName ?? rec.contactName,
-      program: rec.program ? getProgram(rec.program)?.name ?? null : null,
-      owner: rec.owner,
-      nextUpdate: rec.nextUpdate,
-      upcomingVisit: rec.upcomingVisit ? `${formatDate(rec.upcomingVisit.date)}, ${slotLabel}` : null,
-      timeline: buildTimeline(rec.completedStage, rec.events),
+    const recs = await getStore().findAdmissions(phone);
+    if (recs.length === 0) return ok({ found: false });
+    // One entry per child in the family (primary lead first, then siblings).
+    const children = recs.map((rec) => {
+      const slotLabel = rec.upcomingVisit ? visitSlots.slots.find((s) => s.slot === rec.upcomingVisit!.slot)?.label ?? rec.upcomingVisit.slot : null;
+      return {
+        studentName: rec.studentName ?? rec.contactName,
+        program: rec.program ? getProgram(rec.program)?.name ?? null : null,
+        owner: rec.owner,
+        nextUpdate: rec.nextUpdate,
+        upcomingVisit: rec.upcomingVisit ? `${formatDate(rec.upcomingVisit.date)}, ${slotLabel}` : null,
+        timeline: buildTimeline(rec.completedStage, rec.events),
+      };
     });
+    return ok({ found: true, children });
   } catch (e) {
     console.error('[track] lookup failed', (e as Error).message);
     return fail('Something went wrong. Please try again.', 500);

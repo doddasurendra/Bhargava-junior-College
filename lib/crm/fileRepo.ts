@@ -20,6 +20,7 @@ const toLead = (l: FileLead): CrmLead => ({
   stage: l.stage,
   ownerId: l.ownerId ?? null,
   assignedAt: l.assignedAt ?? null,
+  siblingOf: l.siblingOf ?? null,
   firstSource: l.firstSource,
   lastSource: l.lastSource,
   nextFollowUpAt: l.nextFollowUpAt ?? null,
@@ -67,8 +68,9 @@ export function createFileCrmRepo(): CrmRepo {
         let created = 0;
         let merged = 0;
         for (const r of records) {
+          // Imports merge into a family's primary lead, never into a sibling's.
           const match = db.leads.find(
-            (l) => l.phone === r.phone || l.studentPhone === r.phone || (r.studentPhone && (l.phone === r.studentPhone || l.studentPhone === r.studentPhone)),
+            (l) => !l.siblingOf && (l.phone === r.phone || l.studentPhone === r.phone || Boolean(r.studentPhone && (l.phone === r.studentPhone || l.studentPhone === r.studentPhone))),
           );
           let lead: FileLead;
           if (!match) {
@@ -116,6 +118,50 @@ export function createFileCrmRepo(): CrmRepo {
         }
         db.importBatches.push({ ...meta, id: batchId, created, merged, createdAt: now });
         return { batchId, created, merged };
+      }),
+
+    familyOf: (leadId) =>
+      tx((db) => {
+        const l = db.leads.find((x) => x.id === leadId);
+        if (!l) return [];
+        const rootId = l.siblingOf ?? l.id;
+        const root = db.leads.find((x) => x.id === rootId);
+        const sibs = db.leads.filter((x) => x.siblingOf === rootId).sort((a, b) => a.createdAt.localeCompare(b.createdAt));
+        return [...(root ? [root] : []), ...sibs].map(toLead);
+      }, false),
+
+    createSibling: (primaryId, s, actorId) =>
+      tx((db) => {
+        const p = db.leads.find((x) => x.id === primaryId);
+        if (!p) throw new Error('lead_not_found');
+        const root = p.siblingOf ? db.leads.find((x) => x.id === p.siblingOf)! : p;
+        const now = new Date().toISOString();
+        const id = randomUUID();
+        db.leads.push({
+          id,
+          phone: root.phone,
+          contactName: root.contactName,
+          parentName: root.parentName ?? null,
+          studentName: s.studentName,
+          studentClass: s.classLevel,
+          school: s.school,
+          board: null,
+          area: root.area ?? null,
+          program: s.program,
+          firstSource: 'sibling',
+          lastSource: 'sibling',
+          stage: 'enquiry',
+          status: 'open',
+          consentAt: root.consentAt,
+          ownerId: root.ownerId ?? null,
+          assignedAt: root.ownerId ? now : null,
+          siblingOf: root.id,
+          createdAt: now,
+          updatedAt: now,
+        });
+        pushAudit(db, id, { actorId, action: 'created', field: null, oldValue: null, newValue: 'sibling', reason: `Sibling of ${root.studentName ?? root.contactName}` });
+        pushAudit(db, root.id, { actorId, action: 'sibling_added', field: 'family', oldValue: null, newValue: s.studentName, reason: null });
+        return id;
       }),
 
     exportForMetrics: (since) =>

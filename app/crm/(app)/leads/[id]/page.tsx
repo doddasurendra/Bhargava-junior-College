@@ -14,8 +14,9 @@ import { STAGES } from '@/lib/admission';
 import { requireStaff } from '@/lib/crm/auth';
 import { can } from '@/lib/crm/permissions';
 import { visitFlag } from '@/lib/crm/rules';
-import { CrmError, leadDetail } from '@/lib/crm/service';
-import { CALL_OUTCOMES, LOST_REASONS, ROLE_LABELS } from '@/lib/crm/types';
+import { CrmError, family, leadDetail } from '@/lib/crm/service';
+import { CALL_OUTCOMES, LOST_REASONS, ROLE_LABELS, STATUS_LABELS } from '@/lib/crm/types';
+import { FamilyPanel } from '@/components/crm/FamilyPanel';
 import { addDays, formatDate, formatDateTime, todayIST } from '@/lib/dates';
 
 export const metadata = { title: 'Lead' };
@@ -35,6 +36,16 @@ export default async function LeadPage({ params }: { params: { id: string } }) {
   const verify = VERIFY_STATUSES.includes(lead.status) && can(user, 'verify.view') ? await verification(user, lead.id) : null;
   const wa = await whatsappForLead(user, lead.id);
   const appAccess = verify?.record.student?.collegeId ? await guardiansFor(user, lead.id) : null;
+  const familyMembers = (await family(user, lead.id)).map((m) => ({
+    id: m.lead.id,
+    name: m.lead.studentName ?? m.lead.contactName ?? 'Unnamed',
+    program: programShort(m.lead.program) === '—' ? null : programShort(m.lead.program),
+    status: STATUS_LABELS[m.lead.status],
+    isPrimary: !m.lead.siblingOf,
+    isCurrent: m.isCurrent,
+    visible: m.visible,
+    owner: m.lead.ownerId ? staff.get(m.lead.ownerId)?.fullName ?? null : null,
+  }));
   const name = (id: string | null) => (id ? staff.get(id)?.fullName ?? 'Staff' : 'System');
   const defaultFollowUp = `${addDays(todayIST(), 1)}T10:00`;
   const outcomeLabel = (v: string) => CALL_OUTCOMES.find((o) => o.value === v)?.label ?? v;
@@ -66,7 +77,8 @@ export default async function LeadPage({ params }: { params: { id: string } }) {
 
       <header className="flex flex-wrap items-start justify-between gap-4">
         <div>
-          <h1 className="font-display text-3xl text-heading">{lead.contactName ?? lead.studentName ?? 'Unnamed lead'}</h1>
+          <h1 className="font-display text-3xl text-heading">{(lead.siblingOf ? lead.studentName : null) ?? lead.contactName ?? lead.studentName ?? 'Unnamed lead'}</h1>
+          {lead.siblingOf && <p className="text-sm text-muted">Sibling lead · parent {lead.contactName ?? '—'}</p>}
           <p className="mt-1 flex flex-wrap items-center gap-2 text-sm text-muted">
             <a href={`tel:${lead.phone}`} className="font-mono font-semibold text-ink">{lead.phone}</a>
             <span>·</span>
@@ -179,6 +191,7 @@ export default async function LeadPage({ params }: { params: { id: string } }) {
         </div>
 
         <aside className="space-y-5">
+          <FamilyPanel leadId={lead.id} members={familyMembers} canAdd={can(user, 'lead.call')} />
           {appAccess && <GuardiansPanel leadId={lead.id} guardians={appAccess.guardians} canManage={appAccess.canManage} />}
           <WhatsAppPanel leadId={lead.id} data={wa} user={user} names={name} />
           {can(user, 'lead.assign') && (

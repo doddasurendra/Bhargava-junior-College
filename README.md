@@ -112,7 +112,10 @@ The app is an **installable web app (PWA)** on the same backend. Families open `
 
 - **Biometric hostel gate:** `POST /api/hostel/events` with header `x-device-key: $HOSTEL_DEVICE_KEY` and body `{ college_id, direction: "in"|"out", at, device, event_id }`. It's idempotent per device and event, and each new event sends `bjc_hostel_movement` on WhatsApp to every guardian. Without the key configured, the endpoint refuses everything.
 
-**Siblings — decision needed:** leads de-duplicate by mobile number (§4.4), so two children enquiring from the same number merge into one lead. Today a sibling's admission has to be registered under the other parent's number, with the first parent added as a guardian. The proper fix is a "student" level under a family lead in the CRM.
+**Siblings (family leads):** leads still de-duplicate by mobile number (§4.4), so a new enquiry from a known number lands on the family's *first* lead. To add another child, open that lead and use **Family → Add another child**. Each child gets their own lead with its own visit, decision, documents, fees and College ID. The parent's number, names, consent and owner are copied over, and the source is marked as `sibling`. Up to 6 children per family.
+- Imports, website enquiries, WhatsApp opt-outs and the bot always match the first lead, never a sibling.
+- *Track admission* and the parent app show every child on the number; the app's profile switcher moves between them.
+- Supabase: `supabase/migrations/20261103040000_siblings.sql` (the `sibling_of` column, a partial unique index on primary leads, and the `create_sibling` RPC).
 
 **Not yet (needs §9–12 of the brief, which were cut off):** attendance, tests and the mentor's note (and the Sunday WhatsApp parent report built on them), PTM booking, messaging the class teacher, the monthly wellbeing check-in, warden contacts and the sick-room log, online fee payment, push notifications, offline support, Telugu/Hindi in the app, PNG app icons, and the staff-side logins for faculty, wardens and transport.
 

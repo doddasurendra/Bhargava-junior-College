@@ -6,7 +6,7 @@ import { PROGRAM_SLUGS } from '@/content/programs';
 import { clearSession, devLoginEnabled, loginAsDevStaff, loginWithPassword, requireStaff } from '@/lib/crm/auth';
 import { getCrmRepo } from '@/lib/crm/repo';
 import { IMPORT_FIELDS, IMPORT_SOURCES, type ImportField, type ImportSource } from '@/lib/crm/importer';
-import { assignLeads, bulkCategory, checkInVisit, CrmError, logCall, previewImport, qualifyLead, recordDecision, recordVisitOutcome, runImport, type ImportPreview } from '@/lib/crm/service';
+import { addSibling, assignLeads, bulkCategory, checkInVisit, CrmError, logCall, previewImport, qualifyLead, recordDecision, recordVisitOutcome, runImport, type ImportPreview } from '@/lib/crm/service';
 import { CALL_OUTCOMES, LEAD_CATEGORIES, LOST_REASONS } from '@/lib/crm/types';
 import { addDays, todayIST } from '@/lib/dates';
 import { getStore } from '@/lib/store';
@@ -144,6 +144,21 @@ export async function decisionAction(_: ActionState, fd: FormData): Promise<Acti
     },
     [`/crm/leads/${id}`, '/crm/leads', '/crm'],
   );
+}
+
+export async function addSiblingAction(_: ActionState, fd: FormData): Promise<ActionState> {
+  const user = await requireStaff();
+  const leadId = String(fd.get('leadId'));
+  let id: string;
+  try {
+    id = await addSibling(user, leadId, { studentName: str(fd, 'studentName') ?? '', classLevel: str(fd, 'classLevel'), program: str(fd, 'program'), school: str(fd, 'school') });
+  } catch (e) {
+    if (e instanceof CrmError) return { error: e.message };
+    console.error('[crm] add sibling failed', e);
+    return { error: 'Something went wrong. Please try again.' };
+  }
+  revalidatePath(`/crm/leads/${leadId}`);
+  redirect(`/crm/leads/${id}`);
 }
 
 // ---------------------------------------------------------------- visits
