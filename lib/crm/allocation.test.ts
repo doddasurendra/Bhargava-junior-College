@@ -48,3 +48,25 @@ describe('§3.2-A lead qualification before allocation', () => {
     expect(owners[b]).toBeFalsy();
   });
 });
+
+describe('§7.1 allocation by school / area', () => {
+  it('gives each school to one telecaller, balancing load, and round-robins leads without a school', async () => {
+    const { groupedRoundRobin } = await import('./rules');
+    const plan = groupedRoundRobin(
+      [
+        { id: '1', key: 'ZPHS' }, { id: '2', key: 'zphs ' }, { id: '3', key: 'ZPHS' },
+        { id: '4', key: 'Narayana' }, { id: '5', key: 'Narayana' },
+        { id: '6', key: null }, { id: '7', key: '' },
+      ],
+      ['t1', 't2'],
+      { t1: 0, t2: 1 },
+    );
+    expect(new Set([plan['1'], plan['2'], plan['3']]).size).toBe(1); // case/space-insensitive, one owner
+    expect(plan['4']).toBe(plan['5']);
+    expect(plan['1']).toBe('t1'); // biggest group to the lightest load
+    expect(plan['4']).toBe('t2');
+    expect(plan['6']).toBeDefined();
+    expect(plan['7']).toBeDefined();
+    expect(groupedRoundRobin([{ id: 'x', key: 'A' }], [])).toEqual({});
+  });
+});

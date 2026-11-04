@@ -74,6 +74,12 @@ describe('back office: library, events, homework, exports', () => {
     await expect(B.addEvent(admin, { title: 'Exams', date: '2030-01-10', endDate: '2030-01-05', kind: 'exam', audience: 'all', location: null, note: null })).rejects.toThrow(/before the start/);
     await B.addEvent(admin, { title: 'Sankranti holidays', date: '2030-01-13', endDate: '2030-01-16', kind: 'holiday', audience: 'all', location: null, note: null });
     expect((await B.listEvents('2030-01-14')).upcoming.map((e) => e.title)).toEqual(['Sankranti holidays']);
+    // the portal never shows staff-only events, and only the audience's own ones
+    await B.addEvent(admin, { title: 'Staff meeting', date: '2030-01-14', endDate: null, kind: 'event', audience: 'staff', location: null, note: null });
+    await B.addEvent(admin, { title: 'PTM', date: '2030-01-20', endDate: null, kind: 'ptm', audience: 'parents', location: null, note: null });
+    expect((await B.eventsForPortal('parents', '2030-01-14')).map((e) => e.title)).toEqual(['Sankranti holidays', 'PTM']);
+    expect((await B.eventsForPortal('students', '2030-01-14')).map((e) => e.title)).toEqual(['Sankranti holidays']);
+    expect(await B.homeworkForBatch(null)).toEqual({ open: [], past: [] });
 
     // homework: a teacher with no batch can't set it; heads can
     await expect(B.setHomework(staff('staff-fac', 'faculty'), { batchId: 'b-none', subject: 'Physics', title: 'DPP 1', details: null, dueOn: '2030-01-01' })).rejects.toThrow(/don’t teach/);

@@ -134,6 +134,24 @@ export async function removeHomework(user: Staff, id: string) {
   return 'Removed.';
 }
 
+// ---------------------------------------------------------------- student & parent portal (read-only)
+
+/** Homework for one batch (the signed-in child's), open first. */
+export async function homeworkForBatch(batchId: string | null, today = todayIST()) {
+  if (!batchId) return { open: [], past: [] };
+  const items = (await homework.list(store(), { k1: batchId })).map((h) => ({ id: h.id, ...h.data }));
+  return {
+    open: items.filter((h) => h.dueOn >= today).sort((a, b) => a.dueOn.localeCompare(b.dueOn)),
+    past: items.filter((h) => h.dueOn < today).sort((a, b) => b.dueOn.localeCompare(a.dueOn)).slice(0, 15),
+  };
+}
+
+/** Upcoming events for students or parents (plus everyone-events); staff-only events are never shown. */
+export async function eventsForPortal(audience: 'students' | 'parents', today = todayIST()) {
+  const all = (await events.list(store())).map((e) => ({ id: e.id, ...e.data })).filter((e) => e.audience === 'all' || e.audience === audience);
+  return upcoming(all, today);
+}
+
 /** For exports: students the user may see. */
 export async function exportableStudents(user: Staff) {
   const [byId, vis] = await Promise.all([studentsById(), visibleStudentIds(user)]);

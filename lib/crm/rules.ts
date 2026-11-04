@@ -117,6 +117,31 @@ export function categoryFromCall(c: Pick<CallInput, 'outcome' | 'interest'>, cur
 }
 
 /** Balanced round-robin: each lead goes to the telecaller with the fewest open leads (ties keep list order). */
+/**
+ * §7.1 allocation by school or area: every lead with the same key (school or area) goes to one telecaller, so
+ * one person owns a school's list. Groups go, biggest first, to whoever has the lightest load. Leads with no
+ * key fall back to plain round-robin.
+ */
+export function groupedRoundRobin(leads: { id: string; key: string | null }[], ownerIds: string[], currentLoad: Record<string, number> = {}): Record<string, string> {
+  if (ownerIds.length === 0) return {};
+  const load = new Map(ownerIds.map((id) => [id, currentLoad[id] ?? 0]));
+  const groups = new Map<string, string[]>();
+  const loose: string[] = [];
+  for (const l of leads) {
+    const k = l.key?.trim().toLowerCase();
+    if (!k) loose.push(l.id);
+    else groups.set(k, [...(groups.get(k) ?? []), l.id]);
+  }
+  const out: Record<string, string> = {};
+  for (const ids of [...groups.values()].sort((a, b) => b.length - a.length)) {
+    let best = ownerIds[0];
+    for (const id of ownerIds) if (load.get(id)! < load.get(best)!) best = id;
+    for (const id of ids) out[id] = best;
+    load.set(best, load.get(best)! + ids.length);
+  }
+  return { ...out, ...roundRobin(loose, ownerIds, Object.fromEntries(load)) };
+}
+
 export function roundRobin(leadIds: string[], ownerIds: string[], currentLoad: Record<string, number> = {}): Record<string, string> {
   if (ownerIds.length === 0) return {};
   const load = new Map(ownerIds.map((id) => [id, currentLoad[id] ?? 0]));

@@ -139,6 +139,9 @@ function ProfileCard({ p }: { p: Profile }) {
             <Row k="Previous school" v={p.previousSchool} />
             <Row k="Board" v={p.board} />
             <Row k="Class at enquiry" v={p.classLevel} />
+            <Row k="SSC marks / GPA" v={p.sscMarks} />
+            <Row k="Area" v={p.area} />
+            <Row k="Email" v={p.email} />
             <Row k="Stay" v={p.stay === 'hostel' ? `Hostel${p.hostelRoom ? ` · room ${p.hostelRoom}` : ''}` : `Day scholar${p.bus ? ` · bus ${p.bus}` : ''}`} />
           </dl>
         </Panel>
@@ -163,6 +166,16 @@ function ProfileCard({ p }: { p: Profile }) {
             <ul className="space-y-1 text-sm">{p.tests.map((t) => <li key={t.title + t.date} className="flex justify-between gap-2"><span>{t.title}</span><span className="font-mono">{t.score}/{t.max} · {t.pct}% · rank {t.rank}/{t.of}</span></li>)}</ul>
           )}
         </Panel>
+        <Panel title="Weak chapters (from test answers)">
+          {p.weakChapters.length === 0 ? <Empty>No chapter under 50% yet.</Empty> : (
+            <ul className="space-y-1 text-sm">{p.weakChapters.map((c) => <li key={c.chapter} className="flex justify-between gap-2"><span>{c.chapter}</span><span className="font-mono">{c.accuracy}% of {c.questions} questions</span></li>)}</ul>
+          )}
+        </Panel>
+        <Panel title="Counsellor notes">
+          {p.counsellorNotes.length === 0 ? <Empty>No counselling recorded.</Empty> : (
+            <ul className="space-y-2 text-sm">{p.counsellorNotes.map((c, i) => <li key={i}><span className="text-xs text-muted">{c.program} · decision {c.decision}{c.scholarshipExplained ? ' · scholarship explained' : ''}</span>{c.concerns && <p>Concerns: {c.concerns}</p>}{c.notes && <p>{c.notes}</p>}</li>)}</ul>
+          )}
+        </Panel>
         {p.fees && (
           <Panel title="Fees">
             <dl className="divide-y divide-line">
@@ -171,6 +184,7 @@ function ProfileCard({ p }: { p: Profile }) {
               <Row k="Overdue" v={p.fees.overdue === null ? null : <span className="font-mono">{formatINR(p.fees.overdue)}</span>} />
             </dl>
             {p.fees.receipts.length > 0 && <p className="mt-2 text-xs text-muted">Receipts: {p.fees.receipts.map((r) => `${r.no} (${formatINR(r.amount)})`).join(', ')}</p>}
+            <p className="mt-1 text-xs text-muted">Scholarship / concession: {p.scholarship && p.scholarship.length ? p.scholarship.map((x) => `${formatINR(x.amount)}${x.percent !== null ? ` (${x.percent}%)` : ''} – ${x.reason}`).join('; ') : 'none approved'}</p>
           </Panel>
         )}
         <Panel title="Mentor notes & admission">

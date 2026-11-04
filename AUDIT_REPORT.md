@@ -1,6 +1,6 @@
 # Audit — 4 Nov 2026 (localhost:3000, commit after `3737013`)
 
-**PASS: 45 / 73   PARTIAL: 19   MISSING: 9**
+**PASS: 47 / 73   PARTIAL: 17   MISSING: 9**
 
 How each row was checked: **T** = automated test against the real store (`npm test`, 176+ tests), **L** = live request to the running app, **C** = clicked/read in Chrome, **DB** = queried the Supabase project, **Code** = read the implementation. Chrome froze several times under low memory (8 GB machine, ~1 GB free), so many rows rely on T/L instead of clicking.
 
@@ -8,16 +8,16 @@ How each row was checked: **T** = automated test against the real store (`npm te
 1. **S1** PARTIAL – tables exist (31, all RLS) but not with the §11 names; academics/campus data lives in the server-only `records` table.
 2. **S3** PARTIAL – de-dupe (unique index + `capture_lead`) and College ID gate (`issue_college_id`) are in the DB; "owner required" and stage history are enforced in the server and audit log, not DB triggers.
 3. **S4** PARTIAL – Supabase now has 60 sample leads (`supabase/seed_sample_leads.sql`) + visit slots + BSAT sessions. 40 students and 300 questions are not seeded: students need staff profiles, which need Supabase Auth accounts (service role key).
-4. **C8** PARTIAL – server-side role checks, faculty scoping, phone masking and a per-query audit log work (T); the log is the `ai_query_audit` collection in `records`, not its own table.
-5. **A7** PARTIAL – manual and round-robin allocation, one owner, reassign with reason; **no allocation by school/area**.
+4. ~~C8~~ fixed – dedicated `ai_query_audit` table with RLS in Supabase.
+5. ~~A7~~ fixed – allocation by school and by area added.
 6. **A17** PARTIAL – receipts are auto-numbered and print / save as PDF with the logo; no generated PDF file or WhatsApp delivery.
 7. **D4** PARTIAL – "Send 7 PM report now" button added; the daily run is Vercel Cron `30 13 * * *` (`vercel.json`), not Supabase pg_cron.
 8. **L1** PARTIAL – 20 account types (16 staff roles + student/parent/applicant/alumni) and one sample user per role in the local sign-in; no Supabase Auth demo accounts or demo passwords in README (needs the service role key; demo passwords on the hosted project would be unsafe).
 9. **L4** PARTIAL – phone OTP and email/password are built; email/password needs Supabase Auth (service role key); OTP is logged, not sent, until WhatsApp/SMS credentials exist.
-10. **C5** PARTIAL – profile has name, College ID, program, batch, section, school, board, tests + rank + trend, attendance + absences, parents + phones, fees + receipts, hostel/bus, mentor notes, admission sign-offs; **missing photo, SSC marks, weak chapters, email, address, scholarship, counsellor notes**.
+10. **C5** PARTIAL – weak chapters, counsellor notes and scholarship added; **photo, SSC marks, email and full address are not captured by the admission form** (shown as "not recorded").
 11. **C7** PARTIAL – fixed parameterised lookups, "not found" for unknown IDs (T); **no pgvector RAG** over notes/circulars.
 12. **G1** PARTIAL – every back-office module exists except **SMS** (WhatsApp is built; MSG91 not).
-13. **G2** PARTIAL – parent portal has child switch, attendance, results, fees + online pay + receipts, notices, timetable, out-pass, PTM, messages, bus/hostel; **homework, events calendar and report card are not shown in the parent portal yet**.
+13. **G2** PARTIAL – homework, events calendar and report card added to the portal; only a **leave application for day scholars** is missing (hostellers use out-pass).
 14. **G3** PARTIAL – Gurukul modules matched except **Branches** (multi-campus) and biometric punch reconciliation.
 15. **E9** PARTIAL – academic overview + management dashboard; no practice statistics (practice not built).
 16. **E1–E8, E10** MISSING – Eduten-style practice (question bank, XP/badges/streaks, weekly program, goals, auto-marking with solutions, misconception analysis, differentiation, teacher practice analytics, curriculum tags, one-click parent report). Online tests with auto-marking exist in `/app/tests`.
@@ -43,7 +43,7 @@ Ours: dashboard backlog tiles + 7 PM report (exceptions first), students, fees/d
 | A4 | De-dup by phone | PASS | T: `file.test.ts` "dedupes leads by phone"; DB unique index | — |
 | A5 | Qualify before allocation | PASS | T: `lib/crm/allocation.test.ts` | — |
 | A6 | Data-quality report | PASS | Code: dashboard "Data quality" by source and school | — |
-| A7 | Allocation modes | PARTIAL | Code: `assignLeads` manual/round-robin, reason on reassign | by school/area |
+| A7 | Allocation modes | PASS | T: `allocation.test.ts` groupedRoundRobin; manual, round-robin, **by school, by area** (one telecaller per school/area, load-balanced), reason on reassign | — |
 | A8 | Mandatory call outcome | PASS | Code/T: `validateCall` in `lib/crm/rules.ts` | — |
 | A9 | Follow-up date mandatory | PASS | Code: rules.ts "Set the next follow-up date and time." | — |
 | A10 | Follow-up queues | PASS | Code: queues today/overdue/upcoming/escalated; `/dashboard/followups`→`/crm` | — |
@@ -83,16 +83,16 @@ Ours: dashboard backlog tiles + 7 PM report (exceptions first), students, fees/d
 | E10 | Parent report one click | MISSING | Sunday WhatsApp report exists | practice report |
 | G0 | Gurukul modules listed | PASS | C: list above | — |
 | G1 | Back office modules | PARTIAL | T: `lib/school/backoffice.test.ts`; routes | SMS |
-| G2 | Parent portal | PARTIAL | `/app/*` routes | homework, events, report card in portal |
+| G2 | Parent portal | PARTIAL | `/app/*` routes; added `/app/homework`, `/app/events`, `/app/report-card` (T: portal audience filter) | leave application for day scholars (hostellers use out-pass) |
 | G3 | Gurukul parity | PARTIAL | list above | Branches, punch reconciliation |
 | C1 | Public chatbot answers | PASS | T: `assistant.test.ts`; EN/TE/HI, chips, handoff | — |
 | C2 | Chatbot actions | PASS | T: save_enquiry, book_visit, check_application | — |
 | C3 | No student data in chatbot | PASS | T: private status answer, OTP only | — |
 | C4 | Staff assistant protected | PASS | L: `/dashboard/ai-assistant`→307→sign-in; T: front desk refused | — |
-| C5 | Full profile by roll | PARTIAL | T: `service.test.ts` returns profile for BJC-2027-JEE-0001 | photo, SSC marks, weak chapters, email, address, scholarship, counsellor notes |
+| C5 | Full profile by roll | PARTIAL | T: `service.test.ts` profile for BJC-2027-JEE-0001; now also weak chapters (T: `insights.test.ts`), counsellor notes, scholarship/concessions, area | photo, SSC marks, email, full address (not captured by the admission form; shown as "not recorded") |
 | C6 | Plain-language queries | PASS | T: `parse.test.ts` all four examples | — |
 | C7 | SQL tools + RAG, not found | PARTIAL | T: "not found" for unknown ID | pgvector RAG |
-| C8 | Security + audit | PARTIAL | T: masking, faculty scoping, audit rows | dedicated `ai_query_audit` table |
+| C8 | Security + audit | PASS | T: masking, faculty scoping, audit rows; DB: `ai_query_audit` table, RLS on, heads-only read policy, no insert for anon/authenticated; server writes it when Supabase is connected | — |
 | L1 | Roles + demo accounts | PARTIAL | `/login` 20 types (T: `loginTypes.test.ts`); local sample users | Supabase demo accounts |
 | L2 | Role → own dashboard | PASS | C: Admission Manager, Content & Marketing sign-ins; `homeFor` | — |
 | L3 | Own data only | PASS | T: scoping tests; DB RLS policies | — |

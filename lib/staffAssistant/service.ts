@@ -1,5 +1,7 @@
 import 'server-only';
+import { createClient } from '@supabase/supabase-js';
 import { getAppStore } from '../app/service';
+import { usingSupabase } from '../crm/repo';
 import { listLeads } from '../crm/service';
 import { phoneFor } from '../crm/mask';
 import { can } from '../crm/permissions';
@@ -8,7 +10,8 @@ import type { Staff } from '../crm/types';
 import type { StudentRow } from '../crm/verification';
 import { todayIST } from '../dates';
 import { getRecordStore } from '../records';
-import { aiQueryAudit } from '../records/collections';
+import { aiQueryAudit, counselling, feeRequests } from '../records/collections';
+import { weakChapters } from './insights';
 import { studentResults } from '../school/academics';
 import { duesForStudent, duesList } from '../school/accounts';
 import { allBatches, batchOf, roomOf, studentsById, visibleStudentIds } from '../school/common';
@@ -60,7 +63,7 @@ export function matchStudents<T extends Pick<StudentRow, 'fullName' | 'collegeId
 /** The full student file for one student the user may see. */
 export async function studentProfile(user: Staff, s: StudentRow) {
   const repo = getCrmRepo();
-  const [batch, room, bus, results, signals, lead, verification, guardians, dues, file] = await Promise.all([
+  const [batch, room, bus, results, signals, lead, verification, guardians, dues, file, sessions, concessions] = await Promise.all([
     batchOf(s.id),
     roomOf(s.id),
     busFor(s.id),
@@ -71,6 +74,8 @@ export async function studentProfile(user: Staff, s: StudentRow) {
     getAppStore().guardiansOf(s.id),
     can(user, 'fees.dues') ? duesForStudent(s.id) : Promise.resolve(null),
     studentFile(user, s.id),
+    counselling.list(getRecordStore(), { k1: s.leadId }),
+    can(user, 'fees.dues') ? feeRequests.list(getRecordStore(), { k2: s.leadId }) : Promise.resolve([]),
   ]);
   const paid = verification.payments.filter((p) => p.status === 'approved');
   const pcts = results.map((r) => r.pct);
@@ -100,7 +105,14 @@ export async function studentProfile(user: Staff, s: StudentRow) {
     attendance: { pct: signals.attendance.pct, absent: signals.attendance.absent, late: signals.attendance.late, recentAbsences: signals.attendance.absentDates.slice(-5) },
     tests: results.map((r) => ({ title: r.test.title, date: r.test.date, score: r.score, max: r.max, pct: Math.round(r.pct), rank: r.rank, of: r.of })),
     trend,
+    weakChapters: weakChapters(results),
     warnings: signals.warnings,
+    counsellorNotes: sessions.map((c) => ({ program: c.data.programDiscussed, decision: c.data.decision, concerns: c.data.concerns, notes: c.data.notes, scholarshipExplained: c.data.scholarshipExplained })),
+    scholarship: seesFees ? concessions.filter((c) => c.data.kind === 'concession' && c.data.status === 'approved').map((c) => ({ amount: c.data.amount, percent: c.data.percentOfTuition, reason: c.data.reason })) : null,
+    // Not captured by the admission form yet; shown as "not recorded" rather than guessed.
+    sscMarks: null as string | null,
+    email: null as string | null,
+    area: lead?.area ?? null,
     fees: seesFees
       ? { paid: paid.reduce((t, p) => t + p.amount, 0), outstanding: dues?.outstanding ?? null, overdue: dues?.overdue ?? null, receipts: paid.filter((p) => p.receiptNo).map((p) => ({ no: p.receiptNo!, amount: p.amount, on: p.paidOn })) }
       : null,
@@ -182,7 +194,7 @@ export async function ask(user: Staff, question: string): Promise<Answer> {
   if (!q) return { kind: 'none', text: 'Type a College ID, a student name or a question.' };
   const intent = parseQuery(q);
   const { result, studentIds } = await answer(user, intent);
-  await aiQueryAudit.put(getRecordStore(), {
+  const entry = {
     actorId: user.id,
     role: user.roles[0] ?? 'staff',
     query: q,
@@ -190,7 +202,14 @@ export async function ask(user: Staff, question: string): Promise<Answer> {
     resultCount: result.kind === 'none' ? 0 : result.kind === 'profile' || result.kind === 'compare' ? 1 : result.rows.length,
     studentIds: studentIds.slice(0, 200),
     at: new Date().toISOString(),
-  });
+  };
+  await aiQueryAudit.put(getRecordStore(), entry);
+  // With Supabase connected, also write the dedicated ai_query_audit table (RLS: heads read, server writes).
+  if (usingSupabase()) {
+    const sb = createClient(process.env.SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!, { auth: { persistSession: false } });
+    const { error } = await sb.from('ai_query_audit').insert({ actor_id: entry.actorId, role: entry.role, query: entry.query, intent: entry.intent, result_count: entry.resultCount, student_ids: entry.studentIds, at: entry.at });
+    if (error) console.error('[assistant] ai_query_audit insert failed', error.message);
+  }
   return result;
 }
 

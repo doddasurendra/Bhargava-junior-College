@@ -3,7 +3,7 @@ import { STAGES, type StageKey } from '../admission';
 import { addDays, todayIST } from '../dates';
 import { can, canSeeLead, isCounsellor } from './permissions';
 import { getCrmRepo } from './repo';
-import { categoryFromCall, followUp, roundRobin, validateCall, validateDecision, visitFlag, type CallInput, type DecisionInput, type FollowUpInfo } from './rules';
+import { categoryFromCall, followUp, groupedRoundRobin, roundRobin, validateCall, validateDecision, visitFlag, type CallInput, type DecisionInput, type FollowUpInfo } from './rules';
 import { PROGRAM_SLUGS } from '@/content/programs';
 import { parseCsv } from './csv';
 import { buildRecords, IMPORT_SOURCES, MAX_IMPORT_ROWS, validateMapping, type ImportDefaults, type ImportRecord, type ImportSource, type Mapping, type RejectedRow } from './importer';
@@ -82,7 +82,7 @@ export async function qualifyLead(user: Staff, id: string, category: LeadCategor
 }
 
 /** Exactly one current owner per lead; reassignment needs a reason (§7.1 step 3). */
-export async function assignLeads(user: Staff, ids: string[], target: string | 'round_robin', reason: string | null) {
+export async function assignLeads(user: Staff, ids: string[], target: string | 'round_robin' | 'by_school' | 'by_area', reason: string | null) {
   if (!can(user, 'lead.assign')) throw new CrmError('Only the admission manager can assign leads.');
   if (ids.length === 0) throw new CrmError('Select at least one lead.');
   const repo = getCrmRepo();
@@ -94,18 +94,18 @@ export async function assignLeads(user: Staff, ids: string[], target: string | '
   if (leads.some((l) => l.category === 'invalid')) throw new CrmError('Invalid leads (wrong number or duplicate) are not allocated.');
 
   let plan: Record<string, string>;
-  if (target === 'round_robin') {
+  if (target === 'round_robin' || target === 'by_school' || target === 'by_area') {
     const telecallers = staff.filter((s) => s.roles.includes('telecaller')).map((s) => s.id);
     if (telecallers.length === 0) throw new CrmError('There are no active telecallers.');
     const open = await repo.listLeads({});
     const load: Record<string, number> = {};
     for (const l of open) if (l.ownerId && followUp(l).state !== 'closed') load[l.ownerId] = (load[l.ownerId] ?? 0) + 1;
-    plan = roundRobin(
-      leads.filter((l) => !l.ownerId).map((l) => l.id),
-      telecallers,
-      load,
-    );
-    if (Object.keys(plan).length === 0) throw new CrmError('Round-robin only assigns unassigned leads. Pick an owner to reassign.');
+    const unassigned = leads.filter((l) => !l.ownerId);
+    plan =
+      target === 'round_robin'
+        ? roundRobin(unassigned.map((l) => l.id), telecallers, load)
+        : groupedRoundRobin(unassigned.map((l) => ({ id: l.id, key: target === 'by_school' ? l.school : l.area })), telecallers, load);
+    if (Object.keys(plan).length === 0) throw new CrmError('Automatic allocation only assigns unassigned leads. Pick an owner to reassign.');
   } else {
     const owner = staff.find((s) => s.id === target);
     if (!owner || !can(owner, 'lead.call')) throw new CrmError('Choose a telecaller, counsellor or manager as owner.');

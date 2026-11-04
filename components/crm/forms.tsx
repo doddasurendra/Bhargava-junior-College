@@ -252,6 +252,8 @@ export function BulkForm({
               <select name="ownerId" className="input w-auto py-1.5 text-sm" defaultValue="">
                 <option value="">Assign to…</option>
                 <option value="round_robin">Round-robin (telecallers)</option>
+                <option value="by_school">By school (one telecaller per school)</option>
+                <option value="by_area">By area (one telecaller per area)</option>
                 {staff.map((s) => (
                   <option key={s.id} value={s.id}>
                     {s.label}
