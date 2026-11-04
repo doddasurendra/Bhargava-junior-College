@@ -8,7 +8,7 @@ import { ask, canSeeAudit, canUseAssistant, recentQueries, type Answer, type Pro
 export const metadata = { title: 'College assistant' };
 export const dynamic = 'force-dynamic';
 
-const EXAMPLES = ['BJC-2027-JEE-0001', 'students below 75% attendance', 'fee defaulters this month', 'list all Hot leads not called today', 'compare Rahul’s last 3 tests'];
+const EXAMPLES = ['BJC-2027-JEE-0001', 'students below 75% attendance', 'fee defaulters this month', 'list all Hot leads not called today', 'compare Rahul’s last 3 tests', 'notes about fees'];
 
 export default async function CollegeAssistantPage({ searchParams }: { searchParams: { q?: string } }) {
   const user = await requireStaff();
@@ -20,7 +20,9 @@ export default async function CollegeAssistantPage({ searchParams }: { searchPar
     );
   }
   const q = (searchParams.q ?? '').slice(0, 500);
-  const [result, audit] = await Promise.all([q.trim() ? ask(user, q) : Promise.resolve(null), canSeeAudit(user) ? recentQueries(user) : Promise.resolve([])]);
+  // Ask first (it writes the audit row), then read the log so this question is included.
+  const result = q.trim() ? await ask(user, q) : null;
+  const audit = canSeeAudit(user) ? await recentQueries(user) : [];
 
   return (
     <div className="max-w-5xl space-y-5">
@@ -87,6 +89,19 @@ function Result({ r }: { r: Answer }) {
             <li key={l.id} className="flex flex-wrap justify-between gap-2 py-2">
               <Link href={`/crm/leads/${l.id}`} className="font-medium text-heading underline">{l.name}</Link>
               <span className="text-muted"><span className="font-mono">{l.phone}</span> · {l.owner ?? 'unassigned'} · last contact {l.lastContact ? formatDateTime(l.lastContact) : 'never'}</span>
+            </li>
+          ))}
+        </ul>
+      )}
+      {r.kind === 'notes' && (
+        <ul className="divide-y divide-line text-sm">
+          {r.rows.map((d) => (
+            <li key={d.source + d.id} className="py-2">
+              <p className="flex flex-wrap items-baseline justify-between gap-2">
+                {d.href ? <Link href={d.href} className="font-medium text-heading underline">{d.title}</Link> : <span className="font-medium text-heading">{d.title}</span>}
+                <span className="text-xs text-muted">{d.source === 'notice' ? 'Notice / circular' : d.source === 'mentor_note' ? 'Mentor note' : 'Counselling note'}{d.date ? ` · ${formatDate(d.date, { day: 'numeric', month: 'short' })}` : ''}</span>
+              </p>
+              <p className="mt-0.5 text-muted">{d.snippet}</p>
             </li>
           ))}
         </ul>

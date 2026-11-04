@@ -15,7 +15,7 @@ How each row was checked: **T** = automated test against the real store (`npm te
 8. **L1** PARTIAL – 20 account types (16 staff roles + student/parent/applicant/alumni) and one sample user per role in the local sign-in; no Supabase Auth demo accounts or demo passwords in README (needs the service role key; demo passwords on the hosted project would be unsafe).
 9. **L4** PARTIAL – phone OTP and email/password are built; email/password needs Supabase Auth (service role key); OTP is logged, not sent, until WhatsApp/SMS credentials exist.
 10. **C5** PARTIAL – weak chapters, counsellor notes and scholarship added; **photo, SSC marks, email and full address are not captured by the admission form** (shown as "not recorded").
-11. **C7** PARTIAL – fixed parameterised lookups, "not found" for unknown IDs (T); **no pgvector RAG** over notes/circulars.
+11. **C7** PARTIAL – fixed lookups + "not found" work; notes & circulars search added (keyword-ranked, scoped by role). **pgvector embeddings** still need an embeddings provider key.
 12. **G1** PARTIAL – every back-office module exists except **SMS** (WhatsApp is built; MSG91 not).
 13. ~~G2~~ fixed – parent portal complete, including leave application.
 14. **G3** PARTIAL – Gurukul modules matched except **Branches** (multi-campus) and biometric punch reconciliation.
@@ -91,7 +91,7 @@ Ours: dashboard backlog tiles + 7 PM report (exceptions first), students, fees/d
 | C4 | Staff assistant protected | PASS | L: `/dashboard/ai-assistant`→307→sign-in; T: front desk refused | — |
 | C5 | Full profile by roll | PARTIAL | T: `service.test.ts` profile for BJC-2027-JEE-0001; now also weak chapters (T: `insights.test.ts`), counsellor notes, scholarship/concessions, area | photo, SSC marks, email, full address (not captured by the admission form; shown as "not recorded") |
 | C6 | Plain-language queries | PASS | T: `parse.test.ts` all four examples | — |
-| C7 | SQL tools + RAG, not found | PARTIAL | T: "not found" for unknown ID | pgvector RAG |
+| C7 | SQL tools + RAG, not found | PARTIAL | T: fixed parameterised lookups; "not found" for unknown IDs (C: `BJC-9999-XXX-0000` → not found); **notes & circulars retrieval** ("notes about fees") ranked BM25 over notices, mentor and counselling notes the user may see (T: `retrieve.test.ts`; C: live) | pgvector embeddings (needs an embeddings provider key) |
 | C8 | Security + audit | PASS | T: masking, faculty scoping, audit rows; DB: `ai_query_audit` table, RLS on, heads-only read policy, no insert for anon/authenticated; server writes it when Supabase is connected | — |
 | L1 | Roles + demo accounts | PARTIAL | `/login` 20 types (T: `loginTypes.test.ts`); local sample users | Supabase demo accounts |
 | L2 | Role → own dashboard | PASS | C: Admission Manager, Content & Marketing sign-ins; `homeFor` | — |

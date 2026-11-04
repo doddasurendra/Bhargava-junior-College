@@ -10,8 +10,9 @@ import type { Staff } from '../crm/types';
 import type { StudentRow } from '../crm/verification';
 import { todayIST } from '../dates';
 import { getRecordStore } from '../records';
-import { aiQueryAudit, counselling, feeRequests } from '../records/collections';
+import { aiQueryAudit, counselling, feeRequests, mentorNotes, notices } from '../records/collections';
 import { weakChapters } from './insights';
+import { search, type Doc } from './retrieve';
 import { studentResults } from '../school/academics';
 import { duesForStudent, duesList } from '../school/accounts';
 import { allBatches, batchOf, roomOf, studentsById, visibleStudentIds } from '../school/common';
@@ -40,6 +41,7 @@ export type Answer =
   | { kind: 'compare'; text: string; student: { id: string; name: string; collegeId: string | null }; tests: { title: string; date: string; score: number; max: number; pct: number; rank: number; of: number }[] }
   | { kind: 'leads'; text: string; rows: { id: string; name: string; phone: string; category: string; owner: string | null; lastContact: string | null }[] }
   | { kind: 'dues'; text: string; rows: { id: string; name: string; collegeId: string | null; overdue: number; outstanding: number }[] }
+  | { kind: 'notes'; text: string; rows: (Doc & { snippet: string; score: number })[] }
   | { kind: 'none'; text: string };
 
 const istDate = (iso: string) => new Date(new Date(iso).getTime() + 5.5 * 3600_000).toISOString().slice(0, 10);
@@ -171,6 +173,34 @@ async function answer(user: Staff, intent: Intent): Promise<{ result: Answer; st
       const change = tests.length >= 2 ? tests[tests.length - 1].pct - tests[0].pct : 0;
       const text = `${s.fullName}: last ${tests.length} test${tests.length > 1 ? 's' : ''}${tests.length >= 2 ? `, ${change >= 0 ? 'up' : 'down'} ${Math.abs(change)} points from the first to the latest` : ''}.`;
       return { result: { kind: 'compare', text, student: { id: s.id, name: s.fullName, collegeId: s.collegeId }, tests }, studentIds: [s.id] };
+    }
+    case 'notes': {
+      // Unstructured text the user may see: every notice/circular; mentor notes (mentor.notes) and counselling
+      // notes for students they can see. Ranked keyword retrieval; answers only from these documents.
+      const docs: Doc[] = (await notices.list(getRecordStore())).map((n) => ({ id: n.id, source: 'notice' as const, title: n.data.title, text: n.data.body, date: n.data.date, href: '/crm/notices' }));
+      if (can(user, 'students.view')) {
+        const students = await visibleStudents(user);
+        const byLead = new Map(students.map((s) => [s.leadId, s]));
+        if (can(user, 'mentor.notes')) {
+          const seen = new Set(students.map((s) => s.id));
+          for (const m of await mentorNotes.list(getRecordStore())) {
+            if (!seen.has(m.data.studentId)) continue;
+            const s = students.find((x) => x.id === m.data.studentId)!;
+            docs.push({ id: m.id, source: 'mentor_note', title: `Mentor note · ${s.fullName}`, text: m.data.note, date: m.data.date, href: `/crm/students/${s.id}` });
+          }
+        }
+        for (const c of await counselling.list(getRecordStore())) {
+          const s = byLead.get(c.data.leadId);
+          if (!s) continue;
+          const text = [c.data.concerns, c.data.notes].filter(Boolean).join(' · ');
+          if (text) docs.push({ id: c.id, source: 'counselling', title: `Counselling · ${s.fullName}`, text, date: null, href: `/crm/students/${s.id}` });
+        }
+      }
+      const hits = search(docs, intent.q);
+      return {
+        result: hits.length ? { kind: 'notes', text: `${hits.length} match${hits.length === 1 ? '' : 'es'} for “${intent.q}” in notices, mentor and counselling notes.`, rows: hits } : { kind: 'none', text: `Not found: nothing about “${intent.q}” in the notices and notes you can see.` },
+        studentIds: hits.filter((h) => h.source !== 'notice' && h.href).map((h) => h.href!.split('/').pop()!),
+      };
     }
     case 'lookup': {
       if (!can(user, 'students.view')) return { result: { kind: 'none', text: 'Your role can’t view student records.' }, studentIds: [] };
