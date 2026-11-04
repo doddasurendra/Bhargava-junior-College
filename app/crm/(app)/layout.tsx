@@ -5,6 +5,7 @@ import { ThemeToggle } from '@/components/HeaderControls';
 import { RoleSwitcher } from '@/components/crm/RoleSwitcher';
 import { Crest } from '@/components/ui';
 import { OPERATING_PRINCIPLE } from '@/content/admissionSystem';
+import { canUseAssistant } from '@/lib/staffAssistant/service';
 import { inboxCounts } from '@/lib/chat/inbox';
 import { requireStaff } from '@/lib/crm/auth';
 import { can } from '@/lib/crm/permissions';
@@ -42,7 +43,8 @@ export default async function CrmShell({ children }: { children: ReactNode }) {
     ...(can(user, 'transport.manage') ? [{ href: '/crm/transport', label: 'Transport' }] : []),
     { href: '/crm/notices', label: 'Notices' },
     ...(can(user, 'leave.request') || can(user, 'leave.approve') ? [{ href: '/crm/leave', label: 'Leave' }] : []),
-    ...(can(user, 'whatsapp.setup') ? [{ href: '/crm/assistant', label: 'AI assistant' }] : []),
+    ...(canUseAssistant(user) ? [{ href: '/crm/college-assistant', label: 'College assistant' }] : []),
+    ...(can(user, 'whatsapp.setup') ? [{ href: '/crm/assistant', label: 'Website chat analytics' }] : []),
     ...(can(user, 'whatsapp.setup') ? [{ href: '/crm/whatsapp', label: 'WhatsApp setup' }] : []),
     ...(BLOCK_KEYS.some((k) => canEditBlock(user.roles, k)) ? [{ href: '/crm/cms', label: 'Website content' }] : []),
     ...(can(user, 'marketing.spend') ? [{ href: '/crm/marketing', label: 'Marketing spend' }] : []),

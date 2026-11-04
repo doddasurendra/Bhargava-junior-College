@@ -32,6 +32,13 @@ export const college = {
   ],
   hoursShort: 'Mon–Fri 7 AM–5 PM · Sat 9 AM–3 PM',
   leader: { name: 'Dr. G. V. Venkat Ramana', credentials: 'F.I.E., Ph.D. (Civil Engineering)' },
+  // From bhargavajuniorcollege.com (Vision, Mission and About Us sections), checked 4 Nov 2026.
+  leaderCredentialsFull: 'F.I.E. · Ph.D. (Civil Engg.), M.Tech (WRE), B.E. (Civil Engg.), D.C.E., B.Com., M.B.A. (H.R.M), M.A. (Sociology) and further postgraduate degrees, diplomas and certificates',
+  tagline: 'Great education begins with great teaching — everything else follows',
+  vision: 'We envision being a beacon of academic excellence to help the aspiring students crack the prestigious entrance exams',
+  mission:
+    'To give every student a transformative education through refined coaching methods and a carefully designed curriculum; to build the logical, analytical and technical skills that competitive exams demand; and to support each student’s intellectual growth, academic development and emotional well-being so they can reach their full potential.',
+  apart: 'What sets Bhargava Junior College apart is its relentless pursuit of academic perfection: structured programs designed for IIT-JEE and NEET, with support and guidance for students at every level.',
   facultyAvgExperience: '10+ years',
   maxBatchSize: 40,
   mentorRatio: 20,

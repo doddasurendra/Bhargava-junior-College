@@ -18,6 +18,22 @@ export const marketingSpend = collection({
   k2: (d) => d.source,
 });
 
+/** Staff AI assistant: every question asked, by whom and when, and which students it returned (§8.2 ai_query_audit). */
+export const aiQueryAudit = collection({
+  name: 'ai_query_audit',
+  schema: z.object({
+    actorId: z.string().min(1).max(80),
+    role: z.string().max(40),
+    query: z.string().trim().min(1).max(500),
+    intent: z.string().max(40),
+    resultCount: z.coerce.number().int().min(0),
+    studentIds: z.array(z.string().max(80)).max(200),
+    at: z.string(),
+  }),
+  k1: (d) => d.actorId,
+  k2: (d) => d.at,
+});
+
 // ---------------------------------------------------------------- academics (§9, §9A rows 3, 10–12, 15)
 
 const id = z.string().min(1).max(80);

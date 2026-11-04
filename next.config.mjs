@@ -15,7 +15,7 @@ const nextConfig = {
   async redirects() {
     const alias = (source, destination) => ({ source, destination, permanent: false });
     return [
-      alias('/vision', '/about'),
+      alias('/vision', '/about#vision'),
       alias('/courses', '/programs'),
       alias('/courses/:slug', '/programs/:slug'),
       alias('/bsat', '/scholarship'),
@@ -34,6 +34,7 @@ const nextConfig = {
       alias('/dashboard/hostel', '/crm/hostel'),
       alias('/dashboard/transport', '/crm/transport'),
       alias('/dashboard/users', '/crm/staff'),
+      alias('/dashboard/ai-assistant', '/crm/college-assistant'),
       alias('/student', '/app'),
       alias('/parent', '/app'),
     ];
