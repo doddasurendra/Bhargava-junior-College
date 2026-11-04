@@ -3,17 +3,23 @@ import { Panel } from '@/components/crm/ui';
 import { MFA_ROLES } from '@/lib/auth/service';
 import { getAuthStore, getIdentity } from '@/lib/auth/store';
 import { requireStaff } from '@/lib/crm/auth';
+import { can } from '@/lib/crm/permissions';
+import { startViewAsAction } from '@/app/crm/admin-actions';
 import { getCrmRepo } from '@/lib/crm/repo';
+import { loadRbac } from '@/lib/crm/rbac';
+import { getRecordStore } from '@/lib/records';
 import { ROLE_LABELS, ROLES } from '@/lib/crm/types';
 
 export const metadata = { title: 'Staff accounts' };
 
 export default async function StaffPage() {
   const user = await requireStaff('staff.manage');
+  const canViewAs = can(user, 'impersonate');
   const [staff, auths] = await Promise.all([getCrmRepo().listAllStaff(), getAuthStore().listAll()]);
   const mfaOn = new Set(auths.filter((a) => a.totpEnabledAt).map((a) => a.staffId));
   const emails = getIdentity().emails;
-  const roles: RoleOpt[] = ROLES.map((r) => ({ value: r, label: ROLE_LABELS[r], mfa: MFA_ROLES.includes(r) }));
+  const rbac = await loadRbac(getRecordStore());
+  const roles: RoleOpt[] = [...ROLES.map((r) => ({ value: r, label: ROLE_LABELS[r], mfa: MFA_ROLES.includes(r) })), ...rbac.customRoles.map((r) => ({ value: r.key, label: r.label, mfa: false }))];
   const active = staff.filter((s) => s.active);
   const inactive = staff.filter((s) => !s.active);
 
@@ -41,6 +47,12 @@ export default async function StaffPage() {
           {!s.active ? <span className="font-semibold text-muted">Deactivated</span> : mfaOn.has(s.id) ? <span className="text-emerald-700 dark:text-emerald-300">2FA on</span> : s.roles.some((r) => MFA_ROLES.includes(r)) ? <span className="text-maroon dark:text-gold">2FA at next sign-in</span> : <span className="text-muted">No 2FA</span>}
         </p>
       </div>
+      {canViewAs && s.active && s.id !== user.id && (
+        <form action={startViewAsAction} className="mt-1 inline-block">
+          <input type="hidden" name="staffId" value={s.id} />
+          <button className="mr-4 text-xs font-semibold text-maroon underline dark:text-gold">View as (read-only)</button>
+        </form>
+      )}
       <EditStaffForm staff={{ id: s.id, fullName: s.fullName, phone: s.phone, roles: s.roles, active: s.active, email: s.email }} roles={roles} isSelf={s.id === user.id} emails={emails} />
     </li>
   );

@@ -1,7 +1,7 @@
 import { notFound } from 'next/navigation';
 import { PrintButton } from '@/app/crm/receipts/[id]/PrintButton';
 import { ReceiptDoc } from '@/components/ReceiptDoc';
-import { canSeePayment, profileData, requireAppUser } from '@/lib/app/service';
+import { canSeePayment, leadOf, profileData, requireAppUser } from '@/lib/app/service';
 
 export const metadata = { title: 'Receipt' };
 
@@ -10,7 +10,7 @@ export default async function AppReceipt({ params }: { params: { id: string } })
   // Only receipts for this phone's own children / application.
   const payment = await canSeePayment(u, params.id);
   if (!payment) notFound();
-  const profile = u.profiles.find((p) => p.leadId === payment.leadId)!;
+  const profile = u.profiles.find((p) => leadOf(p) === payment.leadId)!;
   const d = await profileData(profile);
   return (
     <div className="space-y-3">

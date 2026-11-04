@@ -116,6 +116,18 @@ export const devStaff = {
     { id: 'staff-adminoffice', fullName: 'Admin Office', roles: ['admin_office' as const] },
     // one person, two jobs: tries out the role switcher (acceptance criteria)
     { id: 'staff-kavya', fullName: 'Kavya', roles: ['front_desk' as const, 'admission_office' as const] },
+    // §9A.2 portals (faculty names from brief §3.5)
+    { id: 'staff-chairman', fullName: 'Management', roles: ['management' as const] },
+    { id: 'staff-principal', fullName: 'Principal', roles: ['principal' as const] },
+    { id: 'staff-exam', fullName: 'Exam Cell', roles: ['academic_coordinator' as const] },
+    { id: 'staff-krishna', fullName: 'S. Krishna Murthy', roles: ['faculty' as const] },
+    { id: 'staff-radhika', fullName: 'P. Radhika', roles: ['faculty' as const] },
+    // §9A.3 example: a faculty member who is also a mentor and a hostel warden
+    { id: 'staff-naresh', fullName: 'V. Naresh', roles: ['faculty' as const, 'class_teacher' as const, 'hostel_warden' as const] },
+    { id: 'staff-swathi', fullName: 'A. Swathi', roles: ['faculty' as const, 'class_teacher' as const] },
+    { id: 'staff-warden', fullName: 'Lady Warden', roles: ['hostel_warden' as const] },
+    { id: 'staff-transport', fullName: 'Transport In-charge', roles: ['transport_incharge' as const] },
+    { id: 'staff-marketing', fullName: 'Content & Marketing', roles: ['data_executive' as const] },
   ],
 };
 

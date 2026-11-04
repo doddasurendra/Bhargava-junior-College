@@ -1,5 +1,6 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { BLOCKS } from '../cms/blocks';
+import { GATEWAY } from './verification';
 import { RepoConflict, type VerifyRepo } from './types';
 import type { PaymentRow, ReversalRow } from './verification';
 
@@ -126,11 +127,12 @@ export function createSupabaseVerifyRepo(sb: SupabaseClient): VerifyRepo {
       const row = ok(
         await sb
           .from('payments')
-          .insert({ lead_id: p.leadId, amount: p.amount, mode: p.mode, reference: p.reference, paid_on: p.paidOn, status: p.status, recorded_by: p.recordedBy, approved_by: p.approvedBy, approved_at: p.approvedAt })
+          // GATEWAY: confirmed by the payment gateway, not recorded by a person (recorded_by is null)
+          .insert({ lead_id: p.leadId, amount: p.amount, mode: p.mode, reference: p.reference, paid_on: p.paidOn, status: p.status, recorded_by: p.recordedBy === GATEWAY ? null : p.recordedBy, approved_by: p.approvedBy === GATEWAY ? null : p.approvedBy, approved_at: p.approvedAt })
           .select('id')
           .single(),
       ) as Row;
-      await audit(p.leadId, p.recordedBy, 'payment_recorded', 'payment', `${p.amount} ${p.mode} (${p.status})`, p.reference);
+      await audit(p.leadId, p.recordedBy === GATEWAY ? (null as unknown as string) : p.recordedBy, 'payment_recorded', 'payment', `${p.amount} ${p.mode} (${p.status})`, p.reference);
       return row.id;
     },
 

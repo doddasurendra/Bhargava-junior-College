@@ -4,12 +4,15 @@ import { CategoryBadge, Empty, FollowUpBadge, Panel, programShort, Stat } from '
 import { getContent } from '@/lib/cms';
 import { devLoginEnabled, requireStaff } from '@/lib/crm/auth';
 import { can } from '@/lib/crm/permissions';
+import { phoneFor } from '@/lib/crm/mask';
+import { homeFor } from '@/lib/crm/home';
+import { redirect } from 'next/navigation';
 import { dashboard, type LeadRow } from '@/lib/crm/service';
 import { formatDate } from '@/lib/dates';
 
 export const metadata = { title: 'My tasks' };
 
-function LeadList({ rows, showOwner }: { rows: LeadRow[]; showOwner: boolean }) {
+function LeadList({ rows, showOwner, mask }: { rows: LeadRow[]; showOwner: boolean; mask: (phone: string) => string }) {
   if (rows.length === 0) return <Empty>Nothing here. Well done.</Empty>;
   return (
     <ul className="divide-y divide-line">
@@ -17,7 +20,7 @@ function LeadList({ rows, showOwner }: { rows: LeadRow[]; showOwner: boolean }) 
         <li key={r.lead.id}>
           <Link href={`/crm/leads/${r.lead.id}`} className="flex items-center gap-3 py-2.5 hover:bg-bg">
             <div className="min-w-0 flex-1">
-              <p className="truncate font-medium text-heading">{r.lead.contactName ?? r.lead.studentName ?? r.lead.phone}</p>
+              <p className="truncate font-medium text-heading">{r.lead.contactName ?? r.lead.studentName ?? mask(r.lead.phone)}</p>
               <p className="text-xs text-muted">
                 {programShort(r.lead.program)}
                 {showOwner && ` · ${r.owner?.fullName ?? 'Unassigned'}`}
@@ -35,7 +38,11 @@ function LeadList({ rows, showOwner }: { rows: LeadRow[]; showOwner: boolean }) 
 export default async function CrmHome() {
   const { visitSlots } = await getContent();
   const user = await requireStaff();
+  // §9A.4: each role lands on its own home with today's tasks; admissions roles stay here
+  const home = homeFor(user.roles[0]);
+  if (home !== '/crm') redirect(home);
   const d = await dashboard(user);
+  const mask = (p: string) => phoneFor(user, p);
   const all = can(user, 'lead.viewAll');
   const slotLabel = (s: string) => visitSlots.slots.find((x) => x.slot === s)?.label ?? s;
 
@@ -66,10 +73,10 @@ export default async function CrmHome() {
 
       <div className="grid gap-6 xl:grid-cols-2">
         <Panel title={`Overdue follow-ups (${d.overdue.length})`} actions={<Link href="/crm/leads?queue=overdue" className="text-xs font-semibold text-maroon underline dark:text-gold">See all</Link>}>
-          <LeadList rows={d.overdue} showOwner={all} />
+          <LeadList rows={d.overdue} showOwner={all} mask={mask} />
         </Panel>
         <Panel title={`Due today (${d.today.length})`} actions={<Link href="/crm/leads?queue=today" className="text-xs font-semibold text-maroon underline dark:text-gold">See all</Link>}>
-          <LeadList rows={d.today} showOwner={all} />
+          <LeadList rows={d.today} showOwner={all} mask={mask} />
         </Panel>
       </div>
 
@@ -83,7 +90,7 @@ export default async function CrmHome() {
                 <li key={v.visit.id} className="flex items-center gap-3 py-2.5 text-sm">
                   <span className="w-20 font-mono font-semibold">{slotLabel(v.visit.slot)}</span>
                   <Link href={`/crm/leads/${v.visit.leadId}`} className="flex-1 font-medium text-heading hover:underline">
-                    {v.lead?.contactName ?? v.lead?.phone}
+                    {v.lead?.contactName ?? phoneFor(user, v.lead?.phone)}
                   </Link>
                   <span className="text-muted">
                     {v.visit.familySize} people · {formatDate(v.visit.date, { day: 'numeric', month: 'short' })}

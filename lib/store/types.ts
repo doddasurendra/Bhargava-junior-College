@@ -1,5 +1,5 @@
 import type { StageKey, StageEvent } from '../admission';
-import type { Attribution, LeadSource } from '../validation';
+import type { Attribution, LeadSource, STAFF_SOURCES } from '../validation';
 import type { ProgramSlug } from '@/content/programs';
 
 export interface LeadInput {
@@ -9,7 +9,7 @@ export interface LeadInput {
   phone: string;
   studentClass?: string;
   program?: ProgramSlug;
-  source: LeadSource;
+  source: LeadSource | (typeof STAFF_SOURCES)[number];
   note?: string;
   consent: true;
   attribution?: Attribution;

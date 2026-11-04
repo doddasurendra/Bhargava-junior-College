@@ -4,6 +4,7 @@ import { CategoryBadge, Empty, FollowUpBadge, programShort, sourceLabel, StatusB
 import { programs, PROGRAM_SLUGS } from '@/content/programs';
 import { requireStaff } from '@/lib/crm/auth';
 import { can } from '@/lib/crm/permissions';
+import { phoneFor, seesPhones } from '@/lib/crm/mask';
 import { getCrmRepo } from '@/lib/crm/repo';
 import { listLeads, type Queue } from '@/lib/crm/service';
 import { LEAD_CATEGORIES, LEAD_STATUSES, ROLE_LABELS, STATUS_LABELS, type LeadFilter } from '@/lib/crm/types';
@@ -136,7 +137,7 @@ export default async function LeadsPage({ searchParams }: { searchParams: SP }) 
                   <tr key={lead.id} className="hover:bg-bg">
                     {canBulk && (
                       <td>
-                        <input type="checkbox" name="ids" value={lead.id} className="h-4 w-4 accent-maroon" aria-label={`Select ${lead.contactName ?? lead.phone}`} />
+                        <input type="checkbox" name="ids" value={lead.id} className="h-4 w-4 accent-maroon" aria-label={`Select ${lead.contactName ?? phoneFor(user, lead.phone)}`} />
                       </td>
                     )}
                     <td>
@@ -144,7 +145,7 @@ export default async function LeadsPage({ searchParams }: { searchParams: SP }) 
                         {(lead.siblingOf ? lead.studentName : null) ?? lead.contactName ?? lead.studentName ?? 'Unnamed'}
                         {lead.siblingOf && <span className="ml-1.5 rounded-full bg-navy/10 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-navy dark:bg-white/10 dark:text-white">sibling</span>}
                       </Link>
-                      <a href={`tel:${lead.phone}`} className="block font-mono text-xs text-muted hover:text-ink">{lead.phone}</a>
+                      {seesPhones(user) ? <a href={`tel:${lead.phone}`} className="block font-mono text-xs text-muted hover:text-ink">{lead.phone}</a> : <span className="block font-mono text-xs text-muted">{phoneFor(user, lead.phone)}</span>}
                     </td>
                     <td>{programShort(lead.program)}</td>
                     <td><CategoryBadge category={lead.category} /></td>

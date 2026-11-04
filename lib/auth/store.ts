@@ -6,6 +6,8 @@ import { createAuthService, fileVerifier, type AuthService, type PasswordVerifie
 import { createSupabaseAuthStore } from './supabaseStore';
 import type { AuthStore } from './types';
 import { siteUrl } from '../seo';
+import { loadRbac } from '../crm/rbac';
+import { getRecordStore } from '../records';
 import { createFileIdentity, createSupabaseIdentity, type Identity } from './identity';
 import { createStaffAdmin, type StaffAdmin } from './staffAdmin';
 
@@ -34,7 +36,7 @@ export function getIdentity(): Identity {
 }
 
 export function getStaffAdmin(): StaffAdmin {
-  if (!staffAdmin) staffAdmin = createStaffAdmin({ repo: getCrmRepo(), store: getAuthStore(), identity: getIdentity() });
+  if (!staffAdmin) staffAdmin = createStaffAdmin({ repo: getCrmRepo(), store: getAuthStore(), identity: getIdentity(), customRoles: async () => (await loadRbac(getRecordStore())).customRoles.map((r) => r.key) });
   return staffAdmin;
 }
 

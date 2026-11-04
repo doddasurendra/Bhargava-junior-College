@@ -11,6 +11,7 @@ import { addSibling, assignLeads, bulkCategory, checkInVisit, CrmError, logCall,
 import { CALL_OUTCOMES, LEAD_CATEGORIES, LOST_REASONS } from '@/lib/crm/types';
 import { addDays, todayIST } from '@/lib/dates';
 import { getStore } from '@/lib/store';
+import { seedSchoolDemo } from '@/lib/school/demo';
 
 export interface ActionState {
   ok?: boolean;
@@ -65,7 +66,7 @@ export async function loginPasswordAction(_: ActionState, fd: FormData): Promise
 export async function logoutAction() {
   const user = await getStaffSession();
   if (user) await getAuthService().logout(user.id, requestCtx());
-  clearSession();
+  await clearSession();
   redirect('/crm/login');
 }
 
@@ -292,6 +293,8 @@ export async function seedDemoAction(_: ActionState, _fd: FormData): Promise<Act
   await store.createVisit({ name: names[0], phone: '+919000010000', consent: true, date: today, slot: '10:00', familySize: 3, program: 'iit-jee' });
   await store.createVisit({ name: names[1], phone: '+919000010001', consent: true, date: addDays(today, -1), slot: '11:30', familySize: 2, program: 'neet' });
   await store.createVisit({ name: names[4], phone: '+919000010004', consent: true, date: addDays(today, 1), slot: '14:00', familySize: 2 });
+  // students, batches, timetable, mentors, rooms and a bus, so the school portals have data too
+  const school = await seedSchoolDemo();
   revalidatePath('/crm', 'layout');
-  return { ok: true, message: `Loaded ${names.length} demo leads and 3 visits.` };
+  return { ok: true, message: `Loaded ${names.length} demo leads, 3 visits${school.created ? ` and ${school.created} admitted students with batches, timetable, hostel rooms and a bus` : ''}.` };
 }

@@ -109,8 +109,8 @@ describe('Student & Parent app', () => {
     expect(d.payments[0].receiptNo).toMatch(/^BJC\/2027-28\//);
     // Receipts are visible only to phones linked to that student.
     const pid = d.payments[0].id;
-    expect(await app.canSeePayment({ phone, profiles, active: profiles[0] }, pid)).toMatchObject({ id: pid });
+    expect(await app.canSeePayment({ phone, profiles, active: profiles[0], sid: 'test' }, pid)).toMatchObject({ id: pid });
     const stranger = await app.resolveProfiles('+919888800010');
-    expect(await app.canSeePayment({ phone: '+919888800010', profiles: stranger, active: stranger[0] }, pid)).toBeNull();
+    expect(await app.canSeePayment({ phone: '+919888800010', profiles: stranger, active: stranger[0], sid: 'test' }, pid)).toBeNull();
   });
 });

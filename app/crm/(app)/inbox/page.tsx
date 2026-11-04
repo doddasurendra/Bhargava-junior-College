@@ -3,6 +3,7 @@ import { AutoRefresh, ClaimButton, CloseForm, ReplyForm, ScrollToEnd, TransferFo
 import { CategoryBadge, Empty, programShort } from '@/components/crm/ui';
 import { conversationView, inboxList, type InboxView } from '@/lib/chat/inbox';
 import { requireStaff } from '@/lib/crm/auth';
+import { phoneFor } from '@/lib/crm/mask';
 import { CrmError } from '@/lib/crm/service';
 import { formatDateTime } from '@/lib/dates';
 
@@ -74,7 +75,7 @@ export default async function InboxPage({ searchParams }: { searchParams: { view
                 <span className={`mt-0.5 grid h-8 w-8 shrink-0 place-items-center rounded-full text-[11px] font-bold ${x.channel === 'whatsapp' ? 'bg-[#25D366] text-white' : 'bg-navy text-white'}`}>{x.channel === 'whatsapp' ? 'WA' : 'WEB'}</span>
                 <span className="min-w-0 flex-1">
                   <span className="flex items-baseline justify-between gap-2">
-                    <span className="truncate font-semibold text-heading">{x.contactName ?? x.contactPhone ?? 'Visitor'}</span>
+                    <span className="truncate font-semibold text-heading">{x.contactName ?? (x.contactPhone ? phoneFor(user, x.contactPhone) : null) ?? 'Visitor'}</span>
                     <span className="shrink-0 text-[11px] text-muted">{ago(x.lastMessageAt)}</span>
                   </span>
                   <span className="block truncate text-xs text-muted">
@@ -94,7 +95,7 @@ export default async function InboxPage({ searchParams }: { searchParams: { view
             <header className="flex flex-wrap items-center justify-between gap-3 border-b border-line px-4 py-3">
               <div className="min-w-0">
                 <p className="font-semibold text-heading">
-                  {c.contactName ?? 'Visitor'} <span className="font-mono text-sm font-normal text-muted">{c.contactPhone}</span>
+                  {c.contactName ?? 'Visitor'} <span className="font-mono text-sm font-normal text-muted">{phoneFor(user, c.contactPhone)}</span>
                 </p>
                 <p className="text-xs text-muted">
                   {c.channel === 'whatsapp' ? 'WhatsApp' : 'Website chat'} · {c.status === 'assigned' ? `with ${staffName(c.assigneeId)}` : c.status}

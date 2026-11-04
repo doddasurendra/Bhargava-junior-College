@@ -13,10 +13,16 @@ import { getContent } from '@/lib/cms';
 import { STAGES } from '@/lib/admission';
 import { requireStaff } from '@/lib/crm/auth';
 import { can } from '@/lib/crm/permissions';
+import { phoneFor, seesPhones } from '@/lib/crm/mask';
+import { CallButton } from '@/components/crm/CallButton';
 import { visitFlag } from '@/lib/crm/rules';
 import { CrmError, family, leadDetail } from '@/lib/crm/service';
 import { CALL_OUTCOMES, LOST_REASONS, ROLE_LABELS, STATUS_LABELS } from '@/lib/crm/types';
 import { FamilyPanel } from '@/components/crm/FamilyPanel';
+import { QuickForm } from '@/components/crm/QuickForm';
+import { counsellingAction } from '@/app/crm/school-actions';
+import { counsellingFor } from '@/lib/school/counselling';
+import { programs } from '@/content/programs';
 import { addDays, formatDate, formatDateTime, todayIST } from '@/lib/dates';
 
 export const metadata = { title: 'Lead' };
@@ -34,6 +40,7 @@ export default async function LeadPage({ params }: { params: { id: string } }) {
     throw e;
   }
   const { lead, history, staff, owner, follow } = d;
+  const sessions = can(user, 'counselling.record') ? await counsellingFor(lead.id) : [];
   const verify = VERIFY_STATUSES.includes(lead.status) && can(user, 'verify.view') ? await verification(user, lead.id) : null;
   const wa = await whatsappForLead(user, lead.id);
   const appAccess = verify?.record.student?.collegeId ? await guardiansFor(user, lead.id) : null;
@@ -81,7 +88,7 @@ export default async function LeadPage({ params }: { params: { id: string } }) {
           <h1 className="font-display text-3xl text-heading">{(lead.siblingOf ? lead.studentName : null) ?? lead.contactName ?? lead.studentName ?? 'Unnamed lead'}</h1>
           {lead.siblingOf && <p className="text-sm text-muted">Sibling lead · parent {lead.contactName ?? '—'}</p>}
           <p className="mt-1 flex flex-wrap items-center gap-2 text-sm text-muted">
-            <a href={`tel:${lead.phone}`} className="font-mono font-semibold text-ink">{lead.phone}</a>
+            {seesPhones(user) ? <a href={`tel:${lead.phone}`} className="font-mono font-semibold text-ink">{lead.phone}</a> : <span className="font-mono font-semibold text-ink" title="Masked for your role: use Call">{phoneFor(user, lead.phone)}</span>}
             <span>·</span>
             <span>{programShort(lead.program)}</span>
             <span>·</span>
@@ -90,8 +97,8 @@ export default async function LeadPage({ params }: { params: { id: string } }) {
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
-          <a href={`tel:${lead.phone}`} className="btn-primary py-2">Call</a>
-          <a href={`https://wa.me/${lead.phone.replace('+', '')}`} target="_blank" rel="noopener noreferrer" className="btn-outline py-2">WhatsApp</a>
+          {can(user, 'lead.call') ? <CallButton leadId={lead.id} /> : seesPhones(user) ? <a href={`tel:${lead.phone}`} className="btn-primary py-2">Call</a> : null}
+          {seesPhones(user) && <a href={`https://wa.me/${lead.phone.replace('+', '')}`} target="_blank" rel="noopener noreferrer" className="btn-outline py-2">WhatsApp</a>}
         </div>
       </header>
 
@@ -208,6 +215,31 @@ export default async function LeadPage({ params }: { params: { id: string } }) {
           {can(user, 'lead.call') && !closed && (
             <Panel title="Log a call">
               {lead.ownerId ? <CallForm leadId={lead.id} defaultFollowUp={defaultFollowUp} /> : <Empty>Assign an owner first.</Empty>}
+            </Panel>
+          )}
+          {can(user, 'counselling.record') && !closed && ['visit_scheduled', 'visited', 'counselled', 'decision_pending'].includes(lead.status) && (
+            <Panel title={`Counselling${sessions.length ? ` (${sessions.length})` : ''}`}>
+              {sessions.map((x) => (
+                <p key={x.id} className="mb-2 text-xs text-muted">
+                  {formatDateTime(x.createdAt)} · {x.programDiscussed} · fees {x.feesExplained ? 'explained' : 'not explained'} · scholarship {x.scholarshipExplained ? 'explained' : 'not explained'} · leaning {x.decision}
+                  {x.concerns ? ` · concerns: ${x.concerns}` : ''}
+                </p>
+              ))}
+              <QuickForm
+                action={counsellingAction}
+                submit="Record counselling"
+                cols={1}
+                fields={[
+                  { name: 'leadId', type: 'hidden', value: lead.id },
+                  { name: 'program', label: 'Program discussed', type: 'select', defaultValue: programs.find((p) => p.slug === lead.program)?.short ?? '', options: programs.map((p) => ({ value: p.short, label: p.short })) },
+                  { name: 'fees', label: 'Fee structure explained', type: 'checkbox', defaultChecked: true },
+                  { name: 'scholarship', label: 'Scholarship (BSAT) options explained', type: 'checkbox', defaultChecked: true },
+                  { name: 'concerns', label: 'Concerns raised', type: 'textarea' },
+                  { name: 'decision', label: 'Family is leaning towards', type: 'select', options: [{ value: 'pending', label: 'Deciding' }, { value: 'confirmed', label: 'Joining' }, { value: 'lost', label: 'Not joining' }] },
+                  { name: 'notes', label: 'Notes (academic plan, faculty discussed)', type: 'textarea' },
+                ]}
+              />
+              <p className="mt-2 text-xs text-muted">Record the binding decision in Admission decision.</p>
             </Panel>
           )}
           {can(user, 'lead.decide') && !closed && ['visited', 'counselled', 'decision_pending', 'confirmed'].includes(lead.status) && (

@@ -4,6 +4,7 @@ import type { AppStore } from './types';
 
 export function createFileAppStore(): AppStore {
   return {
+    listStudents: () => tx((db) => db.students.filter((s) => s.collegeId).sort((a, b) => a.fullName.localeCompare(b.fullName)), false),
     getStudent: (id) => tx((db) => db.students.find((s) => s.id === id) ?? null, false),
     studentByCollegeId: (cid) => tx((db) => db.students.find((s) => s.collegeId === cid) ?? null, false),
     studentsByLoginPhone: (phone) => tx((db) => db.students.filter((s) => s.collegeId && s.loginPhone === phone), false),

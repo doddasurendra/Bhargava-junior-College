@@ -5,8 +5,10 @@ import { redirect } from 'next/navigation';
 import { AuthError } from '@/lib/auth/service';
 import { getAuthService, getIdentity, getStaffAdmin } from '@/lib/auth/store';
 import { seal } from '@/lib/auth/totp';
-import { clearSession, getPendingMfa, getStaffSession, requestCtx, requireStaff, setActiveRole, setSession } from '@/lib/crm/auth';
+import { clearSession, currentSid, getPendingMfa, getStaffSession, requestCtx, requireStaff, setActiveRole, setSession } from '@/lib/crm/auth';
 import { pickActiveRole } from '@/lib/crm/permissions';
+import { revokeAll } from '@/lib/auth/sessions';
+import { getRecordStore } from '@/lib/records';
 import { decodeToken, RC_COOKIE, SESSION_COOKIE } from '@/lib/crm/session';
 import type { ActionState } from './actions';
 
@@ -35,23 +37,25 @@ export async function mfaVerifyAction(_: ActionState, fd: FormData): Promise<Act
   if (!staffId) return { error: 'Your sign-in timed out. Start again.' };
   const r = await getAuthService().secondFactor(staffId, code(fd), requestCtx());
   if (r.kind === 'error') return { error: r.message };
-  setSession(r.staffId, r.sv, true);
+  await setSession(r.staffId, r.sv, true);
   redirect(r.method === 'recovery' ? `/crm/account?recovery=${r.recoveryLeft}` : '/crm');
 }
 
 /** Confirms the first code from a newly added authenticator — at sign-in, or from My account. */
 export async function mfaEnrolAction(_: ActionState, fd: FormData): Promise<ActionState> {
-  const staffId = getPendingMfa() ?? (await getStaffSession())?.id;
+  const pending = getPendingMfa();
+  const staffId = pending ?? (await getStaffSession())?.id;
   if (!staffId) return { error: 'Your sign-in timed out. Start again.' };
   const r = await getAuthService().confirmEnrolment(staffId, code(fd), requestCtx());
   if (r.kind === 'error') return { error: r.message };
-  setSession(r.staffId, r.sv, true);
+  // from My account: keep the current session (and its device entry); at sign-in: start one
+  await setSession(r.staffId, r.sv, true, pending ? undefined : currentSid());
   stashRecoveryCodes(r.codes);
   redirect('/crm/account/recovery-codes');
 }
 
 export async function cancelMfaAction() {
-  clearSession();
+  await clearSession();
   redirect('/crm/login');
 }
 
@@ -94,7 +98,8 @@ export async function signOutEverywhereAction(_: ActionState): Promise<ActionSta
   const user = await requireStaff();
   const mfa = decodeToken(cookies().get(SESSION_COOKIE)?.value, 'crm')?.mfa ?? false;
   const sv = await getAuthService().signOutEverywhere(user.id, requestCtx());
-  setSession(user.id, sv, mfa);
+  await setSession(user.id, sv, mfa, currentSid());
+  await revokeAll(getRecordStore(), 'staff', user.id, 'signed out everywhere', currentSid());
   return { ok: true, message: 'Signed out of every other browser and device.' };
 }
 
@@ -143,7 +148,7 @@ export async function resetPasswordAction(_: ActionState, fd: FormData): Promise
   const type = fd.get('type') === 'invite' ? 'invite' : 'recovery';
   const r = await getStaffAdmin().completeReset(String(fd.get('token') ?? ''), type, String(fd.get('password') ?? ''), String(fd.get('confirm') ?? ''), requestCtx());
   if (!r.ok) return { error: r.message };
-  clearSession();
+  await clearSession();
   redirect('/crm/login?reset=1');
 }
 

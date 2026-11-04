@@ -42,7 +42,7 @@ export async function loginAction(prev: LoginState, fd: FormData): Promise<Login
 }
 
 export async function logoutAction() {
-  logout();
+  await logout();
   redirect('/app/login');
 }
 

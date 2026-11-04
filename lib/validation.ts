@@ -16,7 +16,12 @@ export const LEAD_SOURCES = [
   'course_finder',
   'fee_calculator',
   'contact',
+  'application',
+  'alumni_referral',
 ] as const;
+
+/** Sources only staff create (not accepted from public forms). */
+export const STAFF_SOURCES = ['walk_in', 'phone_in', 'referral'] as const;
 export type LeadSource = (typeof LEAD_SOURCES)[number];
 
 export const CLASS_OPTIONS = ['Class 9', 'Class 10', 'Completed Class 10', 'Intermediate / Class 12', 'Completed Class 12'] as const;

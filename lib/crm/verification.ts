@@ -4,6 +4,8 @@ import type { Content } from '../cms/blocks';
 
 /** Live checklist and numbering come from the CMS (getContent / cmsBlock). */
 export type ChecklistCfg = Content['documentChecklist'];
+/** recordedBy / approvedBy for payments confirmed by the online gateway (Razorpay) rather than a person. */
+export const GATEWAY = 'gateway';
 export type NumberingCfg = Content['numbering'];
 import type { LeadStatus, Role, Staff } from './types';
 

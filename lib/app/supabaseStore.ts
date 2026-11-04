@@ -31,6 +31,9 @@ const toEvent = (e: Row): HostelEvent => ({ id: e.id, studentId: e.student_id, d
 export function createSupabaseAppStore(url: string, key: string): AppStore {
   const sb = createClient(url, key, { auth: { persistSession: false, autoRefreshToken: false } });
   return {
+    async listStudents() {
+      return ((ok(await sb.from('students').select('*').not('college_id', 'is', null).order('full_name').limit(5000)) ?? []) as Row[]).map(toStudent);
+    },
     async getStudent(id) {
       const r = ok(await sb.from('students').select('*').eq('id', id).maybeSingle()) as Row | null;
       return r ? toStudent(r) : null;

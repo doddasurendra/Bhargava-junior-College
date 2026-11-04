@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { ROLE_LABELS, ROLES, type CrmRepo, type Role, type Staff } from '../crm/types';
+import { CLOSED_STATUSES, ROLE_LABELS, ROLES, type CrmRepo, type Role, type Staff } from '../crm/types';
 import { normalizeIndianMobile } from '../phone';
 import type { Identity } from './identity';
 import { AuthError, type Ctx } from './service';
@@ -7,7 +7,7 @@ import type { AuthStore } from './types';
 
 /** Staff accounts (Super Admin) and the forgot-password flow. Framework-free; unit tested with the file store. */
 
-const rolesSchema = z.array(z.enum(ROLES)).min(1, 'Pick at least one role.').max(ROLES.length);
+const rolesSchema = z.array(z.union([z.enum(ROLES), z.string().regex(/^custom_[a-z0-9_]{2,30}$/).transform((r) => r as Role)])).min(1, 'Pick at least one role.').max(60);
 const phone = z
   .string()
   .trim()
@@ -42,7 +42,14 @@ const RESETS_PER_HOUR = 3;
 const first = (e: unknown) => (e instanceof z.ZodError ? e.issues[0]?.message ?? 'Check the form.' : null);
 const labels = (roles: Role[]) => roles.map((r) => ROLE_LABELS[r]).join(', ');
 
-export function createStaffAdmin({ repo, store, identity }: { repo: Pick<CrmRepo, 'getStaff' | 'listAllStaff' | 'saveStaff'>; store: AuthStore; identity: Identity }) {
+export function createStaffAdmin({ repo, store, identity, customRoles = async () => [] }: { repo: Pick<CrmRepo, 'getStaff' | 'listAllStaff' | 'saveStaff' | 'listStaff' | 'listLeads' | 'updateLead'>; store: AuthStore; identity: Identity; customRoles?: () => Promise<string[]> }) {
+  async function checkRoles(roles: Role[]) {
+    const custom = roles.filter((r) => r.startsWith('custom_'));
+    if (custom.length === 0) return;
+    const known = new Set(await customRoles());
+    const missing = custom.find((r) => !known.has(r));
+    if (missing) throw new AuthError('That custom role no longer exists. Reload the page.');
+  }
   const log = (staffId: string | null, actorId: string | null, success: boolean, method: 'admin' | 'reset', reason: string, ctx: Ctx, email: string | null = null) =>
     store.logEvent({ staffId, actorId, success, method, reason, email, ip: ctx.ip, userAgent: ctx.userAgent?.slice(0, 300) ?? null });
 
@@ -59,6 +66,18 @@ export function createStaffAdmin({ repo, store, identity }: { repo: Pick<CrmRepo
     }
   }
 
+  /** Open leads of a departing owner go to the first active admission manager (or Super Admin). */
+  async function reassignOpenLeads(fromId: string, actorId: string) {
+    const open = (await repo.listLeads({ ownerId: fromId })).filter((l) => !CLOSED_STATUSES.includes(l.status));
+    if (open.length === 0) return { count: 0, to: '' };
+    const staff = (await repo.listStaff()).filter((s) => s.id !== fromId);
+    const to = staff.find((s) => s.roles.includes('admission_manager')) ?? staff.find((s) => s.roles.includes('super_admin'));
+    if (!to) return { count: 0, to: '' };
+    const at = new Date().toISOString();
+    for (const l of open) await repo.updateLead(l.id, { ownerId: to.id, assignedAt: at }, [{ action: 'reassigned', actorId, field: 'owner', oldValue: fromId, newValue: to.id, reason: 'Staff exit: owner deactivated' }]);
+    return { count: open.length, to: to.fullName };
+  }
+
   return {
     async create(actor: Staff, input: unknown, ctx: Ctx): Promise<Staff> {
       mustBeSuperAdmin(actor);
@@ -68,6 +87,7 @@ export function createStaffAdmin({ repo, store, identity }: { repo: Pick<CrmRepo
       } catch (e) {
         throw new AuthError(first(e) ?? 'Check the form.');
       }
+      await checkRoles(v.roles);
       if (await store.staffIdForEmail(v.email)) throw new AuthError('A staff member already uses this email. Find them below (they may be deactivated).');
       const id = await identity.invite(v.email, v.fullName);
       const staff: Staff = { id, fullName: v.fullName, email: v.email, phone: v.phone, roles: v.roles, active: true };
@@ -91,6 +111,7 @@ export function createStaffAdmin({ repo, store, identity }: { repo: Pick<CrmRepo
       } catch (e) {
         throw new AuthError(first(e) ?? 'Check the form.');
       }
+      await checkRoles(v.roles);
       if (id === actor.id && !v.active) throw new AuthError('You can’t deactivate your own account.');
       if (id === actor.id && !v.roles.includes('super_admin')) throw new AuthError('You can’t remove your own Super Admin role. Ask another Super Admin.');
 
@@ -112,6 +133,11 @@ export function createStaffAdmin({ repo, store, identity }: { repo: Pick<CrmRepo
           await store.update(id, { sessionVersion: a.sessionVersion + 1 });
         }
         await log(id, actor.id, true, 'admin', `staff updated: ${changes.join('; ')}`, ctx, cur.email);
+      }
+      // §9A.1 staff exit: deactivating someone hands their open leads to an admission manager
+      if (cur.active && !next.active) {
+        const moved = await reassignOpenLeads(id, actor.id);
+        if (moved.count) await log(id, actor.id, true, 'admin', `staff exit: ${moved.count} open lead${moved.count === 1 ? '' : 's'} reassigned to ${moved.to}`, ctx, cur.email);
       }
       return next;
     },

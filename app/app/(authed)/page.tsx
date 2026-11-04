@@ -6,6 +6,7 @@ import { getContent } from '@/lib/cms';
 import { profileData, requireAppUser } from '@/lib/app/service';
 import { formatDate, formatDateTime } from '@/lib/dates';
 import { formatINR } from '@/lib/fees';
+import { HomeTiles } from './HomeTiles';
 
 export const metadata = { title: 'Home' };
 
@@ -50,6 +51,15 @@ export default async function AppHome() {
     );
   }
 
+  if (p.kind === 'alumni') {
+    return (
+      <div className="space-y-4">
+        <section className="card p-4"><p className="text-xs font-semibold uppercase tracking-wider text-muted">Alumni network</p><p className="mt-1 font-display text-2xl text-heading">{p.name}</p><p className="mt-1 text-sm text-muted">Mentor current students, share your story, and refer families.</p></section>
+        <Link href="/app/alumni" className="btn-gold w-full">Open alumni page</Link>
+      </div>
+    );
+  }
+
   const d = await profileData(p);
 
   if (p.kind === 'applicant') {
@@ -75,11 +85,12 @@ export default async function AppHome() {
           <Timeline steps={d.timeline} />
         </section>
         {d.payments.length > 0 && <PaymentsSummary payments={d.payments} />}
-        {!d.upcomingVisit && (
-          <Link href="/visit" className="btn-gold w-full">
-            Book a campus visit
-          </Link>
-        )}
+        <nav className="grid grid-cols-2 gap-2 text-sm" aria-label="Application">
+          <Link href="/app/apply" className="card p-3 font-medium text-heading">Online application →</Link>
+          <Link href="/app/documents" className="card p-3 font-medium text-heading">Upload documents →</Link>
+          <Link href="/app/visit" className="card p-3 font-medium text-heading">{d.upcomingVisit ? 'Reschedule visit →' : 'Book a campus visit →'}</Link>
+          <Link href="/app/fees" className="card p-3 font-medium text-heading">Fees & receipts →</Link>
+        </nav>
         <p className="text-center text-xs text-muted">When the College ID is issued, this becomes your child’s student page automatically.</p>
       </div>
     );
@@ -147,9 +158,7 @@ export default async function AppHome() {
         <p className="mt-2 text-[11px] text-muted">To add another parent or guardian, ask the admin office.</p>
       </section>
 
-      <section className="rounded-2xl border border-dashed border-line p-4 text-xs text-muted">
-        Attendance, test results, the mentor’s weekly note and PTM booking will appear here when the academic module goes live.
-      </section>
+      <HomeTiles studentId={s.id} parent={p.kind === 'parent'} />
     </div>
   );
 }

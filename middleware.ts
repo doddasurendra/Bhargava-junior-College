@@ -1,8 +1,9 @@
 import { NextResponse, type NextRequest } from 'next/server';
 
 /**
- * Cheap gate for the staff CRM: no session cookie → login page. The cookie's signature, expiry and the
- * user's roles are verified server-side on every page and action (lib/crm/auth.ts).
+ * Cheap gates. The cookie's signature, expiry, server-side session record and roles are verified on every
+ * page and action (lib/crm/auth.ts, lib/app/service.ts); this only redirects obvious signed-out requests and
+ * enforces that "view as" is read-only.
  */
 export function middleware(req: NextRequest) {
   const { pathname } = req.nextUrl;
@@ -13,6 +14,11 @@ export function middleware(req: NextRequest) {
   }
   if (pathname.startsWith('/crm/login')) return withNoIndex(NextResponse.next());
   if (!req.cookies.get('bjc_staff')) return NextResponse.redirect(new URL('/crm/login', req.url));
+  // §9A.4 "view as" is for support: a Super Admin sees what the person sees but cannot change anything.
+  // Server actions are POSTs; ending "view as" is a GET to /crm/view-as/stop.
+  if (req.cookies.get('bjc_viewas') && req.method !== 'GET' && req.method !== 'HEAD') {
+    return withNoIndex(new NextResponse('Read-only while viewing as another user. Stop “view as” to make changes.', { status: 403 }));
+  }
   return withNoIndex(NextResponse.next());
 }
 

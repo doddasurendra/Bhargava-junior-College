@@ -26,9 +26,12 @@ export interface HostelEvent {
 export type Profile =
   | { key: string; kind: 'parent'; studentId: string; leadId: string; name: string; collegeId: string; relation: Relation }
   | { key: string; kind: 'student'; studentId: string; leadId: string; name: string; collegeId: string }
-  | { key: string; kind: 'applicant'; leadId: string; name: string };
+  | { key: string; kind: 'applicant'; leadId: string; name: string }
+  | { key: string; kind: 'alumni'; alumniId: string; name: string };
 
 export interface AppStore {
+  /** every student with an issued College ID */
+  listStudents(): Promise<StudentRow[]>;
   getStudent(id: string): Promise<StudentRow | null>;
   studentByCollegeId(collegeId: string): Promise<StudentRow | null>;
   /** students with an issued College ID whose own login phone is this number */

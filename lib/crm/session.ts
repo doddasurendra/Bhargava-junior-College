@@ -10,6 +10,9 @@ export const MFA_MAX_AGE_S = 10 * 60;
 export const RC_COOKIE = 'bjc_rc';
 /** Which of their roles a multi-role user is working in. */
 export const ROLE_COOKIE = 'bjc_role';
+/** Super Admin "view as" another staff member — read-only, bound to the admin's session. */
+export const VIEWAS_COOKIE = 'bjc_viewas';
+export const VIEWAS_MAX_AGE_S = 30 * 60;
 
 function secret(): string {
   const s = process.env.SESSION_SECRET;
@@ -23,7 +26,7 @@ const sign = (body: string) => createHmac('sha256', secret()).update(body).diges
  * `aud` separates token kinds — a staff CRM session, a half-finished staff sign-in waiting for its 2FA code,
  * and a Student & Parent app session. None works as another.
  */
-export type Audience = 'crm' | 'app' | 'mfa';
+export type Audience = 'crm' | 'app' | 'mfa' | 'viewas';
 
 export interface Claims {
   sub: string;
@@ -31,6 +34,8 @@ export interface Claims {
   sv?: number;
   /** staff: second factor completed */
   mfa?: boolean;
+  /** server-side session record (devices list, remote logout, idle timeout) */
+  sid?: string;
 }
 
 export function encodeToken(claims: Claims, aud: Audience, maxAgeS: number, now = Date.now()): string {
@@ -46,10 +51,10 @@ export function decodeToken(token: string | undefined, aud: Audience, now = Date
   const given = Buffer.from(sig);
   if (expected.length !== given.length || !timingSafeEqual(expected, given)) return null;
   try {
-    const { sub, exp, aud: tokenAud, sv, mfa } = JSON.parse(Buffer.from(body, 'base64url').toString());
+    const { sub, exp, aud: tokenAud, sv, mfa, sid } = JSON.parse(Buffer.from(body, 'base64url').toString());
     if (typeof sub !== 'string' || typeof exp !== 'number' || exp * 1000 < now) return null;
     if ((tokenAud ?? 'crm') !== aud) return null;
-    return { sub, sv: typeof sv === 'number' ? sv : 0, mfa: mfa === true };
+    return { sub, sv: typeof sv === 'number' ? sv : 0, mfa: mfa === true, sid: typeof sid === 'string' ? sid : undefined };
   } catch {
     return null;
   }

@@ -20,21 +20,24 @@ export const ROLES = [
   'hostel_warden',
   'transport_incharge',
 ] as const;
-export type Role = (typeof ROLES)[number];
+export type BuiltinRole = (typeof ROLES)[number];
+/** Built-in roles, plus custom roles the Super Admin creates (§9A.1 admin console), keyed custom_<slug>. */
+export type Role = BuiltinRole | `custom_${string}`;
 
-export const ROLE_LABELS: Record<Role, string> = {
+/** Labels for display. Custom role labels are added at runtime by lib/crm/rbac.ts. */
+export const ROLE_LABELS: Record<string, string> = {
   super_admin: 'Super Admin',
-  management: 'Management',
+  management: 'Management / Chairman',
   principal: 'Principal',
   admission_manager: 'Admission Manager',
-  data_executive: 'Data / Marketing',
+  data_executive: 'Content & Marketing',
   telecaller: 'Telecaller',
   admission_counsellor: 'Admission Counsellor',
   front_desk: 'Front Desk',
   admission_office: 'Admission Office',
   accounts: 'Accounts',
   admin_office: 'Admin Office',
-  academic_coordinator: 'Academic Coordinator',
+  academic_coordinator: 'Academic Coordinator / Exam Cell',
   class_teacher: 'Class Teacher / Mentor',
   faculty: 'Faculty',
   hostel_warden: 'Hostel Warden',
@@ -91,6 +94,10 @@ export interface Staff {
   active: boolean;
   /** Signed-in user only: every role they hold, for the role switcher. */
   allRoles?: Role[];
+  /** Signed-in user only: effective permissions of the active role (editable matrix). */
+  perms?: string[];
+  /** Signed-in user only: set while a Super Admin is viewing as this user (read-only). */
+  viewedBy?: string;
 }
 
 export interface CrmLead {

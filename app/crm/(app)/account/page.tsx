@@ -5,7 +5,10 @@ import { Panel } from '@/components/crm/ui';
 import { requiresMfa } from '@/lib/auth/service';
 import { getAuthService, getAuthStore } from '@/lib/auth/store';
 import { METHOD_LABELS, shortDevice } from '@/lib/auth/ua';
-import { requireStaff } from '@/lib/crm/auth';
+import { currentSid, requireStaff } from '@/lib/crm/auth';
+import { listSessions } from '@/lib/auth/sessions';
+import { getRecordStore } from '@/lib/records';
+import { revokeSessionAction } from '@/app/crm/admin-actions';
 import { ROLE_LABELS } from '@/lib/crm/types';
 import { formatDateTime } from '@/lib/dates';
 
@@ -15,6 +18,8 @@ type SP = Record<string, string | string[] | undefined>;
 
 export default async function AccountPage({ searchParams }: { searchParams: SP }) {
   const user = await requireStaff();
+  const sid = currentSid();
+  const sessions = await listSessions(getRecordStore(), 'staff', user.id);
   const store = getAuthStore();
   const [auth, events] = await Promise.all([store.get(user.id), store.listEvents({ limit: 12, staffId: user.id })]);
   const allRoles = user.allRoles ?? user.roles;
@@ -96,6 +101,25 @@ export default async function AccountPage({ searchParams }: { searchParams: SP }
           <p className="text-muted">Left the CRM signed in on a shared computer? This signs out every browser except this one.</p>
           <SignOutEverywhereForm />
         </div>
+        <ul className="mt-4 divide-y divide-line border-t border-line text-sm">
+          {sessions.map((s) => (
+            <li key={s.id} className="flex flex-wrap items-center justify-between gap-2 py-2">
+              <span>
+                {shortDevice(s.userAgent)}{s.ip ? ` · ${s.ip}` : ''}
+                <span className="block text-xs text-muted">signed in {formatDateTime(s.createdAt)} · last active {formatDateTime(s.lastSeen)}</span>
+              </span>
+              {s.id === sid ? (
+                <span className="text-xs font-semibold text-emerald-700 dark:text-emerald-300">This device</span>
+              ) : (
+                <form action={revokeSessionAction}>
+                  <input type="hidden" name="sessionId" value={s.id} />
+                  <button className="text-xs font-semibold text-maroon underline dark:text-gold">Sign out this device</button>
+                </form>
+              )}
+            </li>
+          ))}
+        </ul>
+        <p className="mt-2 text-xs text-muted">You are signed out automatically after 30 minutes without activity.</p>
       </Panel>
 
       <Panel title="Recent sign-in activity">

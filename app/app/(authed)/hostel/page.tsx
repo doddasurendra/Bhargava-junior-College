@@ -3,6 +3,7 @@ import { SampleBadge } from '@/components/ui';
 import { college } from '@/content/college';
 import { getContent } from '@/lib/cms';
 import { profileData, requireAppUser } from '@/lib/app/service';
+import { HostelExtras } from './HostelExtras';
 import { formatDate, formatDateTime, todayIST, weekday } from '@/lib/dates';
 
 export const metadata = { title: 'Hostel' };
@@ -10,13 +11,14 @@ export const metadata = { title: 'Hostel' };
 export default async function AppHostel() {
   const { hostel, messMenu } = await getContent();
   const u = await requireAppUser();
-  if (!u.active || u.active.kind === 'applicant') redirect('/app');
+  if (!u.active || u.active.kind === 'applicant' || u.active.kind === 'alumni') redirect('/app');
   const d = await profileData(u.active);
   const today = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'][weekday(todayIST())];
 
   return (
     <div className="space-y-4">
       <h1 className="font-display text-2xl text-heading">Hostel</h1>
+      {d.student?.stay === 'hostel' && <HostelExtras studentId={d.student.id} />}
 
       {d.hostel ? (
         <section className="card p-4">

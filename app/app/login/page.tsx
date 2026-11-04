@@ -4,8 +4,9 @@ import { Crest } from '@/components/ui';
 import { college } from '@/content/college';
 import { getAppUser } from '@/lib/app/service';
 import { LoginForm } from './LoginForm';
+import { CollegeIdForm } from './CollegeIdForm';
 
-export const metadata: Metadata = { title: 'Sign in · Parent app', robots: { index: false } };
+export const metadata: Metadata = { title: 'Sign in · Student & Parent app', robots: { index: false } };
 export const dynamic = 'force-dynamic';
 
 export default async function AppLoginPage() {
@@ -19,6 +20,7 @@ export default async function AppLoginPage() {
       </div>
       <div className="card mt-8 p-5">
         <LoginForm />
+        <CollegeIdForm />
       </div>
       <p className="mt-6 text-center text-xs text-muted">
         Use the mobile number registered with the college. Applicants can sign in to follow their admission. Trouble signing in? Call{' '}

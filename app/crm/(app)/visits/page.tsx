@@ -4,6 +4,7 @@ import { CategoryBadge, Empty, programShort } from '@/components/crm/ui';
 import { getContent } from '@/lib/cms';
 import { requireStaff } from '@/lib/crm/auth';
 import { can } from '@/lib/crm/permissions';
+import { phoneFor, seesPhones } from '@/lib/crm/mask';
 import { visitBoard, type VisitBoardRow } from '@/lib/crm/service';
 import { addDays, formatDate, todayIST } from '@/lib/dates';
 
@@ -26,9 +27,9 @@ export default async function VisitsPage() {
         <p className="text-xs text-muted">{formatDate(r.visit.date, { weekday: 'short', day: 'numeric', month: 'short' })}</p>
       </div>
       <div className="min-w-0 flex-1">
-        <Link href={`/crm/leads/${r.visit.leadId}`} className="font-semibold text-heading hover:underline">{r.lead?.contactName ?? r.lead?.phone}</Link>
+        <Link href={`/crm/leads/${r.visit.leadId}`} className="font-semibold text-heading hover:underline">{r.lead?.contactName ?? phoneFor(user, r.lead?.phone)}</Link>
         <p className="text-xs text-muted">
-          <a href={`tel:${r.lead?.phone}`} className="font-mono">{r.lead?.phone}</a> · {programShort(r.visit.program ?? r.lead?.program ?? null)} · {r.visit.familySize} people · owner {r.owner?.fullName ?? 'unassigned'}
+          {seesPhones(user) ? <a href={`tel:${r.lead?.phone}`} className="font-mono">{r.lead?.phone}</a> : <span className="font-mono">{phoneFor(user, r.lead?.phone)}</span>} · {programShort(r.visit.program ?? r.lead?.program ?? null)} · {r.visit.familySize} people · owner {r.owner?.fullName ?? 'unassigned'}
         </p>
         <div className="mt-1 flex items-center gap-2">
           <CategoryBadge category={r.lead?.category ?? null} />
