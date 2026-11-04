@@ -125,6 +125,7 @@ export function Footer({ social }: { social: Content['social'] }) {
           <ul className="mt-3 space-y-2 text-sm">
             {[
               ['/admissions', 'Admission process'],
+              ['/admission-system', 'Our admission system'],
               ['/fees', 'Fees & calculator'],
               ['/scholarship', 'BSAT scholarship test'],
               ['/visit', 'Book a campus visit'],

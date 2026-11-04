@@ -88,6 +88,11 @@ export async function assignLeads(user: Staff, ids: string[], target: string | '
   const repo = getCrmRepo();
   const [leads, staff] = await Promise.all([repo.listLeads({ ids }), repo.listStaff()]);
 
+  // §3.2-A: qualification happens BEFORE allocation, and invalid numbers/duplicates are never allocated.
+  const unqualified = leads.filter((l) => !l.category).length;
+  if (unqualified) throw new CrmError(`Qualify ${unqualified === 1 ? 'this lead' : `all ${unqualified} leads`} as Hot, Warm, Cold or Invalid before allocating.`);
+  if (leads.some((l) => l.category === 'invalid')) throw new CrmError('Invalid leads (wrong number or duplicate) are not allocated.');
+
   let plan: Record<string, string>;
   if (target === 'round_robin') {
     const telecallers = staff.filter((s) => s.roles.includes('telecaller')).map((s) => s.id);

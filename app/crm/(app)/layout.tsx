@@ -4,6 +4,7 @@ import { logoutAction } from '@/app/crm/actions';
 import { ThemeToggle } from '@/components/HeaderControls';
 import { RoleSwitcher } from '@/components/crm/RoleSwitcher';
 import { Crest } from '@/components/ui';
+import { OPERATING_PRINCIPLE } from '@/content/admissionSystem';
 import { inboxCounts } from '@/lib/chat/inbox';
 import { requireStaff } from '@/lib/crm/auth';
 import { can } from '@/lib/crm/permissions';
@@ -83,8 +84,8 @@ export default async function CrmShell({ children }: { children: ReactNode }) {
       </aside>
       <div className="min-w-0">
         <div className="flex items-center justify-between gap-3 border-b border-line bg-surface px-4 py-2 print:hidden lg:px-8">
-          <p className="truncate text-xs text-muted">
-            Every lead tracked · every parent followed up on time · every visit with an outcome · every admission verified
+          <p className="truncate text-xs text-muted" title={OPERATING_PRINCIPLE}>
+            {OPERATING_PRINCIPLE}
           </p>
           <div className="flex shrink-0 items-center gap-2">
             {switchable && (

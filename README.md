@@ -319,6 +319,24 @@ All migrations are in `supabase/migrations` (in order, through `20261104030000_h
 
 **Hosted project:** every migration is applied to the dedicated project `nkhpahcmldfuwydeglml` (`https://nkhpahcmldfuwydeglml.supabase.co`), with the `seed.sql` visit slots and BSAT sessions. The database linter is clean apart from intentional notices (server-only tables with no policies; `has_any_role` callable by signed-in users because the RLS policies use it). To switch the app onto it, set `SUPABASE_URL`, `SUPABASE_ANON_KEY` and `SUPABASE_SERVICE_ROLE_KEY` (Project Settings → API Keys); the app stays on the local JSON store until the service role key is set. For a new project: `npx supabase link --project-ref <ref>` and `npx supabase db push`.
 
+## Master prompt v2: status against its done checklist
+
+| Item | Status |
+|---|---|
+| `/admission-system`: flowchart with colour key, the 10 stages (exact wording), operating principle | **Done** (`content/admissionSystem.ts`); the principle is also the CRM header line |
+| Qualification before allocation (§3.2-A) | **Enforced**: `assignLeads` refuses unqualified and Invalid leads (`lib/crm/allocation.test.ts`) |
+| Post-visit pipeline, lost needs a reason, follow-up ageing and 24 h / 48 h escalation, College ID gate, audit trail (§3.2 B–E) | Done (see Admissions CRM above) |
+| Management dashboard: 10 parameters, filters, funnel, 7 PM report | Done (`/crm/dashboard`, `/crm/reports`, Vercel Cron `30 13 * * *`) |
+| §10 route names (`/courses`, `/bsat`, `/vision`, `/dashboard/*`, `/student`, `/parent`) | Redirect to the existing pages (`next.config.mjs`) |
+| Website form → de-duplicated CRM lead | Done. A new lead has no telecaller until it is qualified (rule A); the admission manager owns the unassigned queue |
+| Logo everywhere | Placeholder crest until the college sends `logo.png` |
+| Demo logins | Local development: the `/crm/login` role picker (one sample user per role, no password). **TODO:** seeded Supabase Auth accounts per role; needs the service role key, and demo passwords must not be used on the hosted project |
+| **TODO** Eduten-style practice (`/dashboard/practice`): question bank, auto-marking, XP/badges/streaks, goals, misconception report, teacher analytics, parent report | Not built. Today: online tests with auto-marking in the app (`/app/tests`) and teacher test analytics (`/crm/academics`) |
+| **TODO** Staff AI assistant (`/dashboard/ai-assistant`): roll-number/College ID lookup over SQL tools + pgvector RAG + `ai_query_audit` | Not built. Today: student search and full profile at `/crm/students`; `/crm/assistant` is analytics for the public chat assistant |
+| **TODO** Sample seed of 60 leads / 40 students with 30 days of attendance and 6 tests on Supabase | Local: **Load demo leads** fills every queue and admits sample students. Hosted seed not loaded |
+| **TODO** Gurukul/Raion modules not yet built: library, events calendar, homework, report-card PDF, Excel/PDF exports | Built: admissions, profiles, batches, attendance, timetable, tests/marks, fees/dues/receipts, staff and roles, notices, transport, hostel, WhatsApp, leave, PTM, out-pass, siblings |
+| **TODO** About Us from bhargavajuniorcollege.com | Needs the college's confirmed text (CMS) |
+
 ## Not built / known limits
 
 - **Native Flutter apps (§9):** the Student & Parent app is an installable PWA on the same backend. Push notifications, biometric unlock and offline mode are not built; WhatsApp alerts cover notifications for now.
