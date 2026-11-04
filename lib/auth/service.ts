@@ -4,7 +4,8 @@ import { generateRecoveryCodes, generateSecret, hashRecovery, looksLikeRecovery,
 import type { AuthStore, LoginMethod, StaffAuth } from './types';
 
 /** Acceptance criteria: 2FA for Super Admin, Management and Accounts. Anyone else may opt in. */
-export const MFA_ROLES: Role[] = ['developer', 'super_admin', 'management', 'accounts'];
+// The Developer signs in with a normal password (owner's choice); 2FA stays optional from My account.
+export const MFA_ROLES: Role[] = ['super_admin', 'management', 'accounts'];
 export const requiresMfa = (s: Pick<Staff, 'roles'>) => s.roles.some((r) => MFA_ROLES.includes(r));
 
 export const MAX_FAILS = 5;

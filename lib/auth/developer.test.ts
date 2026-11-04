@@ -28,7 +28,7 @@ describe('Developer role', () => {
     for (const k of BLOCK_KEYS) expect(canEditBlock(['developer'], k), k).toBe(true);
     expect([isDeveloper(dev), isDeveloper(superAdmin)]).toEqual([true, false]);
     expect([canUseAssistant(dev), canSeeAudit(dev)]).toEqual([true, true]);
-    expect(requiresMfa(dev)).toBe(true);
+    expect(requiresMfa(dev)).toBe(false); // normal sign-in, like the Admission Manager
     expect(homeFor('developer')).toBe('/crm/developer');
     // other roles are unchanged
     expect(permissionsFor(['telecaller'])).toEqual(PERMISSIONS.filter((p) => (DEFAULT_RULES[p] as string[]).includes('telecaller')));

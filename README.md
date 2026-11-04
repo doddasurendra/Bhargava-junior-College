@@ -325,8 +325,8 @@ All migrations are in `supabase/migrations` (in order, through `20261104030000_h
 
 - **Developer console** (`/crm/developer`, the Developer's home): environment status (secrets shown only as set / not set), shortcuts to content, permissions, staff and security, and links to every website, CRM and portal page.
 - **Open the Student & Parent portal as a family**: one click per guardian or student number. **Local development only** (`next dev` without Supabase), so a developer session can never browse families' data on the live site without their own sign-in.
-- **Safety:** 2FA is required (like Super Admin). Only a Developer can grant, remove or change the Developer role, and nobody can remove their own (`lib/auth/staffAdmin.ts`). Everything is still recorded in the audit and login logs. Tested in `lib/auth/developer.test.ts`.
-- Local sample user: **Developer** in the `/crm/login` picker. On first sign-in it asks you to set up an authenticator app (Google Authenticator, Microsoft Authenticator, etc.).
+- **Safety:** normal email + password sign-in like the Admission Manager (no 2FA required, by the owner's choice; it can still be switched on from My account). Only a Developer can grant, remove or change the Developer role, and nobody can remove their own (`lib/auth/staffAdmin.ts`). Everything is still recorded in the audit and login logs. Tested in `lib/auth/developer.test.ts`.
+- Local sample user: **Developer** in the `/crm/login` picker: one click, no code.
 
 ## Master prompt v2: status against its done checklist
 
