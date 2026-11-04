@@ -108,6 +108,11 @@ async function load(): Promise<DB> {
     db = empty();
   }
   if (db.staff.length === 0) db.staff = devStaff.items.map((s) => ({ ...s, email: null, phone: null, active: true }));
+  // Local stores created before the Developer role existed get the sample developer too.
+  else if (!db.staff.some((s) => s.roles.includes('developer'))) {
+    const dev = devStaff.items.find((s) => (s.roles as readonly string[]).includes('developer'));
+    if (dev && !db.staff.some((s) => s.id === dev.id)) db.staff.unshift({ ...dev, roles: [...dev.roles], email: null, phone: null, active: true });
+  }
   return db;
 }
 

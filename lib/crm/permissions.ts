@@ -102,12 +102,21 @@ export const LOCKED_GRANTS: { role: Role; perm: Permission }[] = (['staff.manage
 
 export type Matrix = Record<Permission, Role[]>;
 
+/**
+ * The Developer role has every permission, always — including ones added later — and the permission matrix
+ * can't take any away (it builds and maintains the system). It requires 2FA like the Super Admin.
+ */
+export const DEVELOPER: Role = 'developer';
+export const isDeveloper = (user: Pick<Staff, 'roles'>) => user.roles.includes(DEVELOPER);
+
 export function permissionsFor(roles: Role[], matrix: Matrix = DEFAULT_RULES): Permission[] {
+  if (roles.includes(DEVELOPER)) return [...PERMISSIONS];
   return PERMISSIONS.filter((p) => roles.some((r) => (matrix[p] as Role[]).includes(r)));
 }
 
 /** Uses the session's effective permissions when present (signed-in user), else the defaults (e.g. a lead owner). */
 export function can(user: Pick<Staff, 'roles'> & { perms?: readonly string[] }, perm: Permission): boolean {
+  if (user.roles.includes(DEVELOPER)) return true;
   if (user.perms) return user.perms.includes(perm);
   return user.roles.some((r) => (DEFAULT_RULES[perm] as Role[]).includes(r));
 }

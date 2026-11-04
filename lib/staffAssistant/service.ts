@@ -27,9 +27,9 @@ import { parseQuery, type Intent } from './parse';
  * `phone.view`), and every question is written to ai_query_audit.
  */
 
-export const ASSISTANT_ROLES = ['super_admin', 'management', 'principal', 'admission_manager', 'admission_office', 'admin_office', 'accounts', 'academic_coordinator', 'faculty', 'class_teacher'] as const;
+export const ASSISTANT_ROLES = ['developer', 'super_admin', 'management', 'principal', 'admission_manager', 'admission_office', 'admin_office', 'accounts', 'academic_coordinator', 'faculty', 'class_teacher'] as const;
 export const canUseAssistant = (user: Pick<Staff, 'roles'>) => user.roles.some((r) => (ASSISTANT_ROLES as readonly string[]).includes(r));
-export const canSeeAudit = (user: Pick<Staff, 'roles'>) => user.roles.some((r) => r === 'super_admin' || r === 'management' || r === 'principal');
+export const canSeeAudit = (user: Pick<Staff, 'roles'>) => user.roles.some((r) => r === 'developer' || r === 'super_admin' || r === 'management' || r === 'principal');
 
 export class AssistantError extends Error {}
 

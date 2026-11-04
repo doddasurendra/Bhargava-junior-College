@@ -116,6 +116,17 @@ async function startAppSession(subject: string) {
   cookies().set(APP_COOKIE, encodeToken({ sub: subject, sid }, 'app', APP_SESSION_S), { httpOnly: true, sameSite: 'lax', secure: process.env.NODE_ENV === 'production', path: '/', maxAge: APP_SESSION_S });
 }
 
+/**
+ * Developer console, local development only: open the Student & Parent portal as a number that already has
+ * portal access (a guardian or a student), without an OTP. Refused outside `next dev`; the caller must also
+ * check that a Developer is signed in. Recorded in the session list like any other sign-in.
+ */
+export async function devOpenPortalAs(phone: string) {
+  if (process.env.NODE_ENV !== 'development') throw new Error('Only available in local development.');
+  if ((await resolveProfiles(phone)).length === 0) throw new Error('That number has no portal access.');
+  await startAppSession(phone);
+}
+
 export async function logout() {
   const sid = decodeToken(cookies().get(APP_COOKIE)?.value, 'app')?.sid;
   if (sid) await revokeSession(getRecordStore(), sid, 'signed out');

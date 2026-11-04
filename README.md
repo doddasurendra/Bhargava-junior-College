@@ -319,6 +319,15 @@ All migrations are in `supabase/migrations` (in order, through `20261104030000_h
 
 **Hosted project:** every migration is applied to the dedicated project `nkhpahcmldfuwydeglml` (`https://nkhpahcmldfuwydeglml.supabase.co`), with the `seed.sql` visit slots and BSAT sessions. The database linter is clean apart from intentional notices (server-only tables with no policies; `has_any_role` callable by signed-in users because the RLS policies use it). To switch the app onto it, set `SUPABASE_URL`, `SUPABASE_ANON_KEY` and `SUPABASE_SERVICE_ROLE_KEY` (Project Settings → API Keys); the app stays on the local JSON store until the service role key is set. For a new project: `npx supabase link --project-ref <ref>` and `npx supabase db push`.
 
+## Developer role (full access)
+
+`/login` → **Developer** (or `/crm/login?as=developer`). The Developer has **every permission, always**, including permissions added later; the permission matrix can't take any away (`lib/crm/permissions.ts`). It edits every website content block, uses the college assistant and reads its query log, manages staff, resets 2FA and unlocks accounts.
+
+- **Developer console** (`/crm/developer`, the Developer's home): environment status (secrets shown only as set / not set), shortcuts to content, permissions, staff and security, and links to every website, CRM and portal page.
+- **Open the Student & Parent portal as a family**: one click per guardian or student number. **Local development only** (`next dev` without Supabase), so a developer session can never browse families' data on the live site without their own sign-in.
+- **Safety:** 2FA is required (like Super Admin). Only a Developer can grant, remove or change the Developer role, and nobody can remove their own (`lib/auth/staffAdmin.ts`). Everything is still recorded in the audit and login logs. Tested in `lib/auth/developer.test.ts`.
+- Local sample user: **Developer** in the `/crm/login` picker. On first sign-in it asks you to set up an authenticator app (Google Authenticator, Microsoft Authenticator, etc.).
+
 ## Master prompt v2: status against its done checklist
 
 | Item | Status |

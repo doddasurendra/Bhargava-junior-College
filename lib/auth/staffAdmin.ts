@@ -53,8 +53,16 @@ export function createStaffAdmin({ repo, store, identity, customRoles = async ()
   const log = (staffId: string | null, actorId: string | null, success: boolean, method: 'admin' | 'reset', reason: string, ctx: Ctx, email: string | null = null) =>
     store.logEvent({ staffId, actorId, success, method, reason, email, ip: ctx.ip, userAgent: ctx.userAgent?.slice(0, 300) ?? null });
 
+  const isDev = (s: Pick<Staff, 'roles'>) => s.roles.includes('developer');
+
   function mustBeSuperAdmin(actor: Staff) {
-    if (!actor.roles.includes('super_admin')) throw new AuthError('Only a Super Admin can manage staff accounts.');
+    if (!actor.roles.includes('super_admin') && !isDev(actor)) throw new AuthError('Only a Super Admin can manage staff accounts.');
+  }
+
+  /** Only a Developer may grant or remove the Developer role, or change a Developer's account. */
+  function guardDeveloper(actor: Staff, target: Pick<Staff, 'roles'> | null, nextRoles: Role[]) {
+    const touches = nextRoles.includes('developer') || (target ? isDev(target) : false);
+    if (touches && !isDev(actor)) throw new AuthError('Only a Developer can give, remove or change the Developer role.');
   }
 
   async function save(s: Staff) {
@@ -88,6 +96,7 @@ export function createStaffAdmin({ repo, store, identity, customRoles = async ()
         throw new AuthError(first(e) ?? 'Check the form.');
       }
       await checkRoles(v.roles);
+      guardDeveloper(actor, null, v.roles);
       if (await store.staffIdForEmail(v.email)) throw new AuthError('A staff member already uses this email. Find them below (they may be deactivated).');
       const id = await identity.invite(v.email, v.fullName);
       const staff: Staff = { id, fullName: v.fullName, email: v.email, phone: v.phone, roles: v.roles, active: true };
@@ -112,8 +121,10 @@ export function createStaffAdmin({ repo, store, identity, customRoles = async ()
         throw new AuthError(first(e) ?? 'Check the form.');
       }
       await checkRoles(v.roles);
+      guardDeveloper(actor, cur, v.roles);
       if (id === actor.id && !v.active) throw new AuthError('You can’t deactivate your own account.');
-      if (id === actor.id && !v.roles.includes('super_admin')) throw new AuthError('You can’t remove your own Super Admin role. Ask another Super Admin.');
+      if (id === actor.id && isDev(actor) && !v.roles.includes('developer')) throw new AuthError('You can’t remove your own Developer role.');
+      if (id === actor.id && !isDev(actor) && !v.roles.includes('super_admin')) throw new AuthError('You can’t remove your own Super Admin role. Ask another Super Admin.');
 
       const next: Staff = { ...cur, fullName: v.fullName, phone: v.phone, roles: v.roles, active: v.active };
       await save(next);
@@ -145,6 +156,7 @@ export function createStaffAdmin({ repo, store, identity, customRoles = async ()
     async sendReset(actor: Staff, id: string, ctx: Ctx) {
       mustBeSuperAdmin(actor);
       const s = await repo.getStaff(id);
+      if (s) guardDeveloper(actor, s, s.roles);
       if (!s?.email) throw new AuthError('This staff member has no email address.');
       if (!s.active) throw new AuthError('Reactivate them first.');
       await identity.sendPasswordReset(s.email);

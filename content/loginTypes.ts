@@ -28,6 +28,13 @@ export const LOGIN_GROUPS: LoginGroup[] = [
     ],
   },
   {
+    title: 'Developer',
+    intro: 'Builds and maintains the platform: full access to the website content, the CRM, every role’s screens and the Student & Parent portal.',
+    items: [
+      { key: 'developer', title: 'Developer', body: 'Every permission, all website content, the developer console, environment status and every page of the website, CRM and portal.', how: STAFF_2FA, href: crm('developer') },
+    ],
+  },
+  {
     title: 'Leadership',
     intro: 'Dashboards, approvals and the 7 PM report.',
     items: [

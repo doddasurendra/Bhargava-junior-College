@@ -104,6 +104,7 @@ export const faculty = {
 export const devStaff = {
   sample: true,
   items: [
+    { id: 'staff-developer', fullName: 'Developer', roles: ['developer' as const] },
     { id: 'staff-admin', fullName: 'Super Admin', roles: ['super_admin' as const] },
     { id: 'staff-manager', fullName: 'Admission Manager', roles: ['admission_manager' as const] },
     { id: 'staff-priya', fullName: 'Priya', roles: ['telecaller' as const] },

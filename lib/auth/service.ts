@@ -4,7 +4,7 @@ import { generateRecoveryCodes, generateSecret, hashRecovery, looksLikeRecovery,
 import type { AuthStore, LoginMethod, StaffAuth } from './types';
 
 /** Acceptance criteria: 2FA for Super Admin, Management and Accounts. Anyone else may opt in. */
-export const MFA_ROLES: Role[] = ['super_admin', 'management', 'accounts'];
+export const MFA_ROLES: Role[] = ['developer', 'super_admin', 'management', 'accounts'];
 export const requiresMfa = (s: Pick<Staff, 'roles'>) => s.roles.some((r) => MFA_ROLES.includes(r));
 
 export const MAX_FAILS = 5;
@@ -230,7 +230,7 @@ export function createAuthService({ store, repo }: { store: AuthStore; repo: Pic
 
     /** Lost phone and no recovery codes: another Super Admin clears 2FA. The user re-enrols at next sign-in. */
     async adminReset2fa(actor: Staff, targetId: string, reason: string, ctx: Ctx) {
-      if (!actor.roles.includes('super_admin')) throw new AuthError('Only a Super Admin can reset two-step verification.');
+      if (!actor.roles.includes('super_admin') && !actor.roles.includes('developer')) throw new AuthError('Only a Super Admin can reset two-step verification.');
       if (actor.id === targetId) throw new AuthError('You can’t reset your own two-step verification. Use a recovery code, or ask another Super Admin.');
       if (reason.trim().length < 5) throw new AuthError('Give a reason (at least 5 characters).');
       const auth = await store.get(targetId);
@@ -239,7 +239,7 @@ export function createAuthService({ store, repo }: { store: AuthStore; repo: Pic
     },
 
     async adminUnlock(actor: Staff, targetId: string, ctx: Ctx) {
-      if (!actor.roles.includes('super_admin')) throw new AuthError('Only a Super Admin can unlock accounts.');
+      if (!actor.roles.includes('super_admin') && !actor.roles.includes('developer')) throw new AuthError('Only a Super Admin can unlock accounts.');
       await store.update(targetId, { failedCount: 0, lockedUntil: null });
       await log({ staffId: targetId, success: true, method: 'admin', reason: 'unlocked', actorId: actor.id }, ctx);
     },

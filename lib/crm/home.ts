@@ -5,6 +5,7 @@ import type { Role } from './types';
  * CRM task list at /crm; everyone else has a portal home.
  */
 const HOMES: Partial<Record<string, string>> = {
+  developer: '/crm/developer',
   management: '/crm/dashboard',
   principal: '/crm/academics/overview',
   academic_coordinator: '/crm/academics',

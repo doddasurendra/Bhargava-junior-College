@@ -3,6 +3,7 @@ import type { ImportRecord } from './importer';
 import type { DocStatus, PaymentRow, ReversalRow, StudentRow, VerificationRecord, VerifyStage } from './verification';
 
 export const ROLES = [
+  'developer',
   'super_admin',
   'management',
   'principal',
@@ -26,6 +27,7 @@ export type Role = BuiltinRole | `custom_${string}`;
 
 /** Labels for display. Custom role labels are added at runtime by lib/crm/rbac.ts. */
 export const ROLE_LABELS: Record<string, string> = {
+  developer: 'Developer',
   super_admin: 'Super Admin',
   management: 'Management / Chairman',
   principal: 'Principal',

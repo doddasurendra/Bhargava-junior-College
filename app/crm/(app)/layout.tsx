@@ -9,7 +9,7 @@ import { canUseAssistant } from '@/lib/staffAssistant/service';
 import { exportsFor } from '@/lib/school/exports';
 import { inboxCounts } from '@/lib/chat/inbox';
 import { requireStaff } from '@/lib/crm/auth';
-import { can } from '@/lib/crm/permissions';
+import { can, isDeveloper } from '@/lib/crm/permissions';
 import { BLOCK_KEYS, canEditBlock } from '@/lib/cms/blocks';
 import { ROLE_LABELS } from '@/lib/crm/types';
 import { homeFor } from '@/lib/crm/home';
@@ -25,6 +25,7 @@ export default async function CrmShell({ children }: { children: ReactNode }) {
   const admissions = can(user, 'lead.call') || can(user, 'lead.viewAll') || can(user, 'visit.view');
   const home = homeFor(user.roles[0]);
   const nav = [
+    ...(isDeveloper(user) ? [{ href: '/crm/developer', label: 'Developer console' }] : []),
     ...(can(user, 'dashboard.view') ? [{ href: '/crm/dashboard', label: 'Dashboard' }] : []),
     ...(admissions && home === '/crm' ? [{ href: '/crm', label: 'My tasks' }] : []),
     ...(can(user, 'inbox.reply') ? [{ href: '/crm/inbox', label: `Chat inbox${inbox.waiting + inbox.unreadMine > 0 ? ` (${inbox.waiting + inbox.unreadMine})` : ''}` }] : []),

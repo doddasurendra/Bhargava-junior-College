@@ -674,4 +674,4 @@ export function defaultContent(): Content {
   return Object.fromEntries(BLOCK_KEYS.map((k) => [k, BLOCKS[k].schema.parse(BLOCKS[k].default)])) as Content;
 }
 
-export const canEditBlock = (roles: Role[], key: BlockKey) => roles.some((r) => (BLOCKS[key].editors as Role[]).includes(r));
+export const canEditBlock = (roles: Role[], key: BlockKey) => roles.includes('developer') || roles.some((r) => (BLOCKS[key].editors as Role[]).includes(r));
