@@ -28,6 +28,8 @@ async function secretOf(staffId: string) {
 }
 
 beforeAll(async () => {
+  // 2FA is optional by default; these tests switch the requirement on to keep the 2FA flow covered.
+  process.env.REQUIRE_2FA_ROLES = 'super_admin,management,accounts';
   cwd = process.cwd();
   dir = mkdtempSync(path.join(tmpdir(), 'bjc-auth-'));
   process.chdir(dir);
@@ -41,6 +43,7 @@ beforeAll(async () => {
 });
 
 afterAll(() => {
+  delete process.env.REQUIRE_2FA_ROLES;
   process.chdir(cwd);
   rmSync(dir, { recursive: true, force: true });
 });

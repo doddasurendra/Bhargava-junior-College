@@ -29,6 +29,12 @@ describe('Developer role', () => {
     expect([isDeveloper(dev), isDeveloper(superAdmin)]).toEqual([true, false]);
     expect([canUseAssistant(dev), canSeeAudit(dev)]).toEqual([true, true]);
     expect(requiresMfa(dev)).toBe(false); // normal sign-in, like the Admission Manager
+    // 2FA is optional for every role by default (owner's choice) and can be required again by setting.
+    delete process.env.REQUIRE_2FA_ROLES;
+    for (const r of ['super_admin', 'management', 'accounts', 'developer']) expect(requiresMfa({ roles: [r] } as Staff), r).toBe(false);
+    process.env.REQUIRE_2FA_ROLES = 'super_admin, accounts';
+    expect([requiresMfa(superAdmin), requiresMfa({ roles: ['accounts'] } as Staff), requiresMfa(dev)]).toEqual([true, true, false]);
+    delete process.env.REQUIRE_2FA_ROLES;
     expect(homeFor('developer')).toBe('/crm/developer');
     // other roles are unchanged
     expect(permissionsFor(['telecaller'])).toEqual(PERMISSIONS.filter((p) => (DEFAULT_RULES[p] as string[]).includes('telecaller')));

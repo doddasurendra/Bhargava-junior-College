@@ -1,6 +1,6 @@
 import { AddStaffForm, EditStaffForm, type RoleOpt } from '@/components/crm/StaffForms';
 import { Panel } from '@/components/crm/ui';
-import { MFA_ROLES } from '@/lib/auth/service';
+import { mfaRoles } from '@/lib/auth/service';
 import { getAuthStore, getIdentity } from '@/lib/auth/store';
 import { requireStaff } from '@/lib/crm/auth';
 import { can } from '@/lib/crm/permissions';
@@ -19,7 +19,7 @@ export default async function StaffPage() {
   const mfaOn = new Set(auths.filter((a) => a.totpEnabledAt).map((a) => a.staffId));
   const emails = getIdentity().emails;
   const rbac = await loadRbac(getRecordStore());
-  const roles: RoleOpt[] = [...ROLES.map((r) => ({ value: r, label: ROLE_LABELS[r], mfa: MFA_ROLES.includes(r) })), ...rbac.customRoles.map((r) => ({ value: r.key, label: r.label, mfa: false }))];
+  const roles: RoleOpt[] = [...ROLES.map((r) => ({ value: r, label: ROLE_LABELS[r], mfa: mfaRoles().includes(r) })), ...rbac.customRoles.map((r) => ({ value: r.key, label: r.label, mfa: false }))];
   const active = staff.filter((s) => s.active);
   const inactive = staff.filter((s) => !s.active);
 
@@ -44,7 +44,7 @@ export default async function StaffPage() {
           </p>
         </div>
         <p className="shrink-0 text-xs">
-          {!s.active ? <span className="font-semibold text-muted">Deactivated</span> : mfaOn.has(s.id) ? <span className="text-emerald-700 dark:text-emerald-300">2FA on</span> : s.roles.some((r) => MFA_ROLES.includes(r)) ? <span className="text-maroon dark:text-gold">2FA at next sign-in</span> : <span className="text-muted">No 2FA</span>}
+          {!s.active ? <span className="font-semibold text-muted">Deactivated</span> : mfaOn.has(s.id) ? <span className="text-emerald-700 dark:text-emerald-300">2FA on</span> : s.roles.some((r) => mfaRoles().includes(r)) ? <span className="text-maroon dark:text-gold">2FA at next sign-in</span> : <span className="text-muted">No 2FA</span>}
         </p>
       </div>
       {canViewAs && s.active && s.id !== user.id && (

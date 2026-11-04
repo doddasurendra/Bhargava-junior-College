@@ -11,7 +11,6 @@ export type FamilyType = (typeof FAMILY_TYPES)[number];
 
 const OTP = 'Mobile number + one-time code';
 const STAFF = 'Work email + password';
-const STAFF_2FA = 'Work email + password + authenticator code';
 
 const app = (key: FamilyType) => `/app/login?as=${key}`;
 const crm = (role: string) => `/crm/login?as=${role}`;
@@ -38,9 +37,9 @@ export const LOGIN_GROUPS: LoginGroup[] = [
     title: 'Leadership',
     intro: 'Dashboards, approvals and the 7 PM report.',
     items: [
-      { key: 'management', title: 'Management / Chairman', body: 'Executive dashboard with the 10 daily numbers, funnel, seats vs target, the 7 PM report, refunds and big concessions.', how: STAFF_2FA, href: crm('management') },
+      { key: 'management', title: 'Management / Chairman', body: 'Executive dashboard with the 10 daily numbers, funnel, seats vs target, the 7 PM report, refunds and big concessions.', how: STAFF, href: crm('management') },
       { key: 'principal', title: 'Principal', body: 'Academic overview, results publishing, staff leave, notices, discipline and the college assistant.', how: STAFF, href: crm('principal') },
-      { key: 'super_admin', title: 'Super Admin', body: 'Staff accounts, roles and permissions, security and login audit, website content.', how: STAFF_2FA, href: crm('super_admin') },
+      { key: 'super_admin', title: 'Super Admin', body: 'Staff accounts, roles and permissions, security and login audit, website content.', how: STAFF, href: crm('super_admin') },
     ],
   },
   {
@@ -67,7 +66,7 @@ export const LOGIN_GROUPS: LoginGroup[] = [
     title: 'Office & operations staff',
     intro: 'Every other employee of the college.',
     items: [
-      { key: 'accounts', title: 'Accounts', body: 'Payments, approvals, receipts, dues and reminders, Tally export.', how: STAFF_2FA, href: crm('accounts') },
+      { key: 'accounts', title: 'Accounts', body: 'Payments, approvals, receipts, dues and reminders, Tally export.', how: STAFF, href: crm('accounts') },
       { key: 'admin_office', title: 'Admin office', body: 'Student records, ID cards and certificates, library, events calendar and parent app access.', how: STAFF, href: crm('admin_office') },
       { key: 'hostel_warden', title: 'Hostel warden', body: 'Rooms, night attendance, out-passes, sick room and hostel alerts to parents.', how: STAFF, href: crm('hostel_warden') },
       { key: 'transport_incharge', title: 'Transport in-charge', body: 'Buses, routes, bus attendance and live location.', how: STAFF, href: crm('transport_incharge') },

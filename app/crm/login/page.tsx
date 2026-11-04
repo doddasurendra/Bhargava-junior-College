@@ -45,7 +45,7 @@ export default async function LoginPage({ searchParams }: { searchParams: Record
           {dev ? (
             <>
               <p className="mb-1 font-semibold text-heading">Local development: sign in as</p>
-              <p className="mb-4 text-xs text-muted">Sample staff from the brief. This skips the password only: roles marked 2FA still need a code from an authenticator app. In production, staff sign in with email and password (Supabase Auth).</p>
+              <p className="mb-4 text-xs text-muted">Sample staff from the brief. This skips the password only: anyone marked 2FA (turned on in My account) still needs a code from their authenticator app. In production, staff sign in with email and password (Supabase Auth).</p>
               <DevLoginForm staff={staff.map((s) => ({ id: s.id, name: s.fullName, role: s.roles.map((r) => ROLE_LABELS[r]).join(', ') + (requiresMfa(s) ? ' · 2FA' : '') }))} />
             </>
           ) : (

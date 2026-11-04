@@ -3,10 +3,16 @@ import { ROLE_LABELS, type CrmRepo, type Role, type Staff } from '../crm/types';
 import { generateRecoveryCodes, generateSecret, hashRecovery, looksLikeRecovery, otpauthUri, seal, unseal, verifyTotp } from './totp';
 import type { AuthStore, LoginMethod, StaffAuth } from './types';
 
-/** Acceptance criteria: 2FA for Super Admin, Management and Accounts. Anyone else may opt in. */
-// The Developer signs in with a normal password (owner's choice); 2FA stays optional from My account.
-export const MFA_ROLES: Role[] = ['super_admin', 'management', 'accounts'];
-export const requiresMfa = (s: Pick<Staff, 'roles'>) => s.roles.some((r) => MFA_ROLES.includes(r));
+/**
+ * Roles that MUST use 2FA. Owner's choice: none by default — everyone signs in with email + password and may
+ * opt in to 2FA from My account. To require it again without a code change, set e.g.
+ * REQUIRE_2FA_ROLES=super_admin,management,accounts in the environment and restart.
+ */
+export const mfaRoles = (): Role[] => (process.env.REQUIRE_2FA_ROLES ?? '').split(',').map((r) => r.trim()).filter(Boolean) as Role[];
+export const requiresMfa = (s: Pick<Staff, 'roles'>) => {
+  const required = mfaRoles();
+  return s.roles.some((r) => required.includes(r));
+};
 
 export const MAX_FAILS = 5;
 export const LOCK_MS = 15 * 60 * 1000;
