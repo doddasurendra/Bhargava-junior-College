@@ -1,5 +1,7 @@
 # Bhargava Junior College: digital platform
 
+**Website (local):** http://localhost:3000 · **Every link (website, all role logins, CRM, portal):** [LINKS.md](LINKS.md) · **Checklist status:** [AUDIT_REPORT.md](AUDIT_REPORT.md)
+
 One Next.js app and one database for all five parts of the brief: the **public website**, the **AI admission assistant** (web + WhatsApp), the **admission CRM**, the **Student & Parent app** (installable PWA) and the **management dashboard with the 7 PM report**, plus portals for every role in §9A.
 
 ## Portals by role (§9A.2)
