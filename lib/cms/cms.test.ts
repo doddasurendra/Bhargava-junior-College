@@ -99,4 +99,19 @@ describe('CMS blocks', () => {
   it('defines an editor form for every block', () => {
     for (const k of BLOCK_KEYS) expect(BLOCKS[k].fields.length).toBeGreaterThan(0);
   });
+
+  it('hero slides: defaults are valid, links must be site paths, anchors or https', () => {
+    const hero = defaultContent().heroSlides;
+    expect(hero.slides.length).toBeGreaterThanOrEqual(2);
+    expect(hero.slides[0].primaryHref).toBe('#callback');
+    const slide = { ...hero.slides[0] };
+    const parse = (s: Record<string, unknown>) => BLOCKS.heroSlides.schema.safeParse({ ...hero, slides: [s] });
+    expect(parse({ ...slide, primaryHref: '/visit' }).success).toBe(true);
+    expect(parse({ ...slide, primaryHref: 'https://example.com/x' }).success).toBe(true);
+    expect(parse({ ...slide, primaryHref: 'javascript:alert(1)' }).success).toBe(false);
+    expect(parse({ ...slide, primaryHref: 'http://insecure.example' }).success).toBe(false);
+    expect(parse({ ...slide, secondaryLabel: '', secondaryHref: '' }).success).toBe(true);
+    expect(BLOCKS.heroSlides.schema.safeParse({ ...hero, slides: [] }).success).toBe(false);
+    expect(BLOCKS.heroSlides.schema.safeParse({ ...hero, intervalSec: 1 }).success).toBe(false);
+  });
 });

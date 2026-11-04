@@ -17,7 +17,19 @@ export default async function CmsBlockPage({ params }: { params: { key: string }
   const user = await requireStaff();
   if (!BLOCK_KEYS.includes(params.key as BlockKey)) notFound();
   const key = params.key as BlockKey;
-  if (!canEditBlock(user.roles, key)) throw new Error('Your role cannot edit this content.');
+  if (!canEditBlock(user.roles, key)) {
+    // A friendly refusal instead of a crash page when someone opens a block link their role can't edit.
+    return (
+      <div className="max-w-4xl space-y-4">
+        <Link href="/crm/cms" className="text-sm text-muted underline">
+          ← Website content
+        </Link>
+        <Panel title={BLOCKS[key].title}>
+          <p className="text-sm text-muted">Your role can’t edit this content. Ask a Super Admin or the content team to make the change.</p>
+        </Panel>
+      </div>
+    );
+  }
   const [content, history, staff] = await Promise.all([getContent(), blockHistory(getRecordStore(), key), getCrmRepo().listAllStaff()]);
   const names = new Map(staff.map((s) => [s.id, s.fullName]));
   const b = BLOCKS[key];

@@ -1,6 +1,7 @@
 import { z } from 'zod';
 import * as sample from '@/content/sample';
 import { programs } from '@/content/programs';
+import { college } from '@/content/college';
 import type { Role } from '../crm/types';
 import type { Field } from './fields';
 
@@ -18,6 +19,18 @@ const url = z.union([z.string(), z.null()]).optional().transform((v, ctx) => {
   if (!t) return null;
   if (!/^(https:\/\/|\/)[^\s<>"']+$/.test(t)) {
     ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'Use an https:// link or a site path starting with /' });
+    return z.NEVER;
+  }
+  return t;
+});
+// Button links: a site path (/visit), an in-page anchor (#callback) or an https:// link.
+const LINK_RE = /^(https:\/\/|\/|#)[^\s<>"']*$/;
+const sitePath = z.string().trim().min(1, 'Required').max(300).regex(LINK_RE, 'Use /page, #section or an https:// link');
+const optSitePath = z.union([z.string(), z.null()]).optional().transform((v, ctx) => {
+  const t = typeof v === 'string' ? v.trim() : '';
+  if (!t) return null;
+  if (t.length > 300 || !LINK_RE.test(t)) {
+    ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'Use /page, #section or an https:// link' });
     return z.NEVER;
   }
   return t;
@@ -569,6 +582,68 @@ export const BLOCKS = {
         { exam: 'neet', maxRank: 2000, name: 'AIIMS and top government medical colleges' },
         { exam: 'neet', maxRank: 25000, name: 'Government medical colleges (state quota, varies)' },
         { exam: 'neet', maxRank: 100000, name: 'Private and deemed medical colleges' },
+      ],
+    },
+  }),
+
+  heroSlides: block({
+    key: 'heroSlides',
+    title: 'Home page hero slides',
+    description: 'The rotating headline at the top of the home page. The callback form beside it never moves. Keep 2–5 slides; the first one is what search engines read.',
+    editors: CONTENT,
+    schema: z.object({
+      sample: flag,
+      intervalSec: z.coerce.number().int().min(4).max(30),
+      slides: z.array(z.object({
+        eyebrow: s(80),
+        title: s(80),
+        highlight: os(80),
+        body: s(320),
+        primaryLabel: s(40),
+        primaryHref: sitePath,
+        secondaryLabel: os(40),
+        secondaryHref: optSitePath,
+      })).min(1).max(6),
+    }),
+    fields: [
+      { key: 'intervalSec', label: 'Seconds per slide', type: 'number', min: 4, max: 30 },
+      { key: 'slides', label: 'Slides', type: 'list', itemLabel: 'slide', of: [
+        { key: 'eyebrow', label: 'Small label above the headline', type: 'text' },
+        { key: 'title', label: 'Headline', type: 'text' },
+        { key: 'highlight', label: 'Headline, second line (gold)', type: 'text' },
+        { key: 'body', label: 'Supporting text', type: 'longtext' },
+        { key: 'primaryLabel', label: 'Main button text', type: 'text' },
+        { key: 'primaryHref', label: 'Main button link (e.g. /visit or #callback)', type: 'text' },
+        { key: 'secondaryLabel', label: 'Second button text', type: 'text' },
+        { key: 'secondaryHref', label: 'Second button link', type: 'text' },
+      ] },
+    ],
+    // Marked sample until the college confirms the copy (the BSAT slide quotes the sample scholarship cap).
+    default: {
+      sample: true,
+      intervalSec: 7,
+      slides: [
+        {
+          eyebrow: `Admissions open · ${college.admissionsOpen} batch`,
+          title: 'Two years. One goal.',
+          highlight: 'Your IIT or medical seat.',
+          body: `IIT-JEE and NEET UG integrated with the TS Intermediate Board, on one campus in Saroornagar, Hyderabad. Faculty with ${college.facultyAvgExperience} of average experience, batches of up to ${college.maxBatchSize}, and fees you can see before you call.`,
+          primaryLabel: 'Enquire now', primaryHref: '#callback', secondaryLabel: 'Book a campus visit', secondaryHref: '/visit',
+        },
+        {
+          eyebrow: 'BSAT · Scholarship & admission test',
+          title: 'One 90-minute test.',
+          highlight: `Up to ${sample.bsat.cap}% off tuition.`,
+          body: 'For Class 10 students, on campus or online. Your BSAT score sets your tuition scholarship, and the fee calculator shows exactly what you will pay.',
+          primaryLabel: 'Register for BSAT', primaryHref: '/scholarship#register', secondaryLabel: 'See your fee', secondaryHref: '/fees',
+        },
+        {
+          eyebrow: 'Hostel & parent connect',
+          title: 'A hostel parents can see into.',
+          highlight: 'Alerts on every check-in.',
+          body: 'Biometric check-in and check-out with a WhatsApp alert to parents, wardens on every floor, and a weekly report with attendance, test trend and the mentor’s note.',
+          primaryLabel: 'Explore the hostel', primaryHref: '/hostel', secondaryLabel: 'Track an admission', secondaryHref: '/track',
+        },
       ],
     },
   }),

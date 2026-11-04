@@ -57,7 +57,7 @@ See **Supabase** below for deploying to a hosted project.
 
 | Area | Where |
 |---|---|
-| Home: hero with callback form, results ticker, stats, programs, toppers, why-Bhargava, BSAT banner, faculty, testimonials, FAQ, map | `app/page.tsx` |
+| Home: hero carousel (slides edited in CMS → *Home page hero slides*; pauses on hover/focus, off for reduced motion) beside a fixed callback form, results ticker, stats, programs, toppers, why-Bhargava, BSAT banner, faculty, testimonials, FAQ, map | `app/page.tsx` |
 | Program pages ×4 (Course schema, brochure lead gate) | `app/programs/[slug]` |
 | Fees table + fee & scholarship calculator (program × stay × BSAT × GPA × instalments) | `app/fees`, `lib/fees.ts` |
 | BSAT: slabs, dates, registration that returns a hall-ticket number (Event schema) | `app/scholarship`, `/api/bsat` |
@@ -315,12 +315,14 @@ Scheduled jobs (`vercel.json`): the 7 PM report (13:30 UTC), visit reminders (ev
 
 ## Supabase
 
-All migrations are in `supabase/migrations` (in order, through `20261104010000_portals.sql`). The portal data (academics, hostel, transport, CMS, sessions and so on) lives in one `records` table, which has RLS on and no policies, so only the server reads it. **They have not been applied to any hosted project**: the Supabase project connected to the development tools belongs to a different application with live data, and our tables would collide with its tables. Create a dedicated project, then run `npx supabase link --project-ref <ref>` and `npx supabase db push`.
+All migrations are in `supabase/migrations` (in order, through `20261104030000_harden_helper_functions.sql`). The portal data (academics, hostel, transport, CMS, sessions and so on) lives in one `records` table, which has RLS on and no policies, so only the server reads it.
+
+**Hosted project:** every migration is applied to the dedicated project `nkhpahcmldfuwydeglml` (`https://nkhpahcmldfuwydeglml.supabase.co`), with the `seed.sql` visit slots and BSAT sessions. The database linter is clean apart from intentional notices (server-only tables with no policies; `has_any_role` callable by signed-in users because the RLS policies use it). To switch the app onto it, set `SUPABASE_URL`, `SUPABASE_ANON_KEY` and `SUPABASE_SERVICE_ROLE_KEY` (Project Settings → API Keys); the app stays on the local JSON store until the service role key is set. For a new project: `npx supabase link --project-ref <ref>` and `npx supabase db push`.
 
 ## Not built / known limits
 
 - **Native Flutter apps (§9):** the Student & Parent app is an installable PWA on the same backend. Push notifications, biometric unlock and offline mode are not built; WhatsApp alerts cover notifications for now.
 - **Live classes:** live and recorded classes are links (any meeting or video platform). There is no built-in video.
 - **AI doubt helper, adaptive tests, ML lead scoring, the voice agent, multi-campus `campus_id`, APAAR, WhatsApp Flows, UPI AutoPay and the open API (§12):** these are future-ready items and are not built. Early warnings use rules for now (`lib/school/logic.ts`).
-- **Other §4 items not built:** a Kanban view, a hero carousel, and fully translated page bodies (only the site chrome is translated).
+- **Other §4 items not built:** a Kanban view and fully translated page bodies (only the site chrome is translated).
 - **Staff sign-in email changes:** not possible; deactivate the account and add a new one.

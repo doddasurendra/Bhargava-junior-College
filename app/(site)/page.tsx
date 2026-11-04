@@ -1,5 +1,6 @@
 import Link from 'next/link';
 import { LeadForm } from '@/components/forms';
+import { HeroCarousel } from '@/components/HeroCarousel';
 import { Check, Crest, Faq, initials, JsonLd, SampleBadge, Section } from '@/components/ui';
 import { college, mapsEmbedUrl } from '@/content/college';
 import { programs } from '@/content/programs';
@@ -18,7 +19,7 @@ const why = [
 ];
 
 export default async function HomePage() {
-  const { bsat, faculty, faqs, fees, results, testimonials } = await getContent();
+  const { bsat, faculty, faqs, fees, heroSlides, results, testimonials } = await getContent();
   const nextBsat = bsat.sessions.find((s) => s.date >= todayIST());
   return (
     <>
@@ -30,21 +31,7 @@ export default async function HomePage() {
         </div>
         <div className="container-x relative grid gap-10 py-12 sm:py-16 lg:grid-cols-[1.2fr_1fr] lg:items-center lg:py-20">
           <div className="animate-rise">
-            <p className="inline-flex items-center gap-2 rounded-full border border-gold/40 bg-white/5 px-3 py-1 text-xs font-semibold text-gold-300">
-              <span className="h-1.5 w-1.5 rounded-full bg-gold" /> Admissions open · {college.admissionsOpen} batch
-            </p>
-            <h1 className="mt-5 font-display text-[2.6rem] leading-[1.06] sm:text-5xl lg:text-[4rem]">
-              Two years. One goal.
-              <br />
-              <span className="text-gold-300">Your IIT or medical seat.</span>
-            </h1>
-            <p className="mt-5 max-w-xl text-base leading-7 text-white/75 sm:text-lg">
-              IIT-JEE and NEET UG integrated with the TS Intermediate Board, on one campus in Saroornagar, Hyderabad. Faculty with {college.facultyAvgExperience} of average experience, batches of up to {college.maxBatchSize}, and fees you can see before you call.
-            </p>
-            <div className="mt-7 flex flex-wrap gap-3">
-              <Link href="#callback" className="btn-primary px-6 py-3">Enquire now</Link>
-              <Link href="/visit" className="btn-gold px-6 py-3">Book a campus visit</Link>
-            </div>
+            <HeroCarousel slides={heroSlides.slides} intervalSec={heroSlides.intervalSec} />
             <dl className="mt-10 grid max-w-xl grid-cols-3 gap-4 border-t border-white/10 pt-6">
               {[
                 ['4', 'programs'],
