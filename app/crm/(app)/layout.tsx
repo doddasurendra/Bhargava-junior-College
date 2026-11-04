@@ -6,6 +6,7 @@ import { RoleSwitcher } from '@/components/crm/RoleSwitcher';
 import { Crest } from '@/components/ui';
 import { OPERATING_PRINCIPLE } from '@/content/admissionSystem';
 import { canUseAssistant } from '@/lib/staffAssistant/service';
+import { exportsFor } from '@/lib/school/exports';
 import { inboxCounts } from '@/lib/chat/inbox';
 import { requireStaff } from '@/lib/crm/auth';
 import { can } from '@/lib/crm/permissions';
@@ -41,7 +42,11 @@ export default async function CrmShell({ children }: { children: ReactNode }) {
     ...(can(user, 'alumni.manage') ? [{ href: '/crm/alumni', label: 'Alumni' }] : []),
     ...(can(user, 'hostel.manage') ? [{ href: '/crm/hostel', label: 'Hostel' }] : []),
     ...(can(user, 'transport.manage') ? [{ href: '/crm/transport', label: 'Transport' }] : []),
+    ...(can(user, 'homework.assign') ? [{ href: '/crm/homework', label: 'Homework' }] : []),
+    ...(can(user, 'library.manage') ? [{ href: '/crm/library', label: 'Library' }] : []),
     { href: '/crm/notices', label: 'Notices' },
+    { href: '/crm/events', label: 'Events calendar' },
+    ...(exportsFor(user).length ? [{ href: '/crm/exports', label: 'Reports & exports' }] : []),
     ...(can(user, 'leave.request') || can(user, 'leave.approve') ? [{ href: '/crm/leave', label: 'Leave' }] : []),
     ...(canUseAssistant(user) ? [{ href: '/crm/college-assistant', label: 'College assistant' }] : []),
     ...(can(user, 'whatsapp.setup') ? [{ href: '/crm/assistant', label: 'Website chat analytics' }] : []),

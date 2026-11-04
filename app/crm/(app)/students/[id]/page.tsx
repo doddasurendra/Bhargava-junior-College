@@ -37,6 +37,7 @@ export default async function StudentPage({ params }: { params: { id: string } }
         </div>
         <div className="flex gap-2">
           <Link href={`/crm/leads/${s.leadId}`} className="btn-outline py-1.5 text-sm">Admission record</Link>
+          <Link href={`/crm/students/${s.id}/report-card`} className="btn-outline py-1.5 text-sm">Report card</Link>
           {can(user, 'certificates.issue') && <Link href={`/crm/students/${s.id}/id-card`} className="btn-outline py-1.5 text-sm">ID card</Link>}
         </div>
       </div>

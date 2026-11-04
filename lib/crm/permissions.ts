@@ -70,6 +70,9 @@ export const DEFAULT_RULES = {
   'leave.request': [...TEACHERS, 'academic_coordinator', 'hostel_warden', 'transport_incharge'],
   'leave.approve': ['super_admin', 'principal'],
   'alumni.manage': ['super_admin', 'admin_office', 'data_executive'],
+  'homework.assign': [...ACADEMIC_HEADS, ...TEACHERS],
+  'library.manage': ['super_admin', 'admin_office'],
+  'events.manage': ['super_admin', 'principal', 'academic_coordinator', 'admin_office'],
 
   // ---- hostel & transport (§9A.2 rows 13–14)
   'hostel.manage': ['super_admin', 'hostel_warden'],

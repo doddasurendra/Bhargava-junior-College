@@ -138,6 +138,37 @@ export const notices = collection({
   k2: (d) => d.date,
 });
 
+/** Homework and assignments per batch (Gurukul back office). */
+export const homework = collection({
+  name: 'homework',
+  schema: z.object({ batchId: id, subject: text(40), title: text(140), details: optText(2000), dueOn: isoDate, setBy: id, setOn: isoDate }),
+  k1: (d) => d.batchId,
+  k2: (d) => d.dueOn,
+});
+
+/** Events calendar: exams, PTMs, holidays, celebrations. */
+export const events = collection({
+  name: 'events',
+  schema: z.object({ title: text(140), date: isoDate, endDate: z.union([isoDate, z.literal(''), z.null()]).optional().transform((v) => v || null), kind: z.enum(['exam', 'ptm', 'holiday', 'event', 'deadline']), audience: z.enum(['all', 'students', 'parents', 'staff']), location: optText(120), note: optText(1000), createdBy: id }),
+  k1: (d) => d.kind,
+  k2: (d) => d.date,
+});
+
+/** Library catalogue and loans. */
+export const libraryBooks = collection({
+  name: 'library_books',
+  schema: z.object({ title: text(160), author: optText(120), subject: optText(60), isbn: optText(20), shelf: optText(20), copies: z.coerce.number().int().min(1).max(500) }),
+  k1: (d) => d.subject,
+  k2: (d) => d.isbn,
+});
+
+export const libraryLoans = collection({
+  name: 'library_loans',
+  schema: z.object({ bookId: id, studentId: id, issuedOn: isoDate, dueOn: isoDate, returnedOn: isoDate.nullable(), issuedBy: id }),
+  k1: (d) => d.bookId,
+  k2: (d) => d.studentId,
+});
+
 // ---------------------------------------------------------------- mentoring & wellbeing (§6.5, §9A row 12)
 
 /** 1 mentor per 20 students. */
