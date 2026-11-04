@@ -1,6 +1,6 @@
 # Audit — 4 Nov 2026 (localhost:3000, commit after `3737013`)
 
-**PASS: 59 / 73   PARTIAL: 14   MISSING: 0**
+**PASS: 60 / 73   PARTIAL: 13   MISSING: 0**
 
 How each row was checked: **T** = automated test against the real store (`npm test`, 176+ tests), **L** = live request to the running app, **C** = clicked/read in Chrome, **DB** = queried the Supabase project, **Code** = read the implementation. Chrome froze several times under low memory (8 GB machine, ~1 GB free), so many rows rely on T/L instead of clicking.
 
@@ -10,7 +10,7 @@ How each row was checked: **T** = automated test against the real store (`npm te
 3. **S4** PARTIAL – Supabase now has 60 sample leads (`supabase/seed_sample_leads.sql`) + visit slots + BSAT sessions. 40 students and 300 questions are not seeded: students need staff profiles, which need Supabase Auth accounts (service role key).
 4. ~~C8~~ fixed – dedicated `ai_query_audit` table with RLS in Supabase.
 5. ~~A7~~ fixed – allocation by school and by area added.
-6. **A17** PARTIAL – receipts are auto-numbered and print / save as PDF with the logo; no generated PDF file or WhatsApp delivery.
+6. ~~A17~~ fixed – downloadable receipt PDF with the logo (staff and parent portal).
 7. **D4** PARTIAL – "Send 7 PM report now" button added; the daily run is Vercel Cron `30 13 * * *` (`vercel.json`), not Supabase pg_cron.
 8. **L1** PARTIAL – 20 account types (16 staff roles + student/parent/applicant/alumni) and one sample user per role in the local sign-in; no Supabase Auth demo accounts or demo passwords in README (needs the service role key; demo passwords on the hosted project would be unsafe).
 9. **L4** PARTIAL – phone OTP and email/password are built; email/password needs Supabase Auth (service role key); OTP is logged, not sent, until WhatsApp/SMS credentials exist.
@@ -21,7 +21,7 @@ How each row was checked: **T** = automated test against the real store (`npm te
 14. **G3** PARTIAL – Gurukul modules matched except **Branches** (multi-campus) and biometric punch reconciliation.
 15. ~~E9~~ fixed – school-wide practice statistics.
 16. ~~E1–E8, E10~~ fixed – Eduten-style practice: `/app/practice` (student/parent) and `/crm/practice` (teacher/heads).
-17. **W1** PARTIAL – home has everything except a **gallery** section (gallery is on `/campus`) and testimonial text (college must provide).
+17. **W1** PARTIAL – gallery section added to the home page; it shows CMS photos once the college uploads them. **Testimonial quotes and photos** still need to come from the college.
 18. **B3** PARTIAL – About has society, motto, vision, mission, Dr. G. V. Venkat Ramana, programs, address, phones, email, hours; **testimonial quotes** are not provided by the college yet.
 19. **S7** PARTIAL – code on GitHub, `.env*` not committed, secret scan clean; **repository visibility (private) not verified** from here.
 20. **S8** PARTIAL – all migrations applied to Supabase; no edge functions (the app uses Next.js API routes); seed partial (S4).
@@ -53,13 +53,13 @@ Ours: dashboard backlog tiles + 7 PM report (exceptions first), students, fees/d
 | A14 | Post-visit pipeline | PASS | Code: statuses visited→counselled→decision_pending→confirmed/lost | — |
 | A15 | Ageing + escalation | PASS | T: `metrics.test.ts` escalated48; follow-up ageing | — |
 | A16 | Verification gate | PASS | T: "refuses the College ID until every step"; DB `issue_college_id` | — |
-| A17 | Receipt PDF | PARTIAL | Code: receipts auto-numbered, printable with logo | generated PDF / delivery |
+| A17 | Receipt PDF | PASS | T: `lib/crm/receiptPdf.test.ts`; A5 PDF with the official logo, auto-numbered (BJC/2027-28/00001), "Download PDF" on `/crm/receipts/[id]` and the parent portal receipt (own receipts only); sample rendered and checked | — |
 | A18 | Accountability + audit | PASS | Code/T: `lead_audit` on every change, sign-offs record owner | — |
 | D1 | 10 parameters | PASS | Code: `DailyParameters` | — |
 | D2 | Periods + filters | PASS | C: Today/MTD/Season, program/source/school/owner filters | — |
 | D3 | Widgets | PASS | Code: funnel, losses, quality mix, overdue 48 h, owners table, no-shows, seats vs target | — |
 | D4 | Send 7 PM report + schedule | PARTIAL | Code: new "Send 7 PM report now"; `vercel.json` 30 13 * * * | pg_cron schedule |
-| W1 | Home sections | PARTIAL | C/L: `/` | gallery on home, testimonial text |
+| W1 | Home sections | PARTIAL | `/`: hero carousel + callback, banner, ticker, programs, why-us, toppers, BSAT banner, faculty, testimonials, **gallery section** (CMS photos, campus areas until photos are added), FAQs, map | testimonial quotes and photos from the college |
 | W2 | Results filter | PASS | L: `/results` 200 | — |
 | W3 | Course finder + programs | PASS | L: `/course-finder`, 4 program pages | — |
 | W4 | BSAT | PASS | L: `/scholarship` (alias `/bsat`); T: hall ticket | — |

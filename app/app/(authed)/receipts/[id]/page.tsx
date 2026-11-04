@@ -14,7 +14,8 @@ export default async function AppReceipt({ params }: { params: { id: string } })
   const d = await profileData(profile);
   return (
     <div className="space-y-3">
-      <div className="flex justify-end print:hidden">
+      <div className="flex justify-end gap-2 print:hidden">
+        <a href={`/app/receipts/${params.id}/pdf`} className="btn-outline py-2">Download PDF</a>
         <PrintButton />
       </div>
       <ReceiptDoc payment={payment} student={d.student} lead={d.lead} />

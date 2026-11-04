@@ -19,7 +19,7 @@ const why = [
 ];
 
 export default async function HomePage() {
-  const { bsat, faculty, faqs, fees, heroSlides, results, testimonials } = await getContent();
+  const { bsat, faculty, faqs, fees, gallery, heroSlides, results, testimonials } = await getContent();
   const nextBsat = bsat.sessions.find((s) => s.date >= todayIST());
   return (
     <>
@@ -193,6 +193,42 @@ export default async function HomePage() {
               </li>
             ))}
           </ul>
+        </div>
+      </Section>
+
+      {/* Gallery */}
+      <Section eyebrow="Campus gallery" title="Life on one focused campus" badge={gallery.sample}>
+        {gallery.items.some((g) => g.imageUrl) ? (
+          <ul className="grid grid-cols-2 gap-3 md:grid-cols-3">
+            {gallery.items.filter((g) => g.imageUrl).slice(0, 6).map((g) => (
+              <li key={g.imageUrl!} className="overflow-hidden rounded-2xl border border-line">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src={g.imageUrl!} alt={g.title} loading="lazy" className="aspect-[4/3] w-full object-cover" />
+                <p className="px-3 py-2 text-sm text-muted">{g.title}</p>
+              </li>
+            ))}
+          </ul>
+        ) : (
+          <ul className="grid grid-cols-2 gap-3 md:grid-cols-5">
+            {[
+              ['Classrooms', `Batches of at most ${college.maxBatchSize}`],
+              ['Laboratories', 'Physics, chemistry and biology labs'],
+              ['Library', 'NCERT and reference collection, supervised study'],
+              ['Hostel', 'Biometric check-in with parent alerts'],
+              ['Transport', 'College buses with GPS updates'],
+            ].map(([t, d]) => (
+              <li key={t}>
+                <Link href="/campus" className="card flex h-full flex-col justify-between bg-gradient-to-br from-navy to-[#2a3a78] p-5 text-white transition hover:-translate-y-0.5">
+                  <span className="font-display text-xl">{t}</span>
+                  <span className="mt-6 text-xs text-white/75">{d}</span>
+                </Link>
+              </li>
+            ))}
+          </ul>
+        )}
+        <div className="mt-6 flex flex-wrap gap-3">
+          <Link href="/campus" className="btn-outline">See the campus</Link>
+          {gallery.tourUrl && <a href={gallery.tourUrl} target="_blank" rel="noopener noreferrer" className="btn-outline">360° tour</a>}
         </div>
       </Section>
 

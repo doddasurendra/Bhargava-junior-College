@@ -21,6 +21,7 @@ export default async function ReceiptPage({ params }: { params: { id: string } }
   return (
     <main className="mx-auto max-w-3xl px-4 py-8 print:p-0">
       <div className="mb-4 flex justify-end gap-2 print:hidden">
+        <a href={`/crm/receipts/${params.id}/pdf`} className="btn-outline py-2">Download PDF</a>
         <PrintButton />
       </div>
       <ReceiptDoc payment={data.payment} student={data.student} lead={data.lead} />
