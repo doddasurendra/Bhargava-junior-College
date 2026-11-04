@@ -1,5 +1,5 @@
 import Link from 'next/link';
-import { previewReportAction } from '@/app/crm/report-actions';
+import { previewReportAction, sendReportNowAction } from '@/app/crm/report-actions';
 import { TrendChart } from '@/components/crm/charts';
 import { BacklogTiles, FlaggedCard, FunnelCard, LossesCard, OwnersCard, QualityCard, SourcesCard } from '@/components/crm/dashboardSections';
 import { DailyParameters, QualityMix, SeatsVsTarget, SourceRoi, VisitAndChat } from '@/components/crm/dashboardExtras';
@@ -43,6 +43,9 @@ export default async function DashboardPage({ searchParams }: { searchParams: SP
           <Link href="/crm/reports" className="btn-outline py-1.5">7 PM reports</Link>
           <form action={previewReportAction}>
             <button className="btn-outline py-1.5">Preview today’s report</button>
+          </form>
+          <form action={sendReportNowAction}>
+            <button className="btn-primary py-1.5">Send 7 PM report now</button>
           </form>
         </div>
       </div>

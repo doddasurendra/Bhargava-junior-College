@@ -26,6 +26,16 @@ export async function removeSpendAction(fd: FormData) {
   revalidatePath('/crm/marketing');
 }
 
+/**
+ * "Send 7 PM report now": the same job the 7 PM schedule runs (WhatsApp + email PDF to management).
+ * Safe to press twice: messages are de-duplicated per day, exactly like a cron retry.
+ */
+export async function sendReportNowAction() {
+  await requireStaff('dashboard.view');
+  const r = await generateDailyReport(new Date(), { send: true });
+  redirect(`/crm/reports/${r.date}`);
+}
+
 /** "Preview today's report": builds and stores today's snapshot without sending WhatsApp messages. */
 export async function previewReportAction() {
   await requireStaff('dashboard.view');
