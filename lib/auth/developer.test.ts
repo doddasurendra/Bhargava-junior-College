@@ -9,7 +9,6 @@ import { homeFor } from '../crm/home';
 import { can, DEFAULT_RULES, isDeveloper, PERMISSIONS, permissionsFor } from '../crm/permissions';
 import type { Matrix } from '../crm/permissions';
 import type { Staff } from '../crm/types';
-import { canSeeAudit, canUseAssistant } from '../staffAssistant/service';
 import type { Identity } from './identity';
 import { requiresMfa } from './service';
 
@@ -17,7 +16,10 @@ const dev = { id: 'staff-developer', fullName: 'Developer', email: null, phone: 
 const superAdmin = { id: 'staff-admin', fullName: 'Super Admin', email: null, phone: null, roles: ['super_admin'], active: true } as Staff;
 
 describe('Developer role', () => {
-  it('has every permission, even when the matrix takes them away, plus all content, assistant and audit', () => {
+  it('has every permission, even when the matrix takes them away, plus all content, assistant and audit', async () => {
+    // Imported after beforeAll's chdir: modules that touch the store resolve .data/ at import time,
+    // so a top-level import would write into the real local store.
+    const { canSeeAudit, canUseAssistant } = await import('../staffAssistant/service');
     expect(permissionsFor(['developer'])).toEqual(PERMISSIONS);
     const empty = Object.fromEntries(PERMISSIONS.map((p) => [p, []])) as unknown as Matrix;
     expect(permissionsFor(['developer'], empty)).toEqual(PERMISSIONS);
