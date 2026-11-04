@@ -1,7 +1,7 @@
 import Link from 'next/link';
 import { LeadForm } from '@/components/forms';
 import { Check, Crest, Faq, initials, JsonLd, SampleBadge, Section } from '@/components/ui';
-import { college, mapsEmbedUrl, testimonials } from '@/content/college';
+import { college, mapsEmbedUrl } from '@/content/college';
 import { programs } from '@/content/programs';
 import { getContent } from '@/lib/cms';
 import { formatDate, todayIST } from '@/lib/dates';
@@ -18,7 +18,7 @@ const why = [
 ];
 
 export default async function HomePage() {
-  const { bsat, faculty, faqs, fees, results } = await getContent();
+  const { bsat, faculty, faqs, fees, results, testimonials } = await getContent();
   const nextBsat = bsat.sessions.find((s) => s.date >= todayIST());
   return (
     <>
@@ -197,12 +197,12 @@ export default async function HomePage() {
         <div className="mt-12">
           <p className="eyebrow">What parents say</p>
           <ul className="mt-4 grid gap-4 md:grid-cols-3">
-            {testimonials.map((t) => (
+            {testimonials.items.map((t) => (
               <li key={t.name} className="card p-6">
                 <p className="font-display text-4xl leading-none text-gold" aria-hidden>“</p>
                 {t.quote ? <p className="text-[15px] leading-7 text-ink/85">{t.quote}</p> : <p className="text-sm italic text-muted">Testimonial text to be added from the CMS.</p>}
                 <p className="mt-4 font-semibold text-heading">{t.name}</p>
-                <p className="text-sm text-muted">Parent · {t.role}</p>
+                <p className="text-sm text-muted">Parent{t.role ? ` · ${t.role}` : ''}</p>
               </li>
             ))}
           </ul>

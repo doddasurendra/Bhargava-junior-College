@@ -28,6 +28,10 @@ describe('7 PM report', () => {
     });
     const store = (await import('../store/file')).createFileStore();
     await store.captureLead({ name: 'Parent', phone: '+919777700002', consent: true, source: 'callback' });
+    // the report below is for 3 Nov; pin the lead to that day so the test doesn't depend on the real clock
+    await tx((db) => {
+      for (const l of db.leads) l.createdAt = '2026-11-03T05:00:00.000Z';
+    });
 
     const reports = await import('./reports');
     const now = new Date('2026-11-03T13:30:00Z'); // 19:00 IST

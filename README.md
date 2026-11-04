@@ -1,6 +1,33 @@
 # Bhargava Junior College: digital platform
 
-This is phase 1: the **public website** and the **shared database schema**. The AI chat agent, CRM, student and parent app, and management dashboard will be built on the same backend.
+One Next.js app and one database for all five parts of the brief: the **public website**, the **AI admission assistant** (web + WhatsApp), the **admission CRM**, the **Student & Parent app** (installable PWA) and the **management dashboard with the 7 PM report**, plus portals for every role in §9A.
+
+## Portals by role (§9A.2)
+
+| # | Login | Home | What they do |
+|---|---|---|---|
+| 1 | Super Admin | `/crm` | Everything; staff accounts, **permission matrix and custom roles** (`/crm/permissions`), security log, read-only **view as** |
+| 2 | Management / Chairman | `/crm/dashboard` | §8 dashboard (10 parameters, filters, funnel, ROI, seats vs target), 7 PM reports + PDF, approvals of concessions above slab and refunds |
+| 3 | Principal | `/crm/academics/overview` | Attendance and test performance across batches, weak-batch alerts, faculty workload, wellbeing alerts, leave approval, circulars, discipline |
+| 4 | Admission Manager | `/crm` | Import, qualify, allocate, escalations, team performance, BSAT, concessions up to the slab |
+| 5 | Telecaller | `/crm` | Own leads only, phone numbers masked, click-to-call, mandatory outcomes |
+| 6 | Admission Counsellor | `/crm` | Visits, **counselling form**, decisions, chat inbox |
+| 7 | Front Desk | `/crm/front-desk` | Today's visits, Arrived / No-show, walk-in leads, visitor log, gate passes |
+| 8 | Admission Office | `/crm/verification` | Documents (incl. uploads from the app), student records |
+| 9 | Accounts | `/crm/accounts` | Payment approval, receipts, instalment plans, dues and reminders, concessions/refunds, daily collection, **Tally CSV** |
+| 10 | Admin Office | `/crm/students` | College ID, batch allotment, **ID cards**, TC / bonafide / study / conduct certificates, alumni moves |
+| 11 | Academic Coordinator / Exam Cell | `/crm/academics` | Batches (cap 40), timetable (clash-checked), mentors, tests, result publishing, rank lists |
+| 12 | Faculty | `/crm/academics/my-classes` | Timetable, attendance (parents alerted on absence), notes/DPPs/recordings, online + offline tests, doubt inbox, leave |
+| 13 | Class Teacher / Mentor | `/crm/mentor` | 1 : 20 mentees with early warnings, notes (shared into the Sunday report), wellbeing check-ins, PTM slots, parent messages |
+| 14 | Hostel Warden | `/crm/hostel` | Rooms, night roll, out-pass approval, sick room, complaints, visitors, mess menu |
+| 15 | Transport In-charge | `/crm/transport` | Buses, students per bus, pickup/drop attendance, GPS positions |
+| 16 | Content & Marketing | `/crm/cms` | Website content (19+ blocks), FAQs/knowledge base, campaigns, marketing spend |
+| 17 | Student | `/app` | Timetable, study planner, timed JEE/NEET tests and analytics, doubts, attendance, notices, out-pass, bus, digital ID |
+| 18 | Parent / Guardian | `/app` | Child switcher, attendance, results and mentor notes, dues + online payment, receipts, PTM, messages, out-pass approval, hostel, bus |
+| 19 | Applicant | `/app` | Admission timeline, online application, document upload, visit booking/reschedule, fees; becomes Student/Parent when the College ID is issued |
+| 20 | Alumni | `/app/alumni` | Profile, mentoring offer, referrals (CRM source `alumni_referral`) |
+
+`/login` is the role picker. One person can hold several roles and switch without signing out (e.g. sample **V. Naresh**: faculty + mentor + warden). Locally, **Load demo leads** also admits six sample students with batches, timetable, mentors, rooms and a bus.
 
 ## Run locally
 
@@ -24,7 +51,7 @@ npx supabase start           # applies supabase/migrations + supabase/seed.sql
 #   SUPABASE_SERVICE_ROLE_KEY=...
 ```
 
-Nothing is pushed to a remote Supabase project yet.
+See **Supabase** below for deploying to a hosted project.
 
 ## What's built
 
@@ -46,7 +73,7 @@ Nothing is pushed to a remote Supabase project yet.
 
 The schema has roles (20, pending §9A), profiles, `leads` (one active row per phone, merged rows kept), `lead_touchpoints`, `lead_audit` (who/what/when/old→new), `visit_slots`/`visits`, `bsat_sessions`/`bsat_registrations`, `admission_stage_events` (feeds tracking and the College-ID gate) and `otp_challenges`. Writes go through `capture_lead`, `book_visit` (advisory-locked capacity check) and `register_bsat`, which only the service role can execute. RLS is on everywhere, and telecallers can see only their own leads.
 
-## Admissions CRM (`/crm`), in progress
+## Admissions CRM (`/crm`)
 
 Open http://localhost:3000/crm. In local development (no Supabase) you sign in by picking one of the sample staff (brief §3.6), with no password. If the store is empty, **Load demo leads** fills every queue. With Supabase configured, staff sign in with email and password through Supabase Auth. The session is a signed, 10-hour, httpOnly cookie (`SESSION_SECRET`).
 
@@ -245,21 +272,55 @@ Code: `lib/whatsapp/`. Templates live in `lib/whatsapp/templates.ts`, the single
 - Hostel check-in alerts and the Sunday parent report (student app phase).
 - SMS fallback.
 
-**Not yet:** direct .xlsx upload, Kanban view, a data-quality report (category mix by school and source), click-to-call telephony and recordings, WhatsApp/SMS templates and campaigns, the AI-handoff chat inbox, the verification checkpoint (documents → fee → receipt → student record → College ID), the staff mobile app, and the 7 PM report (§8 is missing from the brief).
+
+## CMS: all sample data is editable (`/crm/cms`)
+
+Every placeholder in §2 and §3 is a **validated content block**: results, fees, BSAT, hostel, faculty and the leadership message, FAQs, visit slots, the document checklist, ID and receipt numbering, the mess menu, the season and seat targets, brochures and downloads, testimonials, the gallery and 360° tour, the blog, resources, careers, the parent corner, the mock test, the predictor inputs and social links. Each block has a form editor, per-block editor roles, version history with restore, and a "This is real data" switch that removes the *Sample data* badge. Pages, the fee calculator, booking capacity, the AI assistant's knowledge and tools, the rule-based bot, WhatsApp messages and the verification gate all read live content. Visit slots and BSAT sessions are also mirrored into their booking tables in Supabase.
+
+## Security (§9A.4)
+
+- RBAC with an editable matrix and custom roles. The Super Admin can never lose administration rights.
+- **Data scoping:** telecallers see only their own leads; faculty see only their batches; mentors see their mentees; parents see only their children; students see only their own data.
+- **Field masking:** roles without `phone.view` see `******7575` and call through click-to-call. Each reveal is audited.
+- **Sessions:** server-side session records, a device list with remote sign-out, a 30-minute idle timeout for staff, a 2-device limit for students, and 2FA for Super Admin, Management and Accounts.
+- **Login audit:** every step (and every admin action) is recorded with IP and device. Lockout after 5 failures.
+- **View as:** read-only (the middleware refuses writes), bound to the admin's session, expires after 30 minutes, and is logged.
+- **Staff exit:** deactivation signs the person out and reassigns their open leads to an admission manager.
+- **DPDP:** notice and consent at the first app login. Applicant documents go to a private bucket, checked by magic bytes, 5 MB limit.
+
+## Integrations: real code with placeholders until credentials exist
+
+| Integration | Status | Turn on with |
+|---|---|---|
+| WhatsApp Business Cloud API | built; logs in development | `MESSAGING_PROVIDER=whatsapp_cloud` + the `WHATSAPP_*` variables, and Meta approval of every template in `lib/whatsapp/templates.ts` (now including absence alert, weekly report, fee reminder, out-pass, notice, test result) |
+| Claude (AI assistant) | built; rule-based fallback | `ANTHROPIC_API_KEY` |
+| Email (7 PM report PDF) | built (SMTP, works with SES) | `SMTP_*`, `EMAIL_FROM` |
+| Razorpay (online fees) | built (orders, checkout, signature checks, webhook) | `RAZORPAY_*` |
+| Exotel click-to-call | built (masked numbers revealed once, audited, until configured) | `EXOTEL_*` |
+| Bus GPS | endpoint `/api/transport/location` | `TRANSPORT_DEVICE_KEY` |
+| Biometric hostel gate | endpoint `/api/hostel/events` | `HOSTEL_DEVICE_KEY` |
+| MSG91 SMS, DigiLocker, Firebase push, Google/Microsoft SSO | **not built** | needs accounts with those providers |
+
+Scheduled jobs (`vercel.json`): the 7 PM report (13:30 UTC), visit reminders (every 15 minutes), the Sunday parent report (Sunday 12:30 UTC) and fee reminders (04:30 UTC). All require `CRON_SECRET`.
 
 ## Before launch: the college must provide
 
 - [ ] Official `logo.png` → add it to `/public` and set `logoSrc` in `content/college.ts` (a placeholder SVG crest is in use)
 - [ ] Confirm the motto spelling: *Vikasam* or *Vikasa*
-- [ ] Confirm which number is on WhatsApp Business
-- [ ] Replace everything in `content/sample.ts` (results, fees, BSAT, hostel, faculty, FAQs, visit slots) and set `sample: false`, which removes the "Sample data" badges
+- [ ] Confirm which number is on WhatsApp Business (enter it under Website content → Social links)
+- [ ] Replace every CMS block's sample content and switch it to "real data"
 - [ ] Parent testimonial quotes, the leadership message, photos and scorecard verification links
 - [ ] Native-speaker review of the Telugu/Hindi strings in `lib/i18n.ts`
+- [ ] Credentials for the integrations above, and approval of the WhatsApp templates
 
-## Not built yet (next phases)
+## Supabase
 
-- **Website remainder:** free resources, mock test, rank/college predictor, blog, downloads, careers, parent corner, online application form and fee payment, hero carousel, gallery/360° tour, fully translated page bodies
-- **Integrations:** WhatsApp Business and SMS provider (`lib/messaging.ts` is a stub), payment gateway, DigiLocker, cloud telephony
-- **Headless CMS:** content is currently typed files in `content/`
-- **AI Admission Assistant** (RAG and CRM tool calls), **Admission CRM**, **Student & Parent app**, **Management dashboard / 7 PM report**
-- **Spec gaps:** the brief we received was cut off. §8 (dashboard), §9/9A (the 18 logins), §10–12 and most of the acceptance criteria are missing.
+All migrations are in `supabase/migrations` (in order, through `20261104010000_portals.sql`). The portal data (academics, hostel, transport, CMS, sessions and so on) lives in one `records` table, which has RLS on and no policies, so only the server reads it. **They have not been applied to any hosted project**: the Supabase project connected to the development tools belongs to a different application with live data, and our tables would collide with its tables. Create a dedicated project, then run `npx supabase link --project-ref <ref>` and `npx supabase db push`.
+
+## Not built / known limits
+
+- **Native Flutter apps (§9):** the Student & Parent app is an installable PWA on the same backend. Push notifications, biometric unlock and offline mode are not built; WhatsApp alerts cover notifications for now.
+- **Live classes:** live and recorded classes are links (any meeting or video platform). There is no built-in video.
+- **AI doubt helper, adaptive tests, ML lead scoring, the voice agent, multi-campus `campus_id`, APAAR, WhatsApp Flows, UPI AutoPay and the open API (§12):** these are future-ready items and are not built. Early warnings use rules for now (`lib/school/logic.ts`).
+- **Other §4 items not built:** a Kanban view, a hero carousel, and fully translated page bodies (only the site chrome is translated).
+- **Staff sign-in email changes:** not possible; deactivate the account and add a new one.

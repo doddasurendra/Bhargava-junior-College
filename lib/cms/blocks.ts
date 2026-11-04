@@ -482,6 +482,97 @@ export const BLOCKS = {
     },
   }),
 
+  mockTest: block({
+    key: 'mockTest',
+    title: 'Free mock test',
+    description: 'The public JEE/NEET-pattern sample test on /mock-test (instant score and analysis; it captures a lead). Keep it short: 10–20 questions.',
+    editors: [...CONTENT, 'academic_coordinator'],
+    schema: z.object({
+      sample: flag,
+      title: s(120),
+      durationMin: z.coerce.number().int().min(5).max(60),
+      questions: z.array(z.object({ id: s(20), subject: s(40), chapter: s(80), text: s(1000), options: z.array(s(300)).length(4), answer: z.coerce.number().int().min(0).max(3), marks: z.coerce.number().min(1).max(10), negative: z.coerce.number().min(0).max(5) })).min(3).max(30),
+    }),
+    fields: [
+      { key: 'title', label: 'Title', type: 'text' },
+      { key: 'durationMin', label: 'Minutes', type: 'number' },
+      { key: 'questions', label: 'Questions', type: 'list', itemLabel: 'question', of: [
+        { key: 'id', label: 'Code (unique)', type: 'text' },
+        { key: 'subject', label: 'Subject', type: 'text' },
+        { key: 'chapter', label: 'Chapter', type: 'text' },
+        { key: 'text', label: 'Question', type: 'longtext' },
+        { key: 'options', label: 'Four options (one per line)', type: 'strings' },
+        { key: 'answer', label: 'Correct option (0 = first … 3 = fourth)', type: 'number' },
+        { key: 'marks', label: 'Marks', type: 'number' },
+        { key: 'negative', label: 'Negative marks', type: 'number' },
+      ] },
+    ],
+    default: {
+      sample: true,
+      title: 'JEE / NEET sample test (10 questions)',
+      durationMin: 15,
+      questions: [
+        { id: 'p1', subject: 'Physics', chapter: 'Kinematics', text: 'A body starts from rest with uniform acceleration 2 m/s². Its displacement in the first 5 s is', options: ['10 m', '25 m', '50 m', '5 m'], answer: 1, marks: 4, negative: 1 },
+        { id: 'p2', subject: 'Physics', chapter: 'Laws of motion', text: 'The SI unit of momentum is', options: ['kg m/s', 'N/s', 'kg m/s²', 'J s'], answer: 0, marks: 4, negative: 1 },
+        { id: 'p3', subject: 'Physics', chapter: 'Work, energy and power', text: 'A 2 kg body moving at 3 m/s has kinetic energy', options: ['6 J', '3 J', '9 J', '18 J'], answer: 2, marks: 4, negative: 1 },
+        { id: 'c1', subject: 'Chemistry', chapter: 'Atomic structure', text: 'The maximum number of electrons in a shell with n = 3 is', options: ['8', '18', '32', '9'], answer: 1, marks: 4, negative: 1 },
+        { id: 'c2', subject: 'Chemistry', chapter: 'Chemical bonding', text: 'The shape of a methane (CH₄) molecule is', options: ['Square planar', 'Trigonal planar', 'Tetrahedral', 'Linear'], answer: 2, marks: 4, negative: 1 },
+        { id: 'c3', subject: 'Chemistry', chapter: 'Mole concept', text: 'The number of moles in 36 g of water is', options: ['1', '2', '3', '0.5'], answer: 1, marks: 4, negative: 1 },
+        { id: 'm1', subject: 'Mathematics', chapter: 'Quadratic equations', text: 'The roots of x² − 5x + 6 = 0 are', options: ['1 and 6', '2 and 3', '−2 and −3', '3 and 4'], answer: 1, marks: 4, negative: 1 },
+        { id: 'm2', subject: 'Mathematics', chapter: 'Trigonometry', text: 'sin²θ + cos²θ equals', options: ['0', '2', '1', 'tan θ'], answer: 2, marks: 4, negative: 1 },
+        { id: 'b1', subject: 'Biology', chapter: 'Cell', text: 'The powerhouse of the cell is the', options: ['Nucleus', 'Ribosome', 'Golgi body', 'Mitochondrion'], answer: 3, marks: 4, negative: 1 },
+        { id: 'b2', subject: 'Biology', chapter: 'Human physiology', text: 'Red blood cells carry oxygen bound to', options: ['Haemoglobin', 'Insulin', 'Keratin', 'Myosin'], answer: 0, marks: 4, negative: 1 },
+      ],
+    },
+  }),
+
+  predictor: block({
+    key: 'predictor',
+    title: 'Rank & college predictor',
+    description: 'Inputs for /predictor. These are estimates from past-year patterns: update every year from official NTA data. The page always says it is an estimate, never a promise.',
+    editors: [...CONTENT, 'academic_coordinator'],
+    schema: z.object({
+      sample: flag,
+      jeeCandidates: z.coerce.number().int().min(1000).max(5_000_000),
+      neetBands: z.array(z.object({ minScore: z.coerce.number().min(0).max(720), rankFrom: z.coerce.number().int().min(1), rankTo: z.coerce.number().int().min(1) })).min(1).max(30),
+      colleges: z.array(z.object({ exam: z.enum(['jee', 'neet']), maxRank: z.coerce.number().int().min(1), name: s(120) })).max(100),
+    }),
+    fields: [
+      { key: 'jeeCandidates', label: 'JEE Main candidates (latest year)', type: 'number' },
+      { key: 'neetBands', label: 'NEET score → rank bands (highest first)', type: 'list', itemLabel: 'band', of: [
+        { key: 'minScore', label: 'Score from', type: 'number' },
+        { key: 'rankFrom', label: 'Rank from', type: 'number' },
+        { key: 'rankTo', label: 'Rank to', type: 'number' },
+      ] },
+      { key: 'colleges', label: 'College types by closing rank', type: 'list', itemLabel: 'college', of: [
+        { key: 'exam', label: 'Exam', type: 'select', options: [{ value: 'jee', label: 'JEE' }, { value: 'neet', label: 'NEET' }] },
+        { key: 'maxRank', label: 'Typical closing rank (general)', type: 'number' },
+        { key: 'name', label: 'College or category', type: 'text' },
+      ] },
+    ],
+    default: {
+      sample: true,
+      jeeCandidates: 1_200_000,
+      neetBands: [
+        { minScore: 680, rankFrom: 1, rankTo: 1500 },
+        { minScore: 650, rankFrom: 1500, rankTo: 6000 },
+        { minScore: 620, rankFrom: 6000, rankTo: 15000 },
+        { minScore: 600, rankFrom: 15000, rankTo: 25000 },
+        { minScore: 550, rankFrom: 25000, rankTo: 60000 },
+        { minScore: 500, rankFrom: 60000, rankTo: 110000 },
+        { minScore: 0, rankFrom: 110000, rankTo: 2000000 },
+      ],
+      colleges: [
+        { exam: 'jee', maxRank: 10000, name: 'Top NITs (popular branches)' },
+        { exam: 'jee', maxRank: 40000, name: 'NITs and IIITs (most branches)' },
+        { exam: 'jee', maxRank: 100000, name: 'GFTIs and state universities' },
+        { exam: 'neet', maxRank: 2000, name: 'AIIMS and top government medical colleges' },
+        { exam: 'neet', maxRank: 25000, name: 'Government medical colleges (state quota, varies)' },
+        { exam: 'neet', maxRank: 100000, name: 'Private and deemed medical colleges' },
+      ],
+    },
+  }),
+
   social: block({
     key: 'social',
     title: 'Social links & contact extras',

@@ -4,6 +4,7 @@ import { calculateFee, formatINR, scholarshipPercent } from './fees';
 import { maskPhone, normalizeIndianMobile } from './phone';
 import { bookableDates, validateVisit } from './visits';
 import { defaultContent } from './cms/blocks';
+import { jeeRank, likelyColleges, neetRank } from './predictor';
 
 const C = defaultContent();
 
@@ -81,6 +82,24 @@ describe('visits', () => {
     expect(validateVisit('2026-11-07', '15:30', C.visitSlots, '2026-11-02')).toMatch(/not available/); // Saturday afternoon
     expect(validateVisit('2026-11-07', '10:00', C.visitSlots, '2026-11-02')).toBeNull();
     expect(validateVisit('2026-12-30', '10:00', C.visitSlots, '2026-11-02')).toMatch(/30 days/);
+  });
+});
+
+describe('rank & college predictor', () => {
+  it('turns a JEE percentile into an approximate rank band', () => {
+    const r = jeeRank(99, C.predictor)!;
+    expect(r.estimate).toBe(12000);
+    expect(r.from).toBeLessThan(12000);
+    expect(r.to).toBeGreaterThan(12000);
+    expect(jeeRank(101, C.predictor)).toBeNull();
+    expect(jeeRank(100, C.predictor)!.estimate).toBe(1);
+  });
+  it('maps a NEET score to its band and lists reachable colleges', () => {
+    expect(neetRank(655, C.predictor)).toMatchObject({ from: 1500, to: 6000 });
+    expect(neetRank(720, C.predictor)!.from).toBe(1);
+    expect(neetRank(800, C.predictor)).toBeNull();
+    expect(likelyColleges('neet', 1500, C.predictor).map((c) => c.maxRank)).toEqual([2000, 25000, 100000]);
+    expect(likelyColleges('jee', 500000, C.predictor)).toEqual([]);
   });
 });
 

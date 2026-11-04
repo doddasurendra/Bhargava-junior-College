@@ -2,6 +2,7 @@ import type { Metadata } from 'next';
 import Link from 'next/link';
 import { Check, Crest, PageHero, Section } from '@/components/ui';
 import { college } from '@/content/college';
+import { getContent } from '@/lib/cms';
 
 export const metadata: Metadata = {
   title: 'About the college',
@@ -18,7 +19,8 @@ const commitments = [
   'We never promise ranks or seats.',
 ];
 
-export default function AboutPage() {
+export default async function AboutPage() {
+  const { faculty } = await getContent();
   return (
     <>
       <PageHero eyebrow="About" title={college.name} intro={`Run by ${college.society}. A single campus in Saroornagar, Hyderabad, focused on IIT-JEE and NEET alongside the TS Intermediate Board.`} />
@@ -34,7 +36,11 @@ export default function AboutPage() {
       </Section>
       <Section eyebrow="Leadership" title={college.leader.name} className="bg-surface">
         <p className="lead-text">{college.leader.credentials}</p>
-        <p className="mt-4 max-w-3xl text-sm italic text-muted">The leadership message, vision and mission will be added from the CMS.</p>
+        {faculty.leadershipMessage ? (
+          <blockquote className="mt-4 max-w-3xl border-l-4 border-gold pl-4 text-[15px] italic text-ink">{faculty.leadershipMessage}</blockquote>
+        ) : (
+          <p className="mt-4 max-w-3xl text-sm italic text-muted">The leadership message will appear here once it is added in Website content › Faculty & leadership.</p>
+        )}
       </Section>
       <Section eyebrow="Our commitments" title="Personal attention on a single campus">
         <ul className="grid gap-4 md:grid-cols-2">

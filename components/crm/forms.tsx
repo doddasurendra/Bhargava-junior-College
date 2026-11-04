@@ -35,7 +35,10 @@ export function Submit({ children, className = 'btn-primary', name, value, formA
 }
 
 export function ActionForm({ action, children, className = 'space-y-3', reset = true, quiet = false }: { action: Action; children: ReactNode; className?: string; reset?: boolean; quiet?: boolean }) {
-  const [rawState, formAction] = useFormState(action, {});
+  const [returned, formAction] = useFormState(action, {});
+  // No state back means the request was refused before the action ran: read-only "view as" (middleware 403)
+  // or an expired session. Say so instead of failing silently.
+  const rawState: ActionState = returned ?? { error: 'Not saved. You may be viewing as another user (read-only), or your session has ended. Reload the page.' };
   // quiet: show errors only — for row-level controls where a success banner would shift the layout.
   const state = quiet && rawState.ok ? {} : rawState;
   const ref = useRef<HTMLFormElement>(null);

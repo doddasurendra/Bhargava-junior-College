@@ -14,6 +14,8 @@ function navItems(t: ReturnType<typeof getDict>) {
     { href: '/scholarship', label: t.nav.scholarship },
     { href: '/hostel', label: t.nav.hostel },
     { href: '/visit', label: t.nav.visit },
+    { href: '/parents', label: t.nav.parents },
+    { href: '/resources', label: t.nav.resources },
     { href: '/about', label: t.nav.about },
     { href: '/contact', label: t.nav.contact },
   ];
