@@ -4,11 +4,11 @@
  */
 export const college = {
   name: 'Bhargava Junior College',
-  // TODO(college): confirm spelling — logo says "Vikasam", current website says "Vikasa".
+  // Spelling as on the official logo.
   motto: 'Vidhya Vruddhi Vikasam',
   society: 'Sri Vihana Educational Society',
-  // Replace with '/logo.png' once the official crest file is added to /public.
-  logoSrc: '/logo.svg',
+  // Official logo from bhargavajuniorcollege.com (BHARGAVA-JUNIOR-COLLEGE-LOGO), trimmed to a 512 px square.
+  logoSrc: '/logo.png',
   address: {
     line1: 'ACE DANA PEARL, H.No 3-2-22',
     line2: 'Nagarjuna Sagar Ring Road, Sathavahana Nagar',

@@ -87,6 +87,9 @@ export function MobileMenu({ items, track, enquire, menuLabel }: { items: { href
               </li>
             ))}
             <li className="mt-2 grid grid-cols-2 gap-2">
+              <Link href="/login" className="btn-outline col-span-2">
+                Log in
+              </Link>
               <Link href="/track" className="btn-outline">
                 {track}
               </Link>

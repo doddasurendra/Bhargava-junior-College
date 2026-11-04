@@ -34,6 +34,9 @@ export function Header() {
             <span className="hidden md:inline"> · {college.hoursShort}</span>
           </p>
           <div className="flex shrink-0 items-center gap-3">
+            <Link href="/login" className="rounded-full border border-gold/50 px-2.5 py-0.5 font-semibold text-gold-300 hover:bg-gold hover:text-navy-950">
+              Log in
+            </Link>
             {college.phones.map((p, i) => (
               <a key={p.tel} href={`tel:${p.tel}`} className={`font-mono hover:text-white ${i > 0 ? 'hidden sm:inline' : ''}`}>
                 {p.display}

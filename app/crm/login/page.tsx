@@ -15,7 +15,11 @@ export const dynamic = 'force-dynamic';
 export default async function LoginPage({ searchParams }: { searchParams: Record<string, string | string[] | undefined> }) {
   if (await getStaffSession()) redirect('/crm');
   const dev = devLoginEnabled();
-  const staff = dev ? await getCrmRepo().listStaff() : [];
+  // ?as=<role> from the /login hub: say who is signing in; in development list matching sample users first.
+  const asParam = typeof searchParams.as === 'string' ? searchParams.as : null;
+  const as = asParam && ROLE_LABELS[asParam] ? asParam : null;
+  const all = dev ? await getCrmRepo().listStaff() : [];
+  const staff = as ? [...all.filter((s) => (s.roles as string[]).includes(as)), ...all.filter((s) => !(s.roles as string[]).includes(as))] : all;
   return (
     <main className="grid min-h-screen place-items-center px-4 py-12">
       <div className="w-full max-w-lg">
@@ -26,6 +30,12 @@ export default async function LoginPage({ searchParams }: { searchParams: Record
             <p className="text-sm text-muted">{college.name} · staff only</p>
           </div>
         </div>
+        {as && (
+          <p className="mb-4 flex flex-wrap items-center justify-between gap-2 rounded-xl border border-line bg-surface px-4 py-2.5 text-sm">
+            <span>Signing in as <strong className="text-heading">{ROLE_LABELS[as]}</strong></span>
+            <Link href="/login" className="text-xs text-muted underline">Not you? Choose another role</Link>
+          </p>
+        )}
         {searchParams.reset === '1' && (
           <p role="status" className="mb-4 rounded-xl bg-emerald-50 px-4 py-3 text-sm text-emerald-800 dark:bg-emerald-400/10 dark:text-emerald-200">
             Password saved. Sign in with it now. Any other open sessions were signed out.

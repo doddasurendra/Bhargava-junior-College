@@ -305,8 +305,8 @@ Scheduled jobs (`vercel.json`): the 7 PM report (13:30 UTC), visit reminders (ev
 
 ## Before launch: the college must provide
 
-- [ ] Official `logo.png` → add it to `/public` and set `logoSrc` in `content/college.ts` (a placeholder SVG crest is in use)
-- [ ] Confirm the motto spelling: *Vikasam* or *Vikasa*
+- [x] Official logo: taken from bhargavajuniorcollege.com, in `/public/logo.png` (+ 192/64 px icons and the Apple touch icon)
+- [x] Motto spelling: *Vidhya Vruddhi Vikasam*, as on the official logo
 - [ ] Confirm which number is on WhatsApp Business (enter it under Website content → Social links)
 - [ ] Replace every CMS block's sample content and switch it to "real data"
 - [ ] Parent testimonial quotes, the leadership message, photos and scorecard verification links
@@ -329,7 +329,7 @@ All migrations are in `supabase/migrations` (in order, through `20261104030000_h
 | Management dashboard: 10 parameters, filters, funnel, 7 PM report | Done (`/crm/dashboard`, `/crm/reports`, Vercel Cron `30 13 * * *`) |
 | §10 route names (`/courses`, `/bsat`, `/vision`, `/dashboard/*`, `/student`, `/parent`) | Redirect to the existing pages (`next.config.mjs`) |
 | Website form → de-duplicated CRM lead | Done. A new lead has no telecaller until it is qualified (rule A); the admission manager owns the unassigned queue |
-| Logo everywhere | Placeholder crest until the college sends `logo.png` |
+| Logo everywhere | **Done**: the official logo in the header, footer, favicon, app icons, both login screens, the chat widget, receipts, ID cards and report cards (all read `college.logoSrc`) |
 | Demo logins | Local development: the `/crm/login` role picker (one sample user per role, no password). **TODO:** seeded Supabase Auth accounts per role; needs the service role key, and demo passwords must not be used on the hosted project |
 | **TODO** Eduten-style practice (`/dashboard/practice`): question bank, auto-marking, XP/badges/streaks, goals, misconception report, teacher analytics, parent report | Not built. Today: online tests with auto-marking in the app (`/app/tests`) and teacher test analytics (`/crm/academics`) |
 | Staff college assistant (`/crm/college-assistant`, alias `/dashboard/ai-assistant`) | **Done.** College ID / roll number or name → full profile (programme, batch, previous school, board, parents and phones, attendance and recent absences, every test with rank and trend, fees paid/outstanding/overdue and receipts, hostel room or bus, mentor notes, admission sign-offs). Questions: “students below 75% attendance in JEE batch A”, “fee defaulters”, “compare Rahul’s last 3 tests”, “Hot leads not called today”. Answers come only from fixed, parameterised lookups (`lib/staffAssistant/parse.ts`) over the records, so nothing is invented; “not found” otherwise. Same scoping as the CRM (faculty their batches, masked phones without `phone.view`). Every question goes to `ai_query_audit` (who, what, when, which students), visible to Management, Principal and Super Admin. Tested in `lib/staffAssistant/*.test.ts`. **TODO:** an LLM layer on top of the same tools for free-form phrasing, and pgvector RAG over notes and circulars |

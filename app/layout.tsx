@@ -28,7 +28,7 @@ export const metadata: Metadata = {
     'junior college with hostel Dilsukhnagar',
   ],
   openGraph: { type: 'website', siteName: college.name, locale: 'en_IN', images: [{ url: college.logoSrc }] },
-  icons: { icon: college.logoSrc },
+  icons: { icon: [{ url: '/logo-64.png', sizes: '64x64', type: 'image/png' }, { url: '/logo-192.png', sizes: '192x192', type: 'image/png' }], apple: '/apple-touch-icon.png' },
   alternates: { canonical: '/' },
 };
 
