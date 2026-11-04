@@ -1,12 +1,12 @@
 # Audit — 4 Nov 2026 (localhost:3000, commit after `3737013`)
 
-**PASS: 47 / 73   PARTIAL: 17   MISSING: 9**
+**PASS: 59 / 73   PARTIAL: 14   MISSING: 0**
 
 How each row was checked: **T** = automated test against the real store (`npm test`, 176+ tests), **L** = live request to the running app, **C** = clicked/read in Chrome, **DB** = queried the Supabase project, **Code** = read the implementation. Chrome froze several times under low memory (8 GB machine, ~1 GB free), so many rows rely on T/L instead of clicking.
 
 ## MISSING & PARTIAL (fix list, in priority order)
 1. **S1** PARTIAL – tables exist (31, all RLS) but not with the §11 names; academics/campus data lives in the server-only `records` table.
-2. **S3** PARTIAL – de-dupe (unique index + `capture_lead`) and College ID gate (`issue_college_id`) are in the DB; "owner required" and stage history are enforced in the server and audit log, not DB triggers.
+2. ~~S3~~ fixed – owner-required, stage-history and College ID gate triggers in the database.
 3. **S4** PARTIAL – Supabase now has 60 sample leads (`supabase/seed_sample_leads.sql`) + visit slots + BSAT sessions. 40 students and 300 questions are not seeded: students need staff profiles, which need Supabase Auth accounts (service role key).
 4. ~~C8~~ fixed – dedicated `ai_query_audit` table with RLS in Supabase.
 5. ~~A7~~ fixed – allocation by school and by area added.
@@ -17,10 +17,10 @@ How each row was checked: **T** = automated test against the real store (`npm te
 10. **C5** PARTIAL – weak chapters, counsellor notes and scholarship added; **photo, SSC marks, email and full address are not captured by the admission form** (shown as "not recorded").
 11. **C7** PARTIAL – fixed parameterised lookups, "not found" for unknown IDs (T); **no pgvector RAG** over notes/circulars.
 12. **G1** PARTIAL – every back-office module exists except **SMS** (WhatsApp is built; MSG91 not).
-13. **G2** PARTIAL – homework, events calendar and report card added to the portal; only a **leave application for day scholars** is missing (hostellers use out-pass).
+13. ~~G2~~ fixed – parent portal complete, including leave application.
 14. **G3** PARTIAL – Gurukul modules matched except **Branches** (multi-campus) and biometric punch reconciliation.
-15. **E9** PARTIAL – academic overview + management dashboard; no practice statistics (practice not built).
-16. **E1–E8, E10** MISSING – Eduten-style practice (question bank, XP/badges/streaks, weekly program, goals, auto-marking with solutions, misconception analysis, differentiation, teacher practice analytics, curriculum tags, one-click parent report). Online tests with auto-marking exist in `/app/tests`.
+15. ~~E9~~ fixed – school-wide practice statistics.
+16. ~~E1–E8, E10~~ fixed – Eduten-style practice: `/app/practice` (student/parent) and `/crm/practice` (teacher/heads).
 17. **W1** PARTIAL – home has everything except a **gallery** section (gallery is on `/campus`) and testimonial text (college must provide).
 18. **B3** PARTIAL – About has society, motto, vision, mission, Dr. G. V. Venkat Ramana, programs, address, phones, email, hours; **testimonial quotes** are not provided by the college yet.
 19. **S7** PARTIAL – code on GitHub, `.env*` not committed, secret scan clean; **repository visibility (private) not verified** from here.
@@ -71,19 +71,19 @@ Ours: dashboard backlog tiles + 7 PM report (exceptions first), students, fees/d
 | W10 | Faculty, blog, downloads, careers, contact | PASS | L: all 200 | — |
 | W11 | Mobile bar, WhatsApp, languages, theme | PASS | Code/C | page bodies translated only in site chrome |
 | W12 | Forms → leads with source/UTM | PASS | C: callback → CRM lead "Callback"; T | — |
-| E1 | Practice bank + gamification | MISSING | — | not built |
-| E2 | Weekly program | MISSING | — | not built |
-| E3 | Goals | MISSING | — | not built |
-| E4 | Auto-marking with solutions | MISSING | `/app/tests` auto-marks tests | practice items + solutions |
-| E5 | Misconception analysis | MISSING | — | not built |
-| E6 | Differentiation | MISSING | — | not built |
-| E7 | Teacher analytics, lesson plans | MISSING | test analytics exist in `/crm/academics` | practice analytics, lesson planning |
-| E8 | Curriculum mapping | MISSING | — | not built |
-| E9 | School-wide stats | PARTIAL | `/crm/academics/overview`, `/crm/dashboard` | practice stats |
-| E10 | Parent report one click | MISSING | Sunday WhatsApp report exists | practice report |
+| E1 | Practice bank + gamification | PASS | T: `lib/practice/practice.test.ts` — 310 generated questions (Maths 80, Physics 80, Chemistry 80, Biology 70), answers computed; XP by difficulty, levels, streaks, badges, class leaderboard; `/app/practice` | — |
+| E2 | Weekly program | PASS | T: `service.test.ts` sets per batch/week shown on `/app/practice`; teacher assigns at `/crm/practice` | — |
+| E3 | Goals | PASS | T: weekly goal (questions + accuracy) with progress | — |
+| E4 | Auto-marking with solutions | PASS | T: `mark()` instant marking, worked solution and the misconception behind a wrong pick | — |
+| E5 | Misconception analysis | PASS | T: "students who need help on X" (same wrong-option misconception by 2+ students) at `/crm/practice` | — |
+| E6 | Differentiation | PASS | T: one click splits a batch into easy/medium/hard by chapter accuracy; each student sees only their level | — |
+| E7 | Teacher analytics, lesson plans | PASS | T: per-student questions, accuracy, XP, streak, weak chapters; lesson plan with % done | — |
+| E8 | Curriculum mapping | PASS | T: every question tagged TS Inter / JEE Main / NEET + chapter; mapping table on `/crm/practice` | — |
+| E9 | School-wide stats | PASS | T: `schoolStats` — totals, accuracy, active students, by subject, by batch, weakest chapters (principal/management) | — |
+| E10 | Parent report one click | PASS | T: "Share with parent" writes a plain-language report the parent sees on `/app/practice` | — |
 | G0 | Gurukul modules listed | PASS | C: list above | — |
 | G1 | Back office modules | PARTIAL | T: `lib/school/backoffice.test.ts`; routes | SMS |
-| G2 | Parent portal | PARTIAL | `/app/*` routes; added `/app/homework`, `/app/events`, `/app/report-card` (T: portal audience filter) | leave application for day scholars (hostellers use out-pass) |
+| G2 | Parent portal | PASS | `/app/*`; homework, events, report card, practice progress, **leave application** (`/app/leave`, decided by class teacher/principal; T: backoffice.test) | — |
 | G3 | Gurukul parity | PARTIAL | list above | Branches, punch reconciliation |
 | C1 | Public chatbot answers | PASS | T: `assistant.test.ts`; EN/TE/HI, chips, handoff | — |
 | C2 | Chatbot actions | PASS | T: save_enquiry, book_visit, check_application | — |
@@ -100,7 +100,7 @@ Ours: dashboard backlog tiles + 7 PM report (exceptions first), students, fees/d
 | L5 | Role + sibling switcher | PASS | Code: `RoleSwitcher`, app profile switch; T sibling test | — |
 | S1 | Tables as migrations | PARTIAL | 19 migrations in `supabase/migrations` | §11 table names |
 | S2 | RLS on every table | PASS | DB: 31/31 tables `rowsecurity=true` | — |
-| S3 | Triggers | PARTIAL | DB functions | owner/stage-history as DB triggers |
+| S3 | Triggers | PASS | DB: `admission_stage_events_owner` (owner required), `leads_stage_history` (stage history), `leads/students_college_id_gate` (College ID gate even on direct UPDATE) — verified live in a rolled-back transaction; de-dupe via unique index + `capture_lead` | — |
 | S4 | Seed data | PARTIAL | DB: 60 leads, 4 slots, 3 BSAT sessions, 20 roles | 40 students, 300 questions |
 | S5 | Generated TS types | PASS | `types/database.ts` from the live schema | — |
 | S6 | Build 0 errors | PASS | `npm run build` + `tsc --noEmit` clean | — |

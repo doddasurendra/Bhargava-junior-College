@@ -69,6 +69,11 @@ export const setHomeworkAction = async (_: ActionState, fd: FormData) => {
   return run(() => B.setHomework(user, { batchId: req(fd, 'batchId', 'Batch'), subject: req(fd, 'subject', 'Subject'), title: req(fd, 'title', 'Title'), details: s(fd, 'details'), dueOn: date(fd, 'dueOn', 'Due date') }), ['/crm/homework']);
 };
 
+export const decideStudentLeaveAction = async (_: ActionState, fd: FormData) => {
+  const user = await requireStaff();
+  return run(() => B.decideStudentLeave(user, req(fd, 'id', 'Application'), fd.get('decision') === 'approve', s(fd, 'note')), ['/crm/homework']);
+};
+
 export const removeHomeworkAction = async (_: ActionState, fd: FormData) => {
   const user = await requireStaff();
   return run(() => B.removeHomework(user, req(fd, 'id', 'Homework')), ['/crm/homework']);

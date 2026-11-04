@@ -84,6 +84,17 @@ describe('back office: library, events, homework, exports', () => {
     // homework: a teacher with no batch can't set it; heads can
     await expect(B.setHomework(staff('staff-fac', 'faculty'), { batchId: 'b-none', subject: 'Physics', title: 'DPP 1', details: null, dueOn: '2030-01-01' })).rejects.toThrow(/don’t teach/);
 
+    // student leave: parent applies, staff who see the student decide once
+    await expect(B.applyStudentLeave(sid, '+919555500001', { from: '2030-02-05', to: '2030-02-03', reason: 'Family function' }, '2030-02-01')).rejects.toThrow(/before the start/);
+    await B.applyStudentLeave(sid, '+919555500001', { from: '2030-02-03', to: '2030-02-04', reason: 'Family function' }, '2030-02-01');
+    const principal = staff('staff-principal', 'principal');
+    const [app1] = await B.leaveQueue(principal);
+    expect(app1).toMatchObject({ status: 'pending', reason: 'Family function' });
+    await expect(B.decideStudentLeave(staff('staff-fac', 'faculty'), app1.id, true, null)).rejects.toThrow(/not found/); // not their student
+    await B.decideStudentLeave(principal, app1.id, true, 'OK');
+    await expect(B.decideStudentLeave(principal, app1.id, false, null)).rejects.toThrow(/already/);
+    expect((await B.leaveForStudent(sid))[0]).toMatchObject({ status: 'approved', note: 'OK' });
+
     // exports respect permissions
     const E = await import('./exports');
     expect(await E.buildExport(staff('staff-fd', 'front_desk'), 'students')).toBeNull();

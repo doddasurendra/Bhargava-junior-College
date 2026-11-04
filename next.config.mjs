@@ -35,6 +35,7 @@ const nextConfig = {
       alias('/dashboard/transport', '/crm/transport'),
       alias('/dashboard/users', '/crm/staff'),
       alias('/dashboard/ai-assistant', '/crm/college-assistant'),
+      alias('/dashboard/practice', '/crm/practice'),
       alias('/student', '/app'),
       alias('/parent', '/app'),
     ];

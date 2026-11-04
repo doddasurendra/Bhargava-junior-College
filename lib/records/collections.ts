@@ -146,6 +146,58 @@ export const homework = collection({
   k2: (d) => d.dueOn,
 });
 
+// ---------------------------------------------------------------- practice (Eduten-style)
+
+const difficulty = z.enum(['easy', 'medium', 'hard']);
+
+/** One answered practice question. */
+export const practiceAttempts = collection({
+  name: 'practice_attempts',
+  schema: z.object({ studentId: id, batchId: z.string().max(80).nullable(), questionId: text(40), chosen: z.number().int().min(0).max(3), correct: z.boolean(), subject: text(40), chapter: text(80), difficulty, misconception: z.string().max(200).nullable(), xp: z.number().int().min(0).max(100), date: isoDate, setId: z.string().max(80).nullable() }),
+  k1: (d) => d.studentId,
+  k2: (d) => d.batchId,
+});
+
+/** A student's weekly goal. */
+export const practiceGoals = collection({
+  name: 'practice_goals',
+  schema: z.object({ studentId: id, weekStart: isoDate, questions: z.coerce.number().int().min(5).max(500), accuracy: z.coerce.number().int().min(10).max(100), chapters: z.array(text(80)).max(10).default([]) }),
+  k1: (d) => d.studentId,
+  k2: (d) => d.weekStart,
+});
+
+/** Weekly program item for a batch, optionally for a group of students at one difficulty (differentiation). */
+export const practiceSets = collection({
+  name: 'practice_sets',
+  schema: z.object({ batchId: id, weekStart: isoDate, subject: text(40), chapter: text(80), difficulty, studentIds: z.array(id).max(40), count: z.coerce.number().int().min(3).max(30), createdBy: id }),
+  k1: (d) => d.batchId,
+  k2: (d) => d.weekStart,
+});
+
+/** Lesson plan rows per batch, with progress. */
+export const lessonPlans = collection({
+  name: 'lesson_plans',
+  schema: z.object({ batchId: id, subject: text(40), topic: text(140), date: isoDate, status: z.enum(['planned', 'done']), notes: optText(500), createdBy: id }),
+  k1: (d) => d.batchId,
+  k2: (d) => d.date,
+});
+
+/** Progress report a teacher shared with the parent in one click. */
+export const parentReports = collection({
+  name: 'parent_reports',
+  schema: z.object({ studentId: id, text: text(2000), sharedBy: id, at: z.string() }),
+  k1: (d) => d.studentId,
+  k2: (d) => d.at,
+});
+
+/** Leave application a parent submits for their child (day scholars; hostellers use out-pass). */
+export const studentLeave = collection({
+  name: 'student_leave',
+  schema: z.object({ studentId: id, from: isoDate, to: isoDate, reason: text(500), requestedBy: z.string().max(20), status: z.enum(['pending', 'approved', 'rejected']), decidedBy: z.string().nullable(), note: optText(300) }),
+  k1: (d) => d.studentId,
+  k2: (d) => d.status,
+});
+
 /** Events calendar: exams, PTMs, holidays, celebrations. */
 export const events = collection({
   name: 'events',

@@ -2,7 +2,7 @@ import 'server-only';
 import { can } from '../crm/permissions';
 import type { Staff } from '../crm/types';
 import { addDays, todayIST } from '../dates';
-import { events, homework, libraryBooks, libraryLoans } from '../records/collections';
+import { events, homework, libraryBooks, libraryLoans, studentLeave } from '../records/collections';
 import { allBatches, canTeachBatch, myBatchIds, SchoolError, store, studentsById, visibleStudentIds } from './common';
 
 /** Back-office modules (Gurukul/Raion baseline): library, events calendar, homework. */
@@ -150,6 +150,42 @@ export async function homeworkForBatch(batchId: string | null, today = todayIST(
 export async function eventsForPortal(audience: 'students' | 'parents', today = todayIST()) {
   const all = (await events.list(store())).map((e) => ({ id: e.id, ...e.data })).filter((e) => e.audience === 'all' || e.audience === audience);
   return upcoming(all, today);
+}
+
+// ---------------------------------------------------------------- student leave (parent → class teacher)
+
+export async function applyStudentLeave(studentId: string, parentPhone: string, input: { from: string; to: string; reason: string }, today = todayIST()) {
+  if (input.to < input.from) throw new SchoolError('The end date is before the start date.');
+  if (input.from < addDays(today, -7)) throw new SchoolError('Leave can be applied up to 7 days after the fact.');
+  if (input.reason.trim().length < 5) throw new SchoolError('Give a short reason.');
+  await studentLeave.put(store(), { studentId, from: input.from, to: input.to, reason: input.reason.trim(), requestedBy: parentPhone, status: 'pending', decidedBy: null, note: null });
+  return 'Leave application sent to the class teacher.';
+}
+
+export async function leaveForStudent(studentId: string) {
+  return (await studentLeave.list(store(), { k1: studentId })).map((l) => ({ id: l.id, ...l.data })).sort((a, b) => b.from.localeCompare(a.from));
+}
+
+/** Pending and recent leave applications for students this staff member can see. */
+export async function leaveQueue(user: Staff) {
+  need(can(user, 'attendance.mark') || can(user, 'leave.approve'));
+  const [rows, byId, vis] = await Promise.all([studentLeave.list(store()), studentsById(), visibleStudentIds(user)]);
+  return rows
+    .filter((l) => vis === 'all' || vis.has(l.data.studentId))
+    .map((l) => ({ id: l.id, ...l.data, student: byId.get(l.data.studentId) ?? null }))
+    .sort((a, b) => (a.status === 'pending' ? 0 : 1) - (b.status === 'pending' ? 0 : 1) || b.from.localeCompare(a.from))
+    .slice(0, 100);
+}
+
+export async function decideStudentLeave(user: Staff, id: string, approve: boolean, note: string | null) {
+  need(can(user, 'attendance.mark') || can(user, 'leave.approve'));
+  const l = await studentLeave.get(store(), id);
+  if (!l) throw new SchoolError('Leave application not found.');
+  const vis = await visibleStudentIds(user);
+  if (vis !== 'all' && !vis.has(l.data.studentId)) throw new SchoolError('Leave application not found.');
+  if (l.data.status !== 'pending') throw new SchoolError('This application has already been decided.');
+  await studentLeave.put(store(), { ...l.data, status: approve ? 'approved' : 'rejected', decidedBy: user.id, note }, l.id);
+  return approve ? 'Leave approved.' : 'Leave rejected.';
 }
 
 /** For exports: students the user may see. */

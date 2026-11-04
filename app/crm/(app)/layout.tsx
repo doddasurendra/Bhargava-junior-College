@@ -43,6 +43,7 @@ export default async function CrmShell({ children }: { children: ReactNode }) {
     ...(can(user, 'hostel.manage') ? [{ href: '/crm/hostel', label: 'Hostel' }] : []),
     ...(can(user, 'transport.manage') ? [{ href: '/crm/transport', label: 'Transport' }] : []),
     ...(can(user, 'homework.assign') ? [{ href: '/crm/homework', label: 'Homework' }] : []),
+    ...(can(user, 'homework.assign') || can(user, 'academics.view') ? [{ href: '/crm/practice', label: 'Practice' }] : []),
     ...(can(user, 'library.manage') ? [{ href: '/crm/library', label: 'Library' }] : []),
     { href: '/crm/notices', label: 'Notices' },
     { href: '/crm/events', label: 'Events calendar' },
