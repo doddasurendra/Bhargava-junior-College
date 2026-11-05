@@ -3,6 +3,7 @@ import { college, fullAddress, mapsLinkUrl, whatsappLink } from '@/content/colle
 import { programs } from '@/content/programs';
 import { getDict, getLang } from '@/lib/i18n-server';
 import { LangSwitch, MobileMenu, NavLink, ThemeToggle } from './HeaderControls';
+import { PlatformBar } from './PlatformBar';
 import { Crest } from './ui';
 import type { Content } from '@/lib/cms/blocks';
 
@@ -27,6 +28,7 @@ export function Header() {
   const items = navItems(t);
   return (
     <>
+      <PlatformBar />
       <div className="bg-navy-950 text-xs text-white/80">
         <div className="container-x flex items-center justify-between gap-3 py-2">
           <p className="truncate">
@@ -129,6 +131,7 @@ export function Footer({ social }: { social: Content['social'] }) {
             {[
               ['/admissions', 'Admission process'],
               ['/admission-system', 'Our admission system'],
+              ['/why-bhargava', 'Why Bhargava'],
               ['/fees', 'Fees & calculator'],
               ['/scholarship', 'BSAT scholarship test'],
               ['/visit', 'Book a campus visit'],

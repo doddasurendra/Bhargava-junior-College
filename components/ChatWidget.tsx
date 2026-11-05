@@ -81,6 +81,13 @@ export function ChatWidget({ facts }: { facts: BotFacts }) {
     store.set(s);
   };
 
+  // The platform bar's "AI assistant" button (and anything else) opens the chat with this event.
+  useEffect(() => {
+    const openChat = () => setOpen(true);
+    window.addEventListener('bjc:open-chat', openChat);
+    return () => window.removeEventListener('bjc:open-chat', openChat);
+  }, []);
+
   // Restore after a reload: the server holds the transcript (both bot and live chats).
   useEffect(() => {
     const s = store.get();

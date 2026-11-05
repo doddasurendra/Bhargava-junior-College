@@ -38,6 +38,7 @@ When it is deployed, replace `http://localhost:3000` with the live address.
 |---|---|
 | Home (chatbot with **voice**: 🎤 + read aloud, EN/తె/हि) | http://localhost:3000/ |
 | About (vision, mission, leadership, contact) | http://localhost:3000/about |
+| Why Bhargava | http://localhost:3000/why-bhargava |
 | Vision | http://localhost:3000/vision |
 | Admission system (flowchart, 10 stages) | http://localhost:3000/admission-system |
 | Admission process | http://localhost:3000/admissions |

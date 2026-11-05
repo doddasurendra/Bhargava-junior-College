@@ -1,6 +1,7 @@
 import Link from 'next/link';
 import { LeadForm } from '@/components/forms';
 import { HeroCarousel } from '@/components/HeroCarousel';
+import { ModuleButtons } from '@/components/ModuleButtons';
 import { Check, Crest, Faq, initials, JsonLd, SampleBadge, Section } from '@/components/ui';
 import { college, mapsEmbedUrl } from '@/content/college';
 import { programs } from '@/content/programs';
@@ -104,6 +105,11 @@ export default async function HomePage() {
         <p className="mt-6 text-sm text-muted">
           Not sure which one fits? <Link href="/course-finder" className="font-semibold text-maroon underline dark:text-gold">Try the 30-second course finder</Link>.
         </p>
+      </Section>
+
+      {/* Explore: every part of the platform in one place */}
+      <Section eyebrow="Explore" title="Everything Bhargava, one tap away" intro="Fees, scholarships, visits, admission tracking, free tests and the student & parent portal." className="bg-surface">
+        <ModuleButtons />
       </Section>
 
       {/* Toppers */}
