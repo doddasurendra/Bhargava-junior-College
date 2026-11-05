@@ -10,6 +10,8 @@ import type { Content } from '@/lib/cms/blocks';
 function navItems(t: ReturnType<typeof getDict>) {
   return [
     { href: '/results', label: t.nav.results },
+    // Staff summary dashboard; anyone not signed in is taken to the staff login first.
+    { href: '/crm/summary', label: t.nav.summary },
     { href: '/programs', label: t.nav.programs },
     { href: '/fees', label: t.nav.fees },
     { href: '/scholarship', label: t.nav.scholarship },

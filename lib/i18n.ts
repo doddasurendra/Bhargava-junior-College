@@ -19,6 +19,7 @@ const en = {
   admissionsOpen: 'Admissions open 2027–29',
   nav: {
     results: 'Results',
+    summary: 'Summary',
     programs: 'Programs',
     fees: 'Fees',
     scholarship: 'Scholarship',
@@ -42,6 +43,7 @@ const te: Dict = {
   admissionsOpen: 'అడ్మిషన్లు ప్రారంభం 2027–29',
   nav: {
     results: 'ఫలితాలు',
+    summary: 'సారాంశం',
     programs: 'కోర్సులు',
     fees: 'ఫీజులు',
     scholarship: 'స్కాలర్‌షిప్',
@@ -63,6 +65,7 @@ const hi: Dict = {
   admissionsOpen: 'प्रवेश खुले हैं 2027–29',
   nav: {
     results: 'परिणाम',
+    summary: 'सारांश',
     programs: 'कोर्स',
     fees: 'फीस',
     scholarship: 'छात्रवृत्ति',
