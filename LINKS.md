@@ -36,7 +36,7 @@ When it is deployed, replace `http://localhost:3000` with the live address.
 ## Public website
 | Page | Link |
 |---|---|
-| Home | http://localhost:3000/ |
+| Home (chatbot with **voice**: 🎤 + read aloud, EN/తె/हि) | http://localhost:3000/ |
 | About (vision, mission, leadership, contact) | http://localhost:3000/about |
 | Vision | http://localhost:3000/vision |
 | Admission system (flowchart, 10 stages) | http://localhost:3000/admission-system |
@@ -70,6 +70,7 @@ When it is deployed, replace `http://localhost:3000` with the live address.
 | Page | Link |
 |---|---|
 | Developer console | http://localhost:3000/crm/developer |
+| **Summary dashboard** (today across the college) | http://localhost:3000/crm/summary (also /dashboard/summary) |
 | My tasks | http://localhost:3000/crm |
 | Management dashboard | http://localhost:3000/crm/dashboard (also /dashboard/management) |
 | 7 PM reports | http://localhost:3000/crm/reports |
@@ -89,6 +90,9 @@ When it is deployed, replace `http://localhost:3000` with the live address.
 | My classes | http://localhost:3000/crm/academics/my-classes |
 | Mentoring | http://localhost:3000/crm/mentor |
 | Practice (teacher) | http://localhost:3000/crm/practice (also /dashboard/practice) |
+| **Syllabus** (chapter coverage per batch) | http://localhost:3000/crm/syllabus (also /dashboard/syllabus) |
+| **Doubts** (all channels) + online exams | http://localhost:3000/crm/academics/my-classes (also /dashboard/doubts) · exams: Batches & timetable → batch → test → Generate from bank |
+| **Knowledge base** (AI assistants answer from it) | http://localhost:3000/crm/cms/knowledgeBase (also /dashboard/knowledge-base) |
 | Homework & student leave | http://localhost:3000/crm/homework |
 | Library | http://localhost:3000/crm/library |
 | Events calendar | http://localhost:3000/crm/events |
@@ -110,6 +114,7 @@ When it is deployed, replace `http://localhost:3000` with the live address.
 |---|---|
 | Home | http://localhost:3000/app |
 | Practice, XP & goals | http://localhost:3000/app/practice |
+| **Syllabus progress** | http://localhost:3000/app/syllabus |
 | Timetable | http://localhost:3000/app/timetable |
 | Attendance | http://localhost:3000/app/attendance |
 | Homework | http://localhost:3000/app/homework |

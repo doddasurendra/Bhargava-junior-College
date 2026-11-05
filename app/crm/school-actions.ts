@@ -97,6 +97,14 @@ export const addQuestionAction = async (_: ActionState, fd: FormData) =>
     return 'Question added.';
   }, ['/crm/academics/test']);
 
+export const addFromBankAction = async (_: ActionState, fd: FormData) =>
+  run(async () => {
+    const user = await requireStaff('tests.manage');
+    const [subject, chapter] = (s(fd, 'chapter') ?? '').split('|');
+    const d = s(fd, 'difficulty');
+    return A.addFromBank(user, req(fd, 'testId', 'Test'), { subject: subject || null, chapter: chapter || null, difficulty: d === 'easy' || d === 'medium' || d === 'hard' ? d : null, count: n(fd, 'count') || 10 });
+  }, ['/crm/academics/test']);
+
 export const enterMarksAction = async (_: ActionState, fd: FormData) =>
   run(async () => {
     const user = await requireStaff('tests.manage');
@@ -116,6 +124,12 @@ export const answerDoubtAction = async (_: ActionState, fd: FormData) =>
   run(async () => {
     await A.answerDoubt(await requireStaff('doubts.answer'), req(fd, 'doubtId', 'Doubt'), req(fd, 'answer', 'Answer'));
     return 'Answered.';
+  }, ACAD);
+
+export const logDoubtAction = async (_: ActionState, fd: FormData) =>
+  run(async () => {
+    const channel = req(fd, 'channel', 'Channel') as 'whatsapp' | 'phone' | 'in_person' | 'web_chat';
+    return A.logDoubt(await requireStaff('doubts.answer'), { studentId: req(fd, 'studentId', 'Student'), subject: req(fd, 'subject', 'Subject'), text: req(fd, 'text', 'Doubt'), channel });
   }, ACAD);
 
 export const publishNoticeAction = async (_: ActionState, fd: FormData) =>

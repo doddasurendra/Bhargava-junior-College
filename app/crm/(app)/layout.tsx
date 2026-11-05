@@ -26,6 +26,7 @@ export default async function CrmShell({ children }: { children: ReactNode }) {
   const home = homeFor(user.roles[0]);
   const nav = [
     ...(isDeveloper(user) ? [{ href: '/crm/developer', label: 'Developer console' }] : []),
+    ...(can(user, 'dashboard.view') || can(user, 'academics.view') || can(user, 'students.view') || can(user, 'fees.dues') ? [{ href: '/crm/summary', label: 'Summary' }] : []),
     ...(can(user, 'dashboard.view') ? [{ href: '/crm/dashboard', label: 'Dashboard' }] : []),
     ...(admissions && home === '/crm' ? [{ href: '/crm', label: 'My tasks' }] : []),
     ...(can(user, 'inbox.reply') ? [{ href: '/crm/inbox', label: `Chat inbox${inbox.waiting + inbox.unreadMine > 0 ? ` (${inbox.waiting + inbox.unreadMine})` : ''}` }] : []),
@@ -45,6 +46,7 @@ export default async function CrmShell({ children }: { children: ReactNode }) {
     ...(can(user, 'transport.manage') ? [{ href: '/crm/transport', label: 'Transport' }] : []),
     ...(can(user, 'homework.assign') ? [{ href: '/crm/homework', label: 'Homework' }] : []),
     ...(can(user, 'homework.assign') || can(user, 'academics.view') ? [{ href: '/crm/practice', label: 'Practice' }] : []),
+    ...(can(user, 'homework.assign') || can(user, 'academics.view') ? [{ href: '/crm/syllabus', label: 'Syllabus' }] : []),
     ...(can(user, 'library.manage') ? [{ href: '/crm/library', label: 'Library' }] : []),
     { href: '/crm/notices', label: 'Notices' },
     { href: '/crm/events', label: 'Events calendar' },

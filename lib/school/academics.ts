@@ -7,11 +7,13 @@ import { getContent } from '../cms';
 import { can } from '../crm/permissions';
 import type { Staff } from '../crm/types';
 import { formatDate, todayIST } from '../dates';
-import { attendance, batches, doubts, materials, notices, testResults, tests, timetable, ATTENDANCE } from '../records/collections';
+import { attendance, batches, doubts, materials, notices, testResults, tests, timetable, ATTENDANCE, DOUBT_CHANNELS } from '../records/collections';
 import { siteUrl } from '../seo';
 import { sendTemplate } from '../whatsapp/service';
 import { allBatches, allStudents, batchOf, canTeachBatch, firstName, myBatchIds, requireTeaches, SchoolError, store, studentsById } from './common';
 import { rankResults, scoreAttempt, timetableClash } from './logic';
+import type { Difficulty, Subject } from '../practice/bank';
+import { pickQuestions } from '../practice/logic';
 
 const need = (user: Staff, ok: boolean, msg = 'You do not have permission to do this.') => {
   if (!ok) throw new SchoolError(msg);
@@ -144,6 +146,26 @@ export async function addQuestion(user: Staff, testId: string, input: unknown) {
   return tests.put(store(), { ...t.data, questions, maxMarks: questions.reduce((s, x) => s + x.marks, 0) }, t.id);
 }
 
+/**
+ * Online exam from the question bank: adds `count` bank questions (filtered by subject / chapter / level,
+ * skipping ones already in the exam) with JEE-style marking (+4 / −1). Deterministic for a given exam.
+ */
+export async function addFromBank(user: Staff, testId: string, f: { subject: string | null; chapter: string | null; difficulty: Difficulty | null; count: number }) {
+  const t = await editableTest(user, testId);
+  if (t.data.mode !== 'online') throw new SchoolError('Questions are only for online tests.');
+  if ((await testResults.list(store(), { k1: testId })).length) throw new SchoolError('Students have already taken this test.');
+  const count = Math.min(50, Math.max(1, Math.floor(f.count)));
+  const have = new Set(t.data.questions.map((q) => q.id));
+  const inExam = new Set([...have].filter((id) => id.startsWith('bank-')).map((id) => id.slice(5)));
+  const picked = pickQuestions({ subject: (f.subject as Subject) || null, chapter: f.chapter || null, difficulty: f.difficulty }, inExam, `exam:${testId}:${have.size}`, count).filter((q) => !inExam.has(q.id));
+  if (!picked.length) throw new SchoolError('No more bank questions match. Widen the subject, chapter or level.');
+  const added = picked.map((q) => ({ id: `bank-${q.id}`, subject: q.subject, chapter: q.chapter, text: q.stem, options: q.options, answer: q.answer, marks: 4, negative: 1 }));
+  const questions = [...t.data.questions, ...added].slice(0, 200);
+  const subjects = [...new Set([...t.data.subjects, ...added.map((q) => q.subject)])].slice(0, 6);
+  await tests.put(store(), { ...t.data, subjects, questions, maxMarks: questions.reduce((s, x) => s + x.marks, 0) }, t.id);
+  return `Added ${added.length} question${added.length === 1 ? '' : 's'} from the bank.`;
+}
+
 /** Offline test: faculty enter marks per student. */
 export async function enterMarks(user: Staff, testId: string, marks: Record<string, { score: number; bySubject?: Record<string, number> }>) {
   const t = await editableTest(user, testId);
@@ -236,7 +258,30 @@ export async function batchTests(batchId: string) {
 export async function askDoubt(studentId: string, input: { subject: string; text: string; imageUrl: string | null }) {
   const b = await batchOf(studentId);
   if (!b) throw new SchoolError('You are not in a batch yet.');
-  return doubts.put(store(), { studentId, batchId: b.id, subject: input.subject, text: input.text, imageUrl: input.imageUrl, status: 'open', answer: null, answeredBy: null, answeredAt: null });
+  return doubts.put(store(), { studentId, batchId: b.id, subject: input.subject, text: input.text, imageUrl: input.imageUrl, status: 'open', answer: null, answeredBy: null, answeredAt: null, channel: 'app', loggedBy: null });
+}
+
+/**
+ * Multi-channel doubts: a teacher logs a doubt a student raised on WhatsApp, by phone, in person or in the web
+ * chat, so every doubt lands in the same inbox and the student sees the answer in the app.
+ */
+export async function logDoubt(user: Staff, input: { studentId: string; subject: string; text: string; channel: (typeof DOUBT_CHANNELS)[number] }) {
+  need(user, can(user, 'doubts.answer'));
+  if (!DOUBT_CHANNELS.includes(input.channel) || input.channel === 'app') throw new SchoolError('Choose where the doubt came in.');
+  const b = await batchOf(input.studentId);
+  if (!b) throw new SchoolError('That student is not in a batch yet.');
+  await requireTeaches(user, b.id);
+  if (input.text.trim().length < 3) throw new SchoolError('Write the doubt.');
+  await doubts.put(store(), { studentId: input.studentId, batchId: b.id, subject: input.subject, text: input.text.trim(), imageUrl: null, status: 'open', answer: null, answeredBy: null, answeredAt: null, channel: input.channel, loggedBy: user.id });
+  return 'Doubt logged. Answer it below; the student sees it in the app.';
+}
+
+/** Students a teacher can log a doubt for (their batches; heads: all). */
+export async function doubtStudents(user: Staff) {
+  need(user, can(user, 'doubts.answer'));
+  const [batchList, byId] = await Promise.all([allBatches(), studentsById()]);
+  const mine = can(user, 'academics.manage') ? null : await myBatchIds(user);
+  return batchList.filter((b) => b.data.active && (!mine || mine.has(b.id))).flatMap((b) => b.data.studentIds.map((sid) => ({ id: sid, name: byId.get(sid)?.fullName ?? 'Student', batch: b.data.name }))).sort((a, c) => a.name.localeCompare(c.name));
 }
 
 export async function answerDoubt(user: Staff, doubtId: string, answer: string) {

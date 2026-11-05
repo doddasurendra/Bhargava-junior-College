@@ -1,19 +1,21 @@
 import Link from 'next/link';
-import { answerDoubtAction } from '@/app/crm/school-actions';
+import { answerDoubtAction, logDoubtAction } from '@/app/crm/school-actions';
+import { SUBJECTS } from '@/lib/records/collections';
 import { QuickForm } from '@/components/crm/QuickForm';
 import { Empty, Panel } from '@/components/crm/ui';
 import { requireStaff } from '@/lib/crm/auth';
 import { can } from '@/lib/crm/permissions';
 import { formatDateTime, todayIST, weekday } from '@/lib/dates';
-import { doubtInbox, myTimetable } from '@/lib/school/academics';
+import { doubtInbox, doubtStudents, myTimetable } from '@/lib/school/academics';
 import { allBatches, myBatchIds } from '@/lib/school/common';
 
 export const metadata = { title: 'My classes' };
 const DAYS = ['', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+const CHANNEL_LABEL: Record<string, string> = { app: 'App', whatsapp: 'WhatsApp', phone: 'Phone', in_person: 'In person', web_chat: 'Web chat' };
 
 export default async function MyClassesPage() {
   const user = await requireStaff('attendance.mark');
-  const [tt, mine, all, doubts] = await Promise.all([myTimetable(user), myBatchIds(user), allBatches(), can(user, 'doubts.answer') ? doubtInbox(user) : Promise.resolve([])]);
+  const [tt, mine, all, doubts, doubtStudentList] = await Promise.all([myTimetable(user), myBatchIds(user), allBatches(), can(user, 'doubts.answer') ? doubtInbox(user) : Promise.resolve([]), can(user, 'doubts.answer') ? doubtStudents(user) : Promise.resolve([])]);
   const today = weekday(todayIST());
   const batchName = new Map(all.map((b) => [b.id, b.data.name]));
   const todays = tt.filter((p) => p.day === today);
@@ -55,12 +57,23 @@ export default async function MyClassesPage() {
       </Panel>
 
       {can(user, 'doubts.answer') && (
-        <Panel title={`Doubt inbox (${doubts.length})`}>
+        <Panel title={`Doubt inbox (${doubts.length}) · app, WhatsApp, phone, in person, web chat`}>
+          {doubtStudentList.length > 0 && (
+            <div className="mb-4 rounded-xl border border-line p-3">
+              <p className="mb-2 text-xs text-muted">Log a doubt a student raised outside the app; it joins this inbox and the student sees your answer in the app.</p>
+              <QuickForm action={logDoubtAction} submit="Log doubt" fields={[
+                { name: 'studentId', label: 'Student', type: 'select', required: true, options: doubtStudentList.map((s) => ({ value: s.id, label: `${s.name} · ${s.batch}` })) },
+                { name: 'channel', label: 'Came in via', type: 'select', options: [{ value: 'whatsapp', label: 'WhatsApp' }, { value: 'phone', label: 'Phone call' }, { value: 'in_person', label: 'In person' }, { value: 'web_chat', label: 'Website chat' }] },
+                { name: 'subject', label: 'Subject', type: 'select', options: SUBJECTS.map((x) => ({ value: x, label: x })) },
+                { name: 'text', label: 'Doubt', type: 'textarea', required: true, wide: true, maxLength: 2000 },
+              ]} />
+            </div>
+          )}
           {doubts.length === 0 ? <Empty>No open doubts.</Empty> : (
             <ul className="space-y-4">
               {doubts.map((d) => (
                 <li key={d.id} className="rounded-xl border border-line p-3">
-                  <p className="text-xs text-muted">{d.studentName} · {d.subject} · {batchName.get(d.batchId)} · {formatDateTime(d.createdAt)}</p>
+                  <p className="text-xs text-muted"><span className="chip mr-1 px-2 py-0.5 text-[10px] uppercase">{CHANNEL_LABEL[d.channel ?? 'app']}</span>{d.studentName} · {d.subject} · {batchName.get(d.batchId)} · {formatDateTime(d.createdAt)}</p>
                   <p className="mt-1 whitespace-pre-line text-sm text-ink">{d.text}</p>
                   {d.imageUrl && <a href={d.imageUrl} target="_blank" rel="noopener noreferrer" className="text-xs underline">Photo</a>}
                   <div className="mt-2">

@@ -5,7 +5,7 @@
  */
 export interface Doc {
   id: string;
-  source: 'notice' | 'mentor_note' | 'counselling';
+  source: 'notice' | 'mentor_note' | 'counselling' | 'kb';
   title: string;
   text: string;
   date: string | null;

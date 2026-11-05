@@ -66,6 +66,13 @@ export function buildKnowledge(c: Content): string {
   lines.push(`\n## FAQs${sample(faqs.sample)}`);
   for (const f of faqs.items) lines.push(`Q: ${f.q} A: ${f.a}`);
 
+  // Knowledge base: only articles marked public reach the website assistant (staff-only ones never do).
+  const kb = c.knowledgeBase.items.filter((a) => a.audience === 'public' && a.published);
+  if (kb.length) {
+    lines.push(`\n## Knowledge base${sample(c.knowledgeBase.sample)}`);
+    for (const a of kb) lines.push(`### ${a.title}\n${a.body}`);
+  }
+
   lines.push(`\n## Useful pages`);
   lines.push('/programs, /fees (calculator at /fees#calculator), /scholarship (BSAT registration), /hostel, /visit (book a visit), /track (admission status with one-time code), /admissions, /results, /contact.');
   return lines.join('\n');

@@ -123,9 +123,11 @@ export const testResults = collection({
   k2: (d) => d.studentId,
 });
 
+/** Where a doubt came in (multi-channel doubts). Older records without a channel are from the app. */
+export const DOUBT_CHANNELS = ['app', 'whatsapp', 'phone', 'in_person', 'web_chat'] as const;
 export const doubts = collection({
   name: 'doubts',
-  schema: z.object({ studentId: id, batchId: id, subject: text(40), text: text(2000), imageUrl: url, status: z.enum(['open', 'answered']), answer: optText(4000), answeredBy: z.string().nullable(), answeredAt: z.string().nullable() }),
+  schema: z.object({ studentId: id, batchId: id, subject: text(40), text: text(2000), imageUrl: url, status: z.enum(['open', 'answered']), answer: optText(4000), answeredBy: z.string().nullable(), answeredAt: z.string().nullable(), channel: z.enum(DOUBT_CHANNELS).default('app'), loggedBy: z.string().nullable().default(null) }),
   k1: (d) => d.studentId,
   k2: (d) => d.subject,
 });
@@ -188,6 +190,14 @@ export const parentReports = collection({
   schema: z.object({ studentId: id, text: text(2000), sharedBy: id, at: z.string() }),
   k1: (d) => d.studentId,
   k2: (d) => d.at,
+});
+
+/** Syllabus coverage: one row per batch + subject + chapter (chapters come from the practice bank's map). */
+export const syllabusProgress = collection({
+  name: 'syllabus_progress',
+  schema: z.object({ batchId: id, subject: text(40), chapter: text(80), status: z.enum(['not_started', 'in_progress', 'done']), updatedBy: id, date: isoDate }),
+  k1: (d) => d.batchId,
+  k2: (d) => `${d.subject}|${d.chapter}`,
 });
 
 /** Leave application a parent submits for their child (day scholars; hostellers use out-pass). */

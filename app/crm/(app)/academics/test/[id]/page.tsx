@@ -1,6 +1,7 @@
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
-import { addQuestionAction, enterMarksAction, publishTestAction } from '@/app/crm/school-actions';
+import { addFromBankAction, addQuestionAction, enterMarksAction, publishTestAction } from '@/app/crm/school-actions';
+import { chaptersOf, QUESTIONS, SUBJECTS } from '@/lib/practice/bank';
 import { ActionButton, QuickForm, type QField } from '@/components/crm/QuickForm';
 import { Empty, Panel } from '@/components/crm/ui';
 import { requireStaff } from '@/lib/crm/auth';
@@ -48,6 +49,17 @@ export default async function TestPage({ params }: { params: { id: string } }) {
                 </li>
               ))}
             </ol>
+          )}
+          {!taken && (
+            <div className="mb-4 rounded-xl border border-line p-3">
+              <p className="mb-2 text-sm font-semibold text-heading">Generate from the question bank ({QUESTIONS.length} questions, +4 / −1)</p>
+              <QuickForm action={addFromBankAction} submit="Add from bank" cols={3} fields={[
+                { name: 'testId', type: 'hidden', value: t.id },
+                { name: 'chapter', label: 'Subject · chapter', type: 'select', options: [{ value: '', label: 'Any subject / chapter' }, ...SUBJECTS.flatMap((x) => [{ value: `${x}|`, label: `${x} (all chapters)` }, ...chaptersOf(x).map((c) => ({ value: `${x}|${c}`, label: `${x} · ${c}` }))])] },
+                { name: 'difficulty', label: 'Level', type: 'select', options: [{ value: '', label: 'Any level' }, { value: 'easy', label: 'Easy' }, { value: 'medium', label: 'Medium' }, { value: 'hard', label: 'Hard' }] },
+                { name: 'count', label: 'Questions', type: 'number', min: 1, max: 50, defaultValue: '10' },
+              ]} />
+            </div>
           )}
           {taken ? <p className="text-sm text-muted">Students have started this test, so questions can no longer change.</p> : (
             <QuickForm action={addQuestionAction} submit="Add question" fields={[

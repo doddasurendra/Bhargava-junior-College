@@ -99,7 +99,7 @@ function Result({ r }: { r: Answer }) {
             <li key={d.source + d.id} className="py-2">
               <p className="flex flex-wrap items-baseline justify-between gap-2">
                 {d.href ? <Link href={d.href} className="font-medium text-heading underline">{d.title}</Link> : <span className="font-medium text-heading">{d.title}</span>}
-                <span className="text-xs text-muted">{d.source === 'notice' ? 'Notice / circular' : d.source === 'mentor_note' ? 'Mentor note' : 'Counselling note'}{d.date ? ` · ${formatDate(d.date, { day: 'numeric', month: 'short' })}` : ''}</span>
+                <span className="text-xs text-muted">{d.source === 'notice' ? 'Notice / circular' : d.source === 'mentor_note' ? 'Mentor note' : d.source === 'kb' ? 'Knowledge base' : 'Counselling note'}{d.date ? ` · ${formatDate(d.date, { day: 'numeric', month: 'short' })}` : ''}</span>
               </p>
               <p className="mt-0.5 text-muted">{d.snippet}</p>
             </li>

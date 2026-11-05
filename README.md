@@ -321,6 +321,25 @@ All migrations are in `supabase/migrations` (in order, through `20261104030000_h
 
 **Hosted project:** every migration is applied to the dedicated project `nkhpahcmldfuwydeglml` (`https://nkhpahcmldfuwydeglml.supabase.co`), with the `seed.sql` visit slots and BSAT sessions. The database linter is clean apart from intentional notices (server-only tables with no policies; `has_any_role` callable by signed-in users because the RLS policies use it). To switch the app onto it, set `SUPABASE_URL`, `SUPABASE_ANON_KEY` and `SUPABASE_SERVICE_ROLE_KEY` (Project Settings → API Keys); the app stays on the local JSON store until the service role key is set. For a new project: `npx supabase link --project-ref <ref>` and `npx supabase db push`.
 
+## New modules (summary, voice, knowledge base, doubts, exams, syllabus)
+
+| Module | Where | What it does |
+|---|---|---|
+| Summary dashboard | `/crm/summary` | Today across the college: admissions (new, open, overdue, unqualified, confirmed), fees (overdue students and amount, outstanding), academics (students, attendance today, exams this week, open doubts, pending leave), practice, library, upcoming events. Sections by role; each card opens its detail page (`lib/school/summary.ts`) |
+| Voice agent | website chatbot | 🎤 speak a question and 🔊 hear answers in English, Telugu or Hindi using the browser's Web Speech API (`components/useVoice.ts`); no keys; hidden where the browser can't do speech |
+| Knowledge base | `/crm/cms/knowledgeBase` | Articles (category, Public or Staff only, published). Public articles feed the website chatbot's knowledge; staff-only never do. The staff college assistant searches both ("notes about …") |
+| Multi-channel doubts | `/crm/academics/my-classes` | Each doubt records its channel (app, WhatsApp, phone, in person, web chat). Teachers log doubts raised outside the app; all land in one inbox; the student sees the answer in the app |
+| Online exams | batch → test page | "Generate from the question bank": N questions by subject/chapter/level with +4 / −1 marking, no duplicates; then the existing timed online exam, auto-marking, ranks and publishing |
+| Syllabus | `/crm/syllabus`, `/app/syllabus` | Chapters per batch by program (JEE: Maths, Physics, Chemistry; NEET: Physics, Chemistry, Biology) with TS Inter / JEE / NEET tags; teachers mark Not started / In progress / Done; coverage % for staff, students and parents |
+
+Tested in `lib/school/modules.test.ts`. All data uses the existing `records` table (RLS on, server-only), so **no new Supabase migrations** were needed.
+
+**Phone calling (voice agent over a real phone line) is not live yet.** It needs, from the college:
+- a cloud telephony account with programmable voice — **Exotel** (already used for click-to-call: `EXOTEL_SID`, `EXOTEL_API_KEY`, `EXOTEL_API_TOKEN`, `EXOTEL_CALLER_ID`, `EXOTEL_SUBDOMAIN`) or Twilio (`TWILIO_ACCOUNT_SID`, `TWILIO_AUTH_TOKEN`, a voice-enabled Indian number);
+- speech services for Telugu/Hindi/English on calls — e.g. Google Cloud Speech-to-Text + Text-to-Speech (`GOOGLE_APPLICATION_CREDENTIALS`) or Azure Speech (`AZURE_SPEECH_KEY`, `AZURE_SPEECH_REGION`);
+- `ANTHROPIC_API_KEY` for the AI answers (the website chat already uses it when set);
+- a public HTTPS address for the call webhooks (i.e. the site deployed).
+
 ## Developer role (full access)
 
 `/login` → **Developer** (or `/crm/login?as=developer`). The Developer has **every permission, always**, including permissions added later; the permission matrix can't take any away (`lib/crm/permissions.ts`). It edits every website content block, uses the college assistant and reads its query log, manages staff, resets 2FA and unlocks accounts.

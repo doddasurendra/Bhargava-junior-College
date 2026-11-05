@@ -586,6 +586,34 @@ export const BLOCKS = {
     },
   }),
 
+  knowledgeBase: block({
+    key: 'knowledgeBase',
+    title: 'Knowledge base',
+    description: 'Articles the AI assistants answer from. "Public" articles feed the website chatbot; "Staff only" articles are searchable only in the staff college assistant. Write plain facts the college has confirmed.',
+    editors: CONTENT,
+    schema: z.object({
+      sample: flag,
+      items: z.array(z.object({ title: s(140), body: s(4000), category: z.enum(['admissions', 'fees', 'academics', 'hostel', 'transport', 'policies', 'other']), audience: z.enum(['public', 'staff']), published: flag })).max(300),
+    }),
+    fields: [{ key: 'items', label: 'Articles', type: 'list', itemLabel: 'article', of: [
+      { key: 'title', label: 'Title / question', type: 'text' },
+      { key: 'body', label: 'Answer / article', type: 'longtext' },
+      { key: 'category', label: 'Category', type: 'select', options: ['admissions', 'fees', 'academics', 'hostel', 'transport', 'policies', 'other'].map((v) => ({ value: v, label: v[0].toUpperCase() + v.slice(1) })) },
+      { key: 'audience', label: 'Who can see it', type: 'select', options: [{ value: 'public', label: 'Public (website chatbot)' }, { value: 'staff', label: 'Staff only' }] },
+      { key: 'published', label: 'Published', type: 'bool' },
+    ] }],
+    // Starter articles use only facts already on the site; the college should review them and switch to real data.
+    default: {
+      sample: true,
+      items: [
+        { title: 'What documents are needed for admission?', body: 'The admission office verifies the documents on the admission checklist (shown on the Admissions page and in the parent app). The College ID is issued only after the application, documents, fee payment, receipt and student record are all completed.', category: 'admissions', audience: 'public', published: true },
+        { title: 'How do I track my admission?', body: 'Open the Track your admission page and enter the mobile number you enquired with. A one-time code is sent to that number, then the timeline shows every step, who owns it and the date.', category: 'admissions', audience: 'public', published: true },
+        { title: 'Office hours', body: `${college.hours.map((h) => `${h.days}: ${h.time}`).join('. ')}.`, category: 'other', audience: 'public', published: true },
+        { title: 'Handling a parent complaint (staff)', body: 'Log it on the lead or student record, reply the same working day, and escalate to the admission manager or principal if it is not resolved in 48 hours. Every change is recorded in the audit trail.', category: 'policies', audience: 'staff', published: true },
+      ],
+    },
+  }),
+
   heroSlides: block({
     key: 'heroSlides',
     title: 'Home page hero slides',

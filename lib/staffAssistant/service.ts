@@ -1,5 +1,6 @@
 import 'server-only';
 import { createClient } from '@supabase/supabase-js';
+import { getContent } from '../cms';
 import { getAppStore } from '../app/service';
 import { usingSupabase } from '../crm/repo';
 import { listLeads } from '../crm/service';
@@ -178,6 +179,10 @@ async function answer(user: Staff, intent: Intent): Promise<{ result: Answer; st
       // Unstructured text the user may see: every notice/circular; mentor notes (mentor.notes) and counselling
       // notes for students they can see. Ranked keyword retrieval; answers only from these documents.
       const docs: Doc[] = (await notices.list(getRecordStore())).map((n) => ({ id: n.id, source: 'notice' as const, title: n.data.title, text: n.data.body, date: n.data.date, href: '/crm/notices' }));
+      // Knowledge base: public and staff-only articles (staff are allowed both).
+      (await getContent()).knowledgeBase.items.forEach((a, i) => {
+        if (a.published) docs.push({ id: `kb-${i}`, source: 'kb', title: `${a.title}${a.audience === 'staff' ? ' (staff only)' : ''}`, text: a.body, date: null, href: '/crm/cms/knowledgeBase' });
+      });
       if (can(user, 'students.view')) {
         const students = await visibleStudents(user);
         const byLead = new Map(students.map((s) => [s.leadId, s]));
@@ -199,7 +204,7 @@ async function answer(user: Staff, intent: Intent): Promise<{ result: Answer; st
       const hits = search(docs, intent.q);
       return {
         result: hits.length ? { kind: 'notes', text: `${hits.length} match${hits.length === 1 ? '' : 'es'} for “${intent.q}” in notices, mentor and counselling notes.`, rows: hits } : { kind: 'none', text: `Not found: nothing about “${intent.q}” in the notices and notes you can see.` },
-        studentIds: hits.filter((h) => h.source !== 'notice' && h.href).map((h) => h.href!.split('/').pop()!),
+        studentIds: hits.filter((h) => (h.source === 'mentor_note' || h.source === 'counselling') && h.href).map((h) => h.href!.split('/').pop()!),
       };
     }
     case 'lookup': {
