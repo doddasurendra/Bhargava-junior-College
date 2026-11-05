@@ -7,6 +7,7 @@ export const PLATFORM_LINKS: { href: string; label: string; short: string }[] = 
   { href: '/app/login', label: 'Student & Parent portal', short: 'Portal' },
   { href: '/crm/login', label: 'Staff CRM', short: 'Staff' },
   { href: '/track', label: 'Track admission', short: 'Track' },
+  { href: '/knowledge-base', label: '📖 Knowledge base', short: '📖 Help' },
   { href: '/why-bhargava', label: 'Why Bhargava', short: 'Why us' },
 ];
 

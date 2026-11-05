@@ -2,6 +2,7 @@ import Link from 'next/link';
 import { LeadForm } from '@/components/forms';
 import { HeroCarousel } from '@/components/HeroCarousel';
 import { ModuleButtons } from '@/components/ModuleButtons';
+import { OpenChatButton } from '@/components/OpenChatButton';
 import { Check, Crest, Faq, initials, JsonLd, SampleBadge, Section } from '@/components/ui';
 import { college, mapsEmbedUrl } from '@/content/college';
 import { programs } from '@/content/programs';
@@ -52,6 +53,16 @@ export default async function HomePage() {
           </div>
         </div>
       </section>
+
+      {/* Quick help: knowledge base and the two AI assistants, right under the hero */}
+      <div className="border-b border-line bg-bg">
+        <div className="container-x flex flex-wrap items-center gap-2 py-3">
+          <span className="mr-1 text-sm font-semibold text-heading">Need help?</span>
+          <Link href="/knowledge-base" className="btn-primary px-4 py-2 text-sm">📖 Knowledge base</Link>
+          <Link href="/voice-assistant" className="btn-outline px-4 py-2 text-sm">🎙️ AI voice assistant</Link>
+          <OpenChatButton className="btn-outline px-4 py-2 text-sm">💬 AI chat assistant</OpenChatButton>
+        </div>
+      </div>
 
       {/* Results ticker */}
       <div className="border-b border-line bg-surface">
