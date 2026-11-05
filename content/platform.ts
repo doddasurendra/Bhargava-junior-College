@@ -23,6 +23,7 @@ export const MODULE_BUTTONS: ModuleButton[] = [
   { href: '/results', title: 'Results & Hall of Fame', body: 'Toppers with verifiable scorecards.', icon: '🏆', group: 'Academics' },
   { href: '/mock-test', title: 'Free mock test', body: 'Timed, auto-marked, with your score at the end.', icon: '📝', group: 'Tools' },
   { href: '/predictor', title: 'Rank predictor', body: 'JEE percentile or NEET score to a rank band.', icon: '📈', group: 'Tools' },
+  { href: '/knowledge-base', title: 'Knowledge base', body: 'Answers to common questions on admissions, fees, hostel and more.', icon: '📖', group: 'Tools' },
   { href: '/resources', title: 'Free resources', body: 'NCERT solutions, previous papers, DPPs, formula sheets.', icon: '📚', group: 'Tools' },
   { href: '/hostel', title: 'Hostel', body: 'Rooms, mess menu, daily schedule and parent alerts.', icon: '🏠', group: 'Campus' },
   { href: '/campus', title: 'Campus & gallery', body: 'Classrooms, labs, library and campus life.', icon: '🏫', group: 'Campus' },

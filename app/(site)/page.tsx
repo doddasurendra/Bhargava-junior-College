@@ -243,6 +243,10 @@ export default async function HomePage() {
         <div className="max-w-3xl">
           <Faq items={faqs.items} />
         </div>
+        <div className="mt-6 flex flex-wrap gap-3">
+          <Link href="/knowledge-base" className="btn-primary">📖 Knowledge base</Link>
+          <Link href="/voice-assistant" className="btn-outline">Ask the AI assistant</Link>
+        </div>
         <JsonLd data={faqJsonLd(faqs.items)} />
       </Section>
 

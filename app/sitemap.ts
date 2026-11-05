@@ -5,7 +5,7 @@ import { getContent } from '@/lib/cms';
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const { blog } = await getContent();
-  const pages = ['', '/results', '/programs', '/fees', '/scholarship', '/hostel', '/visit', '/track', '/admissions', '/admission-system', '/why-bhargava', '/voice-assistant', '/apply', '/course-finder', '/resources', '/mock-test', '/predictor', '/campus', '/faculty', '/blog', '/downloads', '/careers', '/parents', '/about', '/contact', '/login'];
+  const pages = ['', '/results', '/programs', '/fees', '/scholarship', '/hostel', '/visit', '/track', '/admissions', '/admission-system', '/why-bhargava', '/voice-assistant', '/knowledge-base', '/apply', '/course-finder', '/resources', '/mock-test', '/predictor', '/campus', '/faculty', '/blog', '/downloads', '/careers', '/parents', '/about', '/contact', '/login'];
   return [
     ...pages.map((p) => ({ url: `${siteUrl}${p}`, changeFrequency: 'weekly' as const, priority: p === '' ? 1 : 0.8 })),
     ...programs.map((p) => ({ url: `${siteUrl}/programs/${p.slug}`, changeFrequency: 'monthly' as const, priority: 0.9 })),
