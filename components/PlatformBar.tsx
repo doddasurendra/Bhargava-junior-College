@@ -19,8 +19,11 @@ export function PlatformBar() {
             </Link>
           );
         })}
+        <Link href="/voice-assistant" className="shrink-0 rounded-full px-2.5 py-1 font-semibold text-gold-300 transition hover:bg-white/10 hover:text-white">
+          🎙️ AI voice
+        </Link>
         <button type="button" onClick={() => window.dispatchEvent(new Event('bjc:open-chat'))} className="shrink-0 rounded-full px-2.5 py-1 font-semibold text-gold-300 transition hover:bg-white/10 hover:text-white">
-          ✦ AI assistant
+          💬 AI chat
         </button>
       </div>
     </nav>

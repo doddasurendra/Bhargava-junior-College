@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react';
 import { ChatWidget } from '@/components/ChatWidget';
+import { VoiceAgent } from '@/components/VoiceAgent';
 import { ClientBoot, ExitIntent } from '@/components/ClientWidgets';
 import { Footer, Header, MobileBar, WhatsAppButton } from '@/components/SiteChrome';
 import { JsonLd } from '@/components/ui';
@@ -20,6 +21,7 @@ export default async function SiteLayout({ children }: { children: ReactNode }) 
       <MobileBar />
       <WhatsAppButton />
       <ChatWidget facts={{ fees, bsat, hostel }} />
+      <VoiceAgent />
       <ExitIntent />
       <ClientBoot />
       <JsonLd data={organizationJsonLd()} />

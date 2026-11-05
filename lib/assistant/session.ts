@@ -6,6 +6,7 @@ import type { Conversation } from '../chat/types';
 import type { Attribution } from '../validation';
 import { AssistantUnavailable, runAssistant, type Turn } from './agent';
 import { recordTurn } from './analytics';
+import { detectLang, GREETING, groundedAnswer, isGreeting } from '../rag';
 
 const MAX_TURNS_PER_CHAT = 40;
 const HISTORY_TURNS = 24;
@@ -81,8 +82,18 @@ export async function assistantTurn(p: { c?: string; t?: string; text: string; a
     return { ...base, reply: r.text, links: dedupe(r.effects.links ?? []), fallback: false, needsConsent: Boolean(r.effects.needsConsent) && !consent, live, handoffForm };
   } catch (e) {
     if (!(e instanceof AssistantUnavailable)) console.error('[assistant] turn failed', (e as Error).message);
-    // Fallback: the rule-based assistant, which only answers from site content.
-    const fb = fallbackReply(p.text, await getContent());
+    // Fallback: the rule-based assistant for its known intents, then the shared BJC knowledge base (RAG) for
+    // everything else — answers only from verified site content, or says honestly that it couldn't find it.
+    const content = await getContent();
+    let fb = fallbackReply(p.text, content);
+    if (isGreeting(p.text)) fb = { intent: 'greeting', text: GREETING[detectLang(p.text)], links: [] } as unknown as typeof fb;
+    // Action intents (greeting, book a visit, track, counsellor, "guarantee" questions) keep their scripted
+    // replies; every factual question is answered from the knowledge base with sources, or honestly not found.
+    const ACTIONS = ['greeting', 'visit', 'track', 'handoff', 'rank'];
+    if (!ACTIONS.includes(fb.intent)) {
+      const g = groundedAnswer(content, p.text);
+      if (g.found || fb.intent === 'unknown' || detectLang(p.text) !== 'en') fb = { intent: g.found ? 'kb' : 'unknown', text: g.found ? `${g.text}\n\n${g.footer}` : g.text, links: g.sources.map((s) => ({ label: s.title, href: s.url })), offerHandoff: !g.found } as typeof fb;
+    }
     await st.addMessage({ conversationId: conv.id, author: 'bot', staffId: null, text: fb.text, waMessageId: null });
     await recordTurn({
       conversationId: conv.id,

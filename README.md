@@ -321,6 +321,26 @@ All migrations are in `supabase/migrations` (in order, through `20261104030000_h
 
 **Hosted project:** every migration is applied to the dedicated project `nkhpahcmldfuwydeglml` (`https://nkhpahcmldfuwydeglml.supabase.co`), with the `seed.sql` visit slots and BSAT sessions. The database linter is clean apart from intentional notices (server-only tables with no policies; `has_any_role` callable by signed-in users because the RLS policies use it). To switch the app onto it, set `SUPABASE_URL`, `SUPABASE_ANON_KEY` and `SUPABASE_SERVICE_ROLE_KEY` (Project Settings → API Keys); the app stays on the local JSON store until the service role key is set. For a new project: `npx supabase link --project-ref <ref>` and `npx supabase db push`.
 
+## AI Voice Agent + AI Chat Agent (shared RAG knowledge base)
+
+Two **independent** assistants on every public page and at `/voice-assistant`; both answer only from the same verified BJC knowledge base.
+
+| | AI Chat Agent | AI Voice Agent |
+|---|---|---|
+| Entry | 💬 **Chat assistant** button (bottom right), platform bar “AI chat” | 🎙️ **Voice assistant** button (bottom left), platform bar “AI voice”, `/voice-assistant` |
+| Interaction | Text only (no microphone, no speech) | Voice only (no text box; read-only captions) |
+| Endpoint | `POST /api/assistant` | `POST /api/voice/turn`, `POST /api/voice/tts` |
+| Session | own conversation (`bjc_chat`) | own conversation (`bjc_voice`) |
+| Features | suggested questions, new chat, history, handoff to a counsellor, visit booking, consent | Start / End / Mute / Restart, states IDLE · CONNECTING · LISTENING · PROCESSING · RETRIEVING_INFORMATION · SPEAKING · ERROR, EN / తెలుగు / हिंदी, barge-in (speak to interrupt; the assistant's own echo is ignored), mic-denied / no-mic / offline / unsupported-browser messages, latency shown |
+
+**Knowledge base (RAG, `lib/rag`)** — website content (CMS) + confirmed college facts → chunks (one per section, FAQ, article) with title, URL, section and sample flag → BM25 keyword index → query rewriting (Telugu/Hindi → English terms, synonyms, typo correction) → top-K with a score threshold → de-duplicated context → answer with **sources**, or *“I couldn't find verified information about that in the Bhargava Junior College knowledge base. Please contact the college office for confirmation.”* (in the visitor's language). Re-indexes automatically when content changes (version hash); **Developer console → AI knowledge base → Sync now** forces it. Greetings get a welcome in the visitor's language.
+
+- **With `ANTHROPIC_API_KEY`**: Claude answers conversationally from the same knowledge (follow-ups, misspellings, replies in the visitor's language).
+- **Without it (today)**: answers are the matching knowledge-base facts quoted with sources (facts stay in English; framing, greetings and “not found” follow the visitor's language); action intents (book a visit, track, counsellor) keep their scripted replies.
+- **Voice**: with `AZURE_SPEECH_KEY` + `AZURE_SPEECH_REGION`, a consistent **female neural voice** per language (en-IN Neerja, te-IN Shruti, hi-IN Swara). Without them the browser voice is used — on this machine Chrome has **no Indian-English or Telugu voice**, so this key is required for production quality.
+
+**Limits (honest):** semantic/embedding search needs an embeddings provider (not configured), so retrieval is lexical; speech recognition uses the browser's Web Speech API (Chrome, Edge, Safari; not Firefox), which needs the language chosen up front (defaults to the site language); answers are not streamed. Tested: `lib/rag/rag.test.ts`, `lib/voice/voice.test.ts` (both endpoints end to end: greeting, English/Telugu/Hindi, follow-up in the same session, unknown → not found, no repeated sentences, separate sessions, TTS fallback).
+
 ## New modules (summary, voice, knowledge base, doubts, exams, syllabus)
 
 | Module | Where | What it does |

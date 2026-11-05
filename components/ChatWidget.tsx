@@ -6,7 +6,6 @@ import { college } from '@/content/college';
 import { CHIPS, GREETING, reply as localReply, type BotFacts } from '@/lib/chat/faqBot';
 import { getAttribution, postJson } from '@/lib/attribution';
 import { Consent, PhoneInput } from './forms';
-import { useVoice, VOICE_LANGS, type VoiceLang } from './useVoice';
 
 type Line = { key: string; from: 'user' | 'bot' | 'staff' | 'system'; text: string; links?: { label: string; href: string }[]; name?: string | null; quick?: boolean };
 type Session = { c: string; t: string; mode: 'bot' | 'live' };
@@ -59,16 +58,6 @@ export function ChatWidget({ facts }: { facts: BotFacts }) {
   const [name, setName] = useState('');
   const [phone, setPhone] = useState('');
   const [consent, setConsent] = useState(false);
-  // Voice agent: spoken questions are sent like typed ones; new answers are read aloud when switched on.
-  const voice = useVoice((text) => void send(undefined, text));
-  const spokenKey = useRef<string | null>(null);
-  useEffect(() => {
-    const last = lines[lines.length - 1];
-    if (!last || (last.from !== 'bot' && last.from !== 'staff') || last.key === spokenKey.current) return;
-    spokenKey.current = last.key;
-    voice.speak(last.text);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [lines]);
   const [reason, setReason] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -207,9 +196,9 @@ export function ChatWidget({ facts }: { facts: BotFacts }) {
     }
   }
 
-  async function send(e?: React.FormEvent, spoken?: string) {
+  async function send(e?: React.FormEvent) {
     e?.preventDefault();
-    const text = (spoken ?? input).trim();
+    const text = input.trim();
     if (!text || typing) return;
     setInput('');
     if (stage === 'live' && session) {
@@ -281,7 +270,7 @@ export function ChatWidget({ facts }: { facts: BotFacts }) {
       >
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img src={college.logoSrc} alt="" width={44} height={44} className="h-11 w-11 rounded-full bg-white" />
-        <span className="text-sm font-semibold">{open ? 'Close' : 'Ask admissions'}</span>
+        <span className="text-sm font-semibold">{open ? 'Close' : '💬 Chat assistant'}</span>
         {unread > 0 && <span className="absolute -right-1 -top-1 grid h-5 min-w-5 place-items-center rounded-full bg-maroon px-1 text-[11px] font-bold">{unread}</span>}
       </button>
 
@@ -402,34 +391,11 @@ export function ChatWidget({ facts }: { facts: BotFacts }) {
                 maxLength={1000}
                 autoComplete="off"
               />
-              {voice.supported && (
-                <button type="button" onClick={voice.listen} aria-label={voice.listening ? 'Stop listening' : 'Speak your question'} aria-pressed={voice.listening} title="Speak your question" className={`grid h-10 w-10 shrink-0 place-items-center rounded-full border ${voice.listening ? 'animate-pulse border-maroon bg-maroon text-white' : 'border-line text-heading hover:border-gold'}`}>
-                  🎤
-                </button>
-              )}
               <button className="btn-primary px-4 py-2" aria-label="Send" disabled={typing}>
                 ➤
               </button>
             </form>
           )}
-          {(stage === 'bot' || stage === 'live') && (voice.supported || voice.canSpeak) && (
-            <div className="flex items-center justify-between gap-2 px-3 pb-1 text-[11px] text-muted">
-              <span className="flex items-center gap-1">
-                Voice:
-                {VOICE_LANGS.map((l) => (
-                  <button key={l.code} type="button" onClick={() => voice.setLang(l.code as VoiceLang)} aria-pressed={voice.lang === l.code} className={`rounded px-1.5 py-0.5 ${voice.lang === l.code ? 'bg-gold-100 font-semibold text-heading dark:bg-gold/20' : 'hover:text-heading'}`}>
-                    {l.label}
-                  </button>
-                ))}
-              </span>
-              {voice.canSpeak && (
-                <button type="button" onClick={voice.toggleSpeak} aria-pressed={voice.speakOn} className="underline">
-                  {voice.speakOn ? '🔊 Reading answers aloud' : '🔈 Read answers aloud'}
-                </button>
-              )}
-            </div>
-          )}
-          {voice.error && <p className="px-3 pb-1 text-[11px] text-maroon">{voice.error}</p>}
           {stage === 'bot' && (
             <p className="px-3 pb-2 text-[10px] leading-4 text-muted">
               AI assistant answering from our published information; it can make mistakes, and we never promise ranks or seats.{' '}

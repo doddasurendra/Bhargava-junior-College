@@ -1,5 +1,8 @@
 import Link from 'next/link';
-import { openPortalAsAction } from '@/app/crm/developer-actions';
+import { openPortalAsAction, syncKnowledgeAction } from '@/app/crm/developer-actions';
+import { getContent } from '@/lib/cms';
+import { formatDateTime } from '@/lib/dates';
+import { indexStatus } from '@/lib/rag';
 import { Panel } from '@/components/crm/ui';
 import { getAppStore } from '@/lib/app/service';
 import { devLoginEnabled, requireStaff } from '@/lib/crm/auth';
@@ -25,6 +28,7 @@ export default async function DeveloperPage() {
     return <Panel title="Developer console"><p className="text-sm text-muted">Only the Developer role can open this page.</p></Panel>;
   }
   const dev = devLoginEnabled();
+  const kb = indexStatus(await getContent());
   const students = dev ? await getAppStore().listStudents() : [];
   const families = dev
     ? await Promise.all(students.slice(0, 50).map(async (s) => ({ s, guardians: await getAppStore().guardiansOf(s.id) })))
@@ -57,6 +61,13 @@ export default async function DeveloperPage() {
           <div className="flex justify-between gap-3"><dt className="text-muted">Practice questions</dt><dd className="font-mono">{QUESTIONS.length}</dd></div>
         </dl>
         <p className="mt-2 text-xs text-muted">Secrets are shown only as set / not set. Change them in <span className="font-mono">.env.local</span> and restart the server.</p>
+      </Panel>
+
+      <Panel title="AI knowledge base (shared by the voice and chat assistants)">
+        <p className="text-sm">Version <span className="font-mono">{kb.version}</span> · {kb.chunks} chunks from {kb.sections.length} sections · indexed {formatDateTime(kb.builtAt)}{kb.sampleChunks ? ` · ${kb.sampleChunks} still sample data` : ''}</p>
+        <p className="mt-1 text-xs text-muted">Built from the verified website content (Website content / CMS + confirmed college facts). It re-indexes automatically after every content save; use Sync now to force it. Retrieval: keyword (BM25) with Telugu/Hindi expansion and typo correction. AI answers: {process.env.ANTHROPIC_API_KEY ? 'Claude' : 'knowledge-base answers (no ANTHROPIC_API_KEY)'} · Voice: {process.env.AZURE_SPEECH_KEY && process.env.AZURE_SPEECH_REGION ? 'Azure female neural voices' : 'browser female voice (no AZURE_SPEECH_KEY)'}.</p>
+        <ul className="mt-2 grid gap-1 text-xs sm:grid-cols-3">{kb.sections.map((s) => <li key={s.section}><Link href={s.url} className="underline">{s.section}</Link> · {s.chunks}</li>)}</ul>
+        <form action={syncKnowledgeAction} className="mt-3"><button className="btn-outline py-1.5 text-sm">Sync now</button></form>
       </Panel>
 
       <Panel title="Change anything">
