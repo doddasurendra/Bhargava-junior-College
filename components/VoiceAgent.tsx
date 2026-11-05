@@ -199,7 +199,7 @@ export function VoiceAgent({ embedded = false }: { embedded?: boolean }) {
     };
     r.onerror = (e) => {
       if (e.error === 'no-speech' || e.error === 'aborted') return;
-      if (e.error === 'not-allowed' || e.error === 'service-not-allowed') return fail('Microphone permission was denied. Allow the microphone for this site in the browser settings, then start again.');
+      if (e.error === 'not-allowed' || e.error === 'service-not-allowed') return fail('Microphone is blocked for this site. Click the icon left of the address bar → Microphone → Allow, reload the page and press Start again. On Windows also check Settings → Privacy & security → Microphone: microphone access and desktop app access must be On.');
       if (e.error === 'audio-capture') return fail('No microphone found. Connect a microphone and start again.');
       if (e.error === 'network') return fail('Speech recognition needs an internet connection. Check the connection and start again.');
       if (e.error === 'language-not-supported') return fail(`This browser can’t recognise ${LANG_LABEL[langRef.current]} speech. Try English, or use Chrome.`);
@@ -218,7 +218,7 @@ export function VoiceAgent({ embedded = false }: { embedded?: boolean }) {
       stream.getTracks().forEach((t) => t.stop()); // permission granted; recognition opens its own stream
     } catch (e) {
       const n = (e as Error).name;
-      return fail(n === 'NotAllowedError' ? 'Microphone permission was denied. Allow the microphone for this site in the browser settings, then start again.' : n === 'NotFoundError' ? 'No microphone found. Connect a microphone and start again.' : 'Could not open the microphone.');
+      return fail(n === 'NotAllowedError' ? 'Microphone is blocked for this site. Click the icon left of the address bar → Microphone → Allow, reload the page and press Start again. On Windows also check Settings → Privacy & security → Microphone: microphone access and desktop app access must be On.' : n === 'NotFoundError' ? 'No microphone found. Connect a microphone and start again.' : 'Could not open the microphone.');
     }
     active.current = true;
     setStatus('LISTENING');
