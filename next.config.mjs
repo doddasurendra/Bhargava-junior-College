@@ -9,6 +9,8 @@ const securityHeaders = [
 
 const nextConfig = {
   poweredByHeader: false,
+  // NEXT_DIST_DIR lets a production build run while `next dev` holds .next (default unchanged).
+  distDir: process.env.NEXT_DIST_DIR || '.next',
   reactStrictMode: true,
   // CSV lead imports send the file text to a server action (2 MB file limit + JSON overhead).
   experimental: { serverActions: { bodySizeLimit: '3mb' } },

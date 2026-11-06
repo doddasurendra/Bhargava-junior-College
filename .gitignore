@@ -15,3 +15,5 @@ supabase/.branches/
 
 .DS_Store
 npm-debug.log*
+
+/.next-build/

@@ -34,6 +34,9 @@ export default async function HomePage() {
         <div className="container-x relative grid gap-10 py-12 sm:py-16 lg:grid-cols-[1.2fr_1fr] lg:items-center lg:py-20">
           <div className="animate-rise">
             <HeroCarousel slides={heroSlides.slides} intervalSec={heroSlides.intervalSec} />
+            <div className="mt-3">
+              <Link href="/parent-counselling" className="btn-outline-light px-6 py-3">🤝 Parent Counselling / తల్లిదండ్రుల కౌన్సెలింగ్</Link>
+            </div>
             <dl className="mt-10 grid max-w-xl grid-cols-3 gap-4 border-t border-white/10 pt-6">
               {[
                 ['4', 'programs'],

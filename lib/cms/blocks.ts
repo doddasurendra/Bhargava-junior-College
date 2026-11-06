@@ -691,6 +691,32 @@ export const BLOCKS = {
     ],
     default: { sample: true, instagram: null, youtube: null, facebook: null, googleBusiness: null, whatsappNumber: null },
   }),
+
+  parentCounselling: block({
+    key: 'parentCounselling',
+    title: 'Parent counselling guide: rules & fees',
+    description: 'The blanks the 10-step Parent Counselling guide says to fill before every meeting (Steps 4 and 9). They appear inside the guide automatically. Leave a field empty if it is not decided yet: counsellors must never guess.',
+    editors: [...MANAGE, 'admission_manager'],
+    schema: z.object({
+      sample: flag,
+      calls: os(120), visits: os(120), progress: os(60), medical: os(200), laundry: os(200),
+      tuition: os(120), hostelFee: os(120), scholarship: os(200), schedule: os(200), visiting: os(120), lastDate: os(60),
+    }),
+    fields: [
+      { key: 'calls', label: 'Step 4 · Calls rule (e.g. “Every Sunday 5–7 pm”)', type: 'text' },
+      { key: 'visits', label: 'Step 4 · Visits rule', type: 'text' },
+      { key: 'progress', label: 'Step 4 · Progress shared once every… (e.g. “month”)', type: 'text' },
+      { key: 'medical', label: 'Step 4 · Medical help arrangement', type: 'text' },
+      { key: 'laundry', label: 'Step 4 · Laundry arrangement', type: 'text' },
+      { key: 'tuition', label: 'Step 9 · Tuition fee', type: 'text' },
+      { key: 'hostelFee', label: 'Step 9 · Hostel fee', type: 'text' },
+      { key: 'scholarship', label: 'Step 9 · Scholarship', type: 'text' },
+      { key: 'schedule', label: 'Step 9 · Payment schedule', type: 'text' },
+      { key: 'visiting', label: 'Step 9 · Visiting days', type: 'text' },
+      { key: 'lastDate', label: 'Step 9 · Last date', type: 'text' },
+    ],
+    default: { sample: true, calls: null, visits: null, progress: null, medical: null, laundry: null, tuition: null, hostelFee: null, scholarship: null, schedule: null, visiting: null, lastDate: null },
+  }),
 };
 
 export type BlockKey = keyof typeof BLOCKS;

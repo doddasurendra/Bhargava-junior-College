@@ -394,3 +394,13 @@ Tested in `lib/school/modules.test.ts`. All data uses the existing `records` tab
 - **AI doubt helper, adaptive tests, ML lead scoring, the voice agent, multi-campus `campus_id`, APAAR, WhatsApp Flows, UPI AutoPay and the open API (§12):** these are future-ready items and are not built. Early warnings use rules for now (`lib/school/logic.ts`).
 - **Other §4 items not built:** a Kanban view and fully translated page bodies (only the site chrome is translated).
 - **Staff sign-in email changes:** not possible; deactivate the account and add a new one.
+
+## Parent Counselling Session Guide (`/parent-counselling`)
+
+Web version of the 11-page PDF `public/docs/Bhargava_Parent_Counselling_Guide_10_Steps_Telugu.pdf` (cover + 10 steps), at `/parent-counselling` and `/parent-counselling/step-1` … `/step-10`.
+
+- Strings: `content/parent-counselling/{te,en,hi}.json` (same keys). Telugu is the PDF original.
+- **The English and Hindi translations must be checked by a native speaker before they are used with families.**
+- Public visitors see a read-only guide. Staff with `counselling.record` (Counsellor, Admission Manager, Super Admin) open it from the CRM sidebar ("Parent counselling"), start a session on a lead, and every tick autosaves to `counselling_guide_sessions` (RLS on, service role only). "Finish session" sets the lead's Hot/Warm/Cold, next follow-up, books a campus visit when chosen with a valid slot, and completes the counselling stage.
+- Admin blanks (call/visit rules, fees, etc.): CRM → Website content → "Parent counselling guide: rules & fees".
+- Print a filled session: `/parent-counselling/print?session=…`.

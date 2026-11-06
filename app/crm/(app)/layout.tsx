@@ -32,6 +32,7 @@ export default async function CrmShell({ children }: { children: ReactNode }) {
     ...(can(user, 'inbox.reply') ? [{ href: '/crm/inbox', label: `Chat inbox${inbox.waiting + inbox.unreadMine > 0 ? ` (${inbox.waiting + inbox.unreadMine})` : ''}` }] : []),
     ...(admissions ? [{ href: '/crm/leads', label: can(user, 'lead.viewAll') ? 'All leads' : 'My leads' }] : []),
     ...(can(user, 'visit.view') ? [{ href: '/crm/visits', label: 'Campus visits' }] : []),
+    ...(can(user, 'counselling.record') ? [{ href: '/parent-counselling?mode=counsellor', label: 'Parent counselling' }] : []),
     ...(can(user, 'visitor.log') ? [{ href: '/crm/front-desk', label: 'Front desk' }] : []),
     ...(can(user, 'verify.view') ? [{ href: '/crm/verification', label: 'Verification' }] : []),
     ...(can(user, 'fees.dues') || can(user, 'fees.export') || can(user, 'concession.approve.slab') || can(user, 'refund.approve') ? [{ href: '/crm/accounts', label: 'Accounts' }] : []),
