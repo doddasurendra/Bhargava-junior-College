@@ -15,7 +15,8 @@ import { QUESTIONS, chaptersOf } from '../lib/practice/bank.ts';
 
 const SEED = 'demo-2027';
 const ROOT = process.cwd();
-const FILE = path.join(ROOT, '.data', 'dev-db.json');
+/** DEMO_OUT: write to another file instead (used by seed-supabase.ts, which uploads that file). */
+const FILE = process.env.DEMO_OUT ? path.resolve(process.env.DEMO_OUT) : path.join(ROOT, '.data', 'dev-db.json');
 const mode = process.argv.includes('--clear') ? 'clear' : 'seed';
 
 // ------------------------------------------------------------------ safety
@@ -27,7 +28,7 @@ function envLocal(name: string): string {
   return m ? m[1].trim() : '';
 }
 if (process.env.NODE_ENV === 'production') throw new Error('Refusing to seed: NODE_ENV=production.');
-if (envLocal('SUPABASE_SERVICE_ROLE_KEY')) {
+if (!process.env.DEMO_OUT && envLocal('SUPABASE_SERVICE_ROLE_KEY')) {
   throw new Error('Refusing to seed: a Supabase service-role key is set, so the app reads Supabase, not the local file. This seed only writes the local development store.');
 }
 
