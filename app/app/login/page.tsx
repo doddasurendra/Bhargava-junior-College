@@ -7,6 +7,8 @@ import { college } from '@/content/college';
 import { getAppUser } from '@/lib/app/service';
 import { LoginForm } from './LoginForm';
 import { CollegeIdForm } from './CollegeIdForm';
+import { DevSignIn } from './DevSignIn';
+import { devLoginEnabled } from '@/lib/crm/auth';
 
 export const metadata: Metadata = { title: 'Sign in · Student & Parent app', robots: { index: false } };
 export const dynamic = 'force-dynamic';
@@ -32,6 +34,7 @@ export default async function AppLoginPage({ searchParams }: { searchParams: Rec
         <LoginForm />
         <CollegeIdForm />
       </div>
+      {devLoginEnabled() && <DevSignIn />}
       <p className="mt-6 text-center text-xs text-muted">
         Use the mobile number registered with the college. Applicants can sign in to follow their admission. Trouble signing in? Call{' '}
         <a className="font-mono" href={`tel:${college.phones[0].tel}`}>
