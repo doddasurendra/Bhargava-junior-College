@@ -16,7 +16,7 @@ Every seeded row has an id starting with `demo-` and `seedBatch: "demo-2027"`. P
 | `npm run typecheck` | **PASS**: 0 errors |
 | `npm run build` | **PASS**: 0 errors (12 Nov, with the student-life screens) |
 | `npm test` | **PASS**: 208/208 (12 Nov) |
-| Student-life screens in the browser | **NOT CHECKED**: the dev server on :3000 stopped responding after the production build; routes answer 307 (sign-in redirect) on a production server, but no screen was opened signed in |
+| Student-life screens in Chrome (12 Nov) | **PASS**: Sports Coach `/crm/sports` (points table, fixtures, attendance, never-played list); the coach is refused `/crm/wellbeing`; Student Counsellor `/crm/wellbeing` (flags, bookings, anonymous questions, trends, helplines); Rahul `/app/sports`, `/app/sessions` (feedback form), `/app/wellbeing`, `/app/open-book` (17/20, pledge → attempt page). Not opened: parent app views, `/crm/sessions`, `/crm/open-book` |
 
 ## Seeded volumes (checked from the data file)
 
