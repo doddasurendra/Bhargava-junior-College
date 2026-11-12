@@ -822,11 +822,23 @@ const assignment = (b: Any, title: string, subject: string, qs: Any[], perStuden
 const aChem = assignment(JA, 'Chemistry chapter assignment: Chemical bonding', 'Chemistry', qChem, 2, atDay(-9, '16:00'), atDay(-7, '21:00'), 'staff-radhika', { ownNotes: true, ncert: true, formulaSheet: false, calculator: false, internet: false });
 const aPhys = assignment(JA, 'Physics open-book practice: Rotation and Laws of motion', 'Physics', qPhys, 2, minsFromNow(-180), atDay(3, '21:00'), 'staff-krishna');
 const aBio = assignment(NA, 'Biology open-book practice: Human physiology', 'Biology', qBio, 2, minsFromNow(-120), atDay(4, '21:00'), 'staff-swathi');
-const ANSWERS = ['Because the moment of inertia is smaller, more of the energy goes into moving forward, so it is faster. From my notes: a = g sinθ / (1 + I/MR²).', 'Angular momentum stays the same because there is no outside torque, so when I gets smaller ω must get bigger.', 'Using N = m(g + a) from the NCERT example, the reading goes up first, then normal, then down.', 'It is equal to the applied force, since static friction only becomes μsN at the limit.'];
+// Sample answers that match their question: a fuller one and a thinner one per question
+const ANSWERS: Record<string, [string, string]> = {
+  [qPhys[0].id]: ['The disc reaches first. From my notes a = g sinθ / (1 + I/MR²); the disc has I = MR²/2, smaller than the ring’s MR², so its acceleration is larger.', 'The disc, because it is lighter in the middle so it rolls faster.'],
+  [qPhys[1].id]: ['No outside torque acts, so angular momentum L = Iω stays the same. Pulling the arms in makes I smaller, so ω must get bigger.', 'She spins faster because her arms are closer to her body.'],
+  [qPhys[2].id]: ['Using N = m(g + a) from the NCERT example: 60 × 11.8 = 708 N while speeding up, 588 N at constant speed, 60 × 7.8 = 468 N while slowing down.', 'The reading goes up first, then normal, then down.'],
+  [qPhys[3].id]: ['B. Static friction only matches the applied force until it reaches its limit μsN, so here it is equal to the push.', 'B, because the block does not move.'],
+  [qChem[0].id]: ['Oxygen in water has two lone pairs that push the bonds closer, so it is bent at about 104.5°. Carbon in CO₂ has no lone pairs and two double bonds, so it is linear at 180°.', 'Water is bent because of lone pairs; CO₂ is straight.'],
+  [qChem[1].id]: ['From H₂S to H₂Te the boiling point rises with molar mass (stronger van der Waals forces). H₂O is much higher than expected because of hydrogen bonding.', 'Water has hydrogen bonds so it boils higher.'],
+  [qBio[0].id]: ['Salt raises the osmolality of the blood. Osmoreceptors in the hypothalamus sense it, we feel thirsty, and ADH is released so the kidneys keep more water.', 'Salt makes the body dry so the brain says drink water.'],
+  [qBio[1].id]: ['By Fick’s law, diffusion rate depends on surface area × concentration difference / membrane thickness. Damaged alveoli mean less area, so less oxygen diffuses in.', 'Less alveoli means less oxygen can go in.'],
+  [qBio[2].id]: ['Both rise: more CO₂ and lower blood pH are sensed by the medulla, breathing speeds up, and sympathetic nerves raise the heart rate to deliver O₂ to the muscles.', 'Both go up because the body needs more oxygen.'],
+};
 const attempt = (a: Any, s: Any, qids: string[], pledged: string, submitted: string | null, marked: Record<string, number[]> | null, feedback: string | null) => {
-  const marks = marked ? Object.fromEntries(qids.map((q, i) => [q, Object.fromEntries(RUBRIC.map((r, j) => [r.criterion, Math.min(r.max, marked[q]?.[j] ?? [3, 2, 1, 1][j] + (i % 2))]))])) : null;
+  const strong = (q: string) => (s.fullName.length + q.length + students.indexOf(s)) % 3 !== 0; // about 2 in 3 answers are the fuller one
+  const marks = marked ? Object.fromEntries(qids.map((q) => [q, Object.fromEntries(RUBRIC.map((r, j) => [r.criterion, Math.min(r.max, marked[q]?.[j] ?? (strong(q) ? [3, 2, 1, 2] : [2, 1, 1, 1])[j] + ((students.indexOf(s) + j) % 4 === 0 ? 1 : 0))]))])) : null;
   const total = marks ? Object.values(marks).reduce((t, m) => t + Object.values(m).reduce((x, y) => x + y, 0), 0) : null;
-  rec('openbook_attempts', { assignmentId: a.id, studentId: s.id, questionIds: qids, pledgedAt: pledged, answers: submitted ? Object.fromEntries(qids.map((q, i) => [q, ANSWERS[(i + s.fullName.length) % ANSWERS.length]])) : {}, submittedAt: submitted, suggestion: marks, marks, feedback, total, max: marks ? qids.length * 10 : null, markedBy: marks ? a.data.createdBy : null, similarity: [] }, a.id, s.id, pledged);
+  rec('openbook_attempts', { assignmentId: a.id, studentId: s.id, questionIds: qids, pledgedAt: pledged, answers: submitted ? Object.fromEntries(qids.map((q) => [q, ANSWERS[q][strong(q) ? 0 : 1]])) : {}, submittedAt: submitted, suggestion: marks, marks, feedback, total, max: marks ? qids.length * 10 : null, markedBy: marks ? a.data.createdBy : null, similarity: [] }, a.id, s.id, pledged);
 };
 JA.studs.forEach((s: Any, i: number) => {
   const qids = [qChem[i % 2].id, qChem[(i + 1) % 2].id];

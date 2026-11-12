@@ -51,7 +51,8 @@ export default async function OpenBookPage({ searchParams }: { searchParams: { b
             <>
               <form action={suggestMarksForm} className="mb-3"><input type="hidden" name="attemptId" value={marking.id} /><button className="btn-outline py-1.5 text-sm">{marking.suggestion ? 'Ask again for an AI suggestion' : 'Get an AI suggestion'}</button> <span className="text-xs text-muted">The suggestion pre-fills the rubric. You confirm or change every mark.</span></form>
               {marking.similarity.length > 0 && <p className="mb-3 rounded-lg bg-maroon/10 px-3 py-2 text-sm text-maroon dark:text-red-200">Similarity check: {marking.similarity.length} answer(s) look very close to a classmate’s ({marking.similarity.map((x) => `${Math.round(x.score * 100)}%`).join(', ')}). Talk to both students before marking.</p>}
-              <form action={confirmMarksForm} className="space-y-4">
+              {/* key: radios use defaultChecked, so re-mount the form when a new suggestion or confirmed marks arrive */}
+              <form key={JSON.stringify([marking.id, marking.suggestion, marking.marks, marking.feedback])} action={confirmMarksForm} className="space-y-4">
                 <input type="hidden" name="attemptId" value={marking.id} />
                 {marking.questionIds.map((qid) => {
                   const q = bank.get(qid);

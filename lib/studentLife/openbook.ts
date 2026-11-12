@@ -144,7 +144,7 @@ export async function suggestMarks(user: Staff, attemptId: string) {
   // similarity check against classmates' answers
   const others = (await attemptsOf(at.data.assignmentId)).filter((x) => x.submittedAt);
   const pairs = similarPairs(others.map((x) => ({ studentId: x.studentId, answers: x.answers }))).filter((p) => p.a === at.data.studentId || p.b === at.data.studentId);
-  await obAttempts.put(store(), { ...at.data, suggestion, feedback: at.data.feedback ?? `${by === 'ai' ? 'AI suggestion' : 'Suggestion'}: ${notes.join(' ')}`.slice(0, 2000), similarity: pairs.map((p) => ({ questionId: p.questionId, otherStudentId: p.a === at.data.studentId ? p.b : p.a, score: p.score })) }, attemptId);
+  await obAttempts.put(store(), { ...at.data, suggestion, feedback: at.data.feedback ?? `${by === 'ai' ? 'AI suggestion' : 'Suggestion'}: ${[...new Set(notes)].join(' ')}`.slice(0, 2000) /* the rule-based note is the same for every question: say it once */, similarity: pairs.map((p) => ({ questionId: p.questionId, otherStudentId: p.a === at.data.studentId ? p.b : p.a, score: p.score })) }, attemptId);
   return by;
 }
 
