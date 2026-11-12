@@ -12,6 +12,7 @@ import { bookPtm, sendParentMessage } from '@/lib/school/mentoring';
 import { addComplaint, parentDecideOutpass, requestOutpass } from '@/lib/school/operations';
 import { createOrder, paymentsConfigured, publicKeyId, verifyCheckoutSignature } from '@/lib/payments';
 import { duesForStudent } from '@/lib/school/accounts';
+import { screenText } from '@/lib/studentLife/wellbeing';
 
 export interface AppState {
   ok?: boolean;
@@ -106,8 +107,9 @@ export const askDoubtAction = async (_: AppState, fd: FormData): Promise<AppStat
     const { p } = await requireStudent();
     const text = s(fd, 'text');
     if (!text || text.length < 5) throw new SchoolError('Describe your doubt.');
-    await askDoubt(p.studentId, { subject: s(fd, 'subject') ?? 'Physics', text: text.slice(0, 2000), imageUrl: null });
-    return 'Sent to your teachers.';
+    const d = await askDoubt(p.studentId, { subject: s(fd, 'subject') ?? 'Physics', text: text.slice(0, 2000), imageUrl: null });
+    const safety = await screenText('doubt', d.id, p.studentId, text);
+    return safety ? `Sent to your teachers. ${safety.message}` : 'Sent to your teachers.';
   }, ['/app/doubts']);
 
 export const outpassRequestAction = async (_: AppState, fd: FormData): Promise<AppState> =>

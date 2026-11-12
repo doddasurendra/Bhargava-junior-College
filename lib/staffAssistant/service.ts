@@ -18,6 +18,8 @@ import { studentResults } from '../school/academics';
 import { duesForStudent, duesList } from '../school/accounts';
 import { allBatches, batchOf, roomOf, studentsById, visibleStudentIds } from '../school/common';
 import { studentFile, studentSignals } from '../school/mentoring';
+import { sportsProfile } from '../studentLife/sports';
+import { attendedBy } from '../studentLife/sessions';
 import { busFor } from '../school/operations';
 import { parseQuery, type Intent } from './parse';
 
@@ -80,6 +82,7 @@ export async function studentProfile(user: Staff, s: StudentRow) {
     counselling.list(getRecordStore(), { k1: s.leadId }),
     can(user, 'fees.dues') ? feeRequests.list(getRecordStore(), { k2: s.leadId }) : Promise.resolve([]),
   ]);
+  const [sport, attended] = await Promise.all([sportsProfile(s.id), attendedBy(s.id)]);
   const paid = verification.payments.filter((p) => p.status === 'approved');
   const pcts = results.map((r) => r.pct);
   const trend = pcts.length >= 2 ? Math.round(pcts[pcts.length - 1] - pcts[0]) : null;
@@ -109,7 +112,11 @@ export async function studentProfile(user: Staff, s: StudentRow) {
     tests: results.map((r) => ({ title: r.test.title, date: r.test.date, score: r.score, max: r.max, pct: Math.round(r.pct), rank: r.rank, of: r.of })),
     trend,
     weakChapters: weakChapters(results),
-    warnings: signals.warnings,
+    // wellbeing is private: only the Student Counsellor sees wellbeing signals; never notes or check-ins here
+    warnings: can(user, 'wellbeing.counsel') ? signals.warnings : signals.warnings.filter((w) => !w.startsWith('Wellbeing')),
+    house: sport.house,
+    sportsAchievements: sport.achievements,
+    sessionsAttended: attended.map((a) => a.title),
     counsellorNotes: sessions.map((c) => ({ program: c.data.programDiscussed, decision: c.data.decision, concerns: c.data.concerns, notes: c.data.notes, scholarshipExplained: c.data.scholarshipExplained })),
     scholarship: seesFees ? concessions.filter((c) => c.data.kind === 'concession' && c.data.status === 'approved').map((c) => ({ amount: c.data.amount, percent: c.data.percentOfTuition, reason: c.data.reason })) : null,
     // Not captured by the admission form yet; shown as "not recorded" rather than guessed.

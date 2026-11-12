@@ -10,6 +10,10 @@ import { attendance, doubts, studentLeave, tests } from '../records/collections'
 import { duesList } from './accounts';
 import { libraryOverview, listEvents } from './backoffice';
 import { allStudents, store } from './common';
+import { averagesTile } from '../studentLife/openbook';
+import { nextSession } from '../studentLife/sessions';
+import { participationPct } from '../studentLife/sports';
+import { bookingsThisWeek, trendTile } from '../studentLife/wellbeing';
 
 /**
  * Summary dashboard: one screen with today's numbers from every module, each linking to its detail page.
@@ -77,6 +81,23 @@ export async function summary(user: Staff, today = todayIST()) {
       { label: 'Books on loan', value: String(lib.out.length) },
       { label: 'Overdue', value: String(lib.out.filter((l) => l.late > 0).length), tone: lib.out.some((l) => l.late > 0) ? 'warn' : 'good' },
     ] });
+  }
+
+  // student life: sports, sessions, wellbeing (anonymous), open-book
+  if (can(user, 'dashboard.view') || can(user, 'academics.view') || can(user, 'sports.view') || can(user, 'wellbeing.trends') || can(user, 'wellbeing.counsel')) {
+    const [pct, next, ob] = await Promise.all([participationPct(today), nextSession(today), averagesTile()]);
+    const tiles: { label: string; value: string; tone?: 'warn' | 'good' }[] = [
+      { label: 'Sports participation (7 days)', value: pct === null ? '–' : `${pct}%`, tone: pct !== null && pct < 60 ? 'warn' : 'good' },
+      { label: 'Next speaker session', value: next ? `${next.title} · ${next.date.slice(5).split('-').reverse().join('/')}` : 'none scheduled' },
+      { label: 'Open-book vs closed-book avg', value: `${ob.open ?? '–'}% vs ${ob.closed ?? '–'}%` },
+    ];
+    if (can(user, 'wellbeing.trends') || can(user, 'wellbeing.counsel')) {
+      const [trend, bookings] = await Promise.all([trendTile(today), bookingsThisWeek(today)]);
+      const arrow = trend.now === null || trend.before === null ? '' : trend.now > trend.before ? ' ↑' : trend.now < trend.before ? ' ↓' : ' →';
+      tiles.push({ label: 'Wellbeing: avg stress (anonymous)', value: trend.now === null ? '–' : `${trend.now}/5${arrow}`, tone: trend.now !== null && trend.now >= 3.5 ? 'warn' : undefined });
+      tiles.push({ label: 'Counselling bookings this week', value: String(bookings) });
+    }
+    out.push({ area: 'Student life', href: can(user, 'wellbeing.trends') || can(user, 'wellbeing.counsel') ? '/crm/wellbeing' : '/crm/sports', tiles });
   }
 
   const ev = (await listEvents(today)).upcoming.slice(0, 5);

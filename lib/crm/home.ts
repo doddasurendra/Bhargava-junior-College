@@ -18,6 +18,8 @@ const HOMES: Partial<Record<string, string>> = {
   admission_office: '/crm/verification',
   front_desk: '/crm/front-desk',
   data_executive: '/crm/cms',
+  sports_coach: '/crm/sports',
+  student_counsellor: '/crm/wellbeing',
 };
 
 export function homeFor(role: Role | undefined): string {

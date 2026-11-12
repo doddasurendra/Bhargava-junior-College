@@ -129,6 +129,9 @@ export const devStaff = {
     { id: 'staff-warden', fullName: 'Lady Warden', roles: ['hostel_warden' as const] },
     { id: 'staff-transport', fullName: 'Transport In-charge', roles: ['transport_incharge' as const] },
     { id: 'staff-marketing', fullName: 'Content & Marketing', roles: ['data_executive' as const] },
+    // student life: sports and the on-campus counsellor
+    { id: 'staff-coach', fullName: 'Coach Ravi', roles: ['sports_coach' as const] },
+    { id: 'staff-counsellor', fullName: 'Ms. Deepa, Student Counsellor', roles: ['student_counsellor' as const] },
   ],
 };
 

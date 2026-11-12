@@ -20,6 +20,8 @@ export const ROLES = [
   'faculty',
   'hostel_warden',
   'transport_incharge',
+  'sports_coach',
+  'student_counsellor',
 ] as const;
 export type BuiltinRole = (typeof ROLES)[number];
 /** Built-in roles, plus custom roles the Super Admin creates (§9A.1 admin console), keyed custom_<slug>. */
@@ -44,6 +46,8 @@ export const ROLE_LABELS: Record<string, string> = {
   faculty: 'Faculty',
   hostel_warden: 'Hostel Warden',
   transport_incharge: 'Transport In-charge',
+  sports_coach: 'Sports Coach',
+  student_counsellor: 'Student Counsellor',
 };
 
 export const LEAD_CATEGORIES = ['hot', 'warm', 'cold', 'invalid'] as const;

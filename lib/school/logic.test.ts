@@ -91,7 +91,8 @@ describe('fees', () => {
 
 describe('weekly parent report (§6.9)', () => {
   it('summarises attendance, tests and the mentor note', () => {
-    expect(weeklyReportParams({ studentFirstName: 'Asha', weekLabel: '2–8 Nov', attendance: { present: 5, days: 6 }, tests: [{ title: 'Physics WT-4', pct: 72.4 }], mentorNote: 'Good effort\nin mechanics.' })).toEqual(['Asha', '2–8 Nov', '5/6 days', 'Physics WT-4 72%', 'Good effort in mechanics.']);
+    expect(weeklyReportParams({ studentFirstName: 'Asha', weekLabel: '2–8 Nov', attendance: { present: 5, days: 6 }, tests: [{ title: 'Physics WT-4', pct: 72.4 }], mentorNote: 'Good effort\nin mechanics.' })).toEqual(['Asha', '2–8 Nov', '5/6 days', 'Physics WT-4 72%', 'Good effort in mechanics.', 'none this week', 'none this week']);
+    expect(weeklyReportParams({ studentFirstName: 'Asha', weekLabel: 'x', attendance: { present: 1, days: 1 }, tests: [], mentorNote: null, sportsPlayed: 3, sessions: ['Career talk'] }).slice(5)).toEqual(['3 games periods', 'Career talk']);
     expect(weeklyReportParams({ studentFirstName: 'Asha', weekLabel: 'x', attendance: { present: 0, days: 0 }, tests: [], mentorNote: null })[2]).toBe('no classes recorded');
   });
 });

@@ -693,6 +693,157 @@ for (let i = 0; i < 300; i++) {
 const QUERIES: [string, string, string][] = [['BJC-2027-JEE-0001', 'principal', 'staff-principal'], ['students below 75% attendance', 'principal', 'staff-principal'], ['fee defaulters this month', 'accounts', 'staff-accounts'], ['list all Hot leads not called today', 'admission_manager', 'staff-manager'], ['hostel students out this weekend', 'hostel_warden', 'staff-naresh']];
 for (let i = 0; i < 25; i++) { const [q, role, actor] = QUERIES[i % QUERIES.length]; const iso = atDay(-int(1, 20), randTime()); rec('ai_query_audit', { actorId: actor, role, query: q, intent: 'lookup', resultCount: int(1, 12), studentIds: [], at: iso }, actor, iso, iso); }
 
+// ------------------------------------------------------------------ student life: sports, speaker sessions, wellbeing, open-book
+ensureStaff('staff-coach', 'Coach Ravi', ['sports_coach']);
+ensureStaff('staff-counsellor', 'Ms. Deepa, Student Counsellor', ['student_counsellor']);
+const COACH = 'staff-coach';
+const COUNSELLOR = 'staff-counsellor';
+
+// Houses: students split round-robin (Rahul = Godavari, its captain)
+const HOUSE_DEF = [['godavari', 'Godavari', '#1D2A5E'], ['krishna', 'Krishna', '#7D1F2C'], ['tungabhadra', 'Tungabhadra', '#C9A24A'], ['manjeera', 'Manjeera', '#2F7A4F']] as const;
+const houseMembers: Any[][] = HOUSE_DEF.map(() => []);
+students.forEach((s, i) => houseMembers[i % 4].push(s));
+HOUSE_DEF.forEach(([key, name, color], i) => rec('sports_houses', { key, name, color, captainId: houseMembers[i][0].id, studentIds: houseMembers[i].map((s) => s.id) }, key, null, atDay(-40, '09:00')));
+const HN = HOUSE_DEF.map((h) => h[1]);
+
+// Fixtures: 8 played inter-house (points: Godavari 10, Krishna 6, Tungabhadra 4, Manjeera 3) + 5 upcoming
+const fixture = (o: Any) => rec('sports_fixtures', { time: '16:30', venue: 'College ground', homeScore: null, awayScore: null, winner: null, teamIds: [], createdBy: COACH, ...o }, o.kind, o.date, at(o.date, '09:00'));
+const PLAYED: [string, number, number, string, string, 'home' | 'away' | 'draw', number][] = [
+  ['Cricket', 0, 1, '142/6', '128/9', 'home', -30], ['Volleyball', 2, 3, '2', '1', 'home', -28], ['Kabaddi', 0, 2, '31', '31', 'draw', -21], ['Badminton', 1, 3, '2', '0', 'home', -20],
+  ['Cricket', 2, 0, '110/8', '114/4', 'away', -14], ['Chess', 1, 2, '2.5', '1.5', 'home', -13], ['Volleyball', 3, 0, '1', '2', 'away', -7], ['Kabaddi', 1, 3, '28', '35', 'away', -6],
+];
+PLAYED.forEach(([sport, h, a, hs, as, winner, d]) => fixture({ title: `Inter-house ${sport}: ${HN[h]} vs ${HN[a]}`, sport, kind: 'inter_house', date: day(d), venue: sport === 'Chess' ? 'Seminar hall' : 'College ground', home: HN[h], away: HN[a], status: 'played', homeScore: hs, awayScore: as, winner }));
+fixture({ title: `Inter-house Badminton: ${HN[0]} vs ${HN[3]}`, sport: 'Badminton', kind: 'inter_house', date: day(3), venue: 'Indoor court', home: HN[0], away: HN[3], status: 'scheduled' });
+fixture({ title: `Inter-house Kabaddi: ${HN[1]} vs ${HN[2]}`, sport: 'Kabaddi', kind: 'inter_house', date: day(5), home: HN[1], away: HN[2], status: 'scheduled' });
+fixture({ title: 'Inter-college Cricket: BJC XI vs Hayathnagar JC XI (sample)', sport: 'Cricket', kind: 'inter_college', date: day(9), time: '09:00', home: 'BJC XI', away: 'Hayathnagar JC XI', status: 'scheduled', teamIds: jee.slice(0, 11).map((s: Any) => s.id) });
+fixture({ title: 'Annual Sports Day: track & field, relays, tug of war', sport: 'Athletics', kind: 'sports_day', date: day(19), time: '08:00', home: 'All houses', away: 'Track & field', status: 'scheduled' });
+fixture({ title: `Inter-house Chess: ${HN[3]} vs ${HN[0]}`, sport: 'Chess', kind: 'inter_house', date: day(12), venue: 'Seminar hall', home: HN[3], away: HN[0], status: 'scheduled' });
+
+// Games-period attendance: last 20 school days; 4 students have never come (coach's "never played" list)
+const GAMES = ['Cricket', 'Volleyball', 'Badminton', 'Kabaddi', 'Athletics', 'Yoga'];
+const neverPlayed = new Set([students[37], students[38], students[39], lowAttendance[2]].map((s) => s.id));
+schoolDays.slice(0, 20).forEach((d, i) => {
+  const present = students.filter((s) => !neverPlayed.has(s.id) && (s === rahul ? i % 5 !== 4 : rand() < 0.65)).map((s) => s.id);
+  rec('sports_attendance', { date: d, sport: GAMES[i % GAMES.length], present, markedBy: COACH }, d, GAMES[i % GAMES.length], at(d, '17:15'));
+});
+for (const s of students) {
+  const mine = s === rahul ? ['Cricket', 'Chess'] : [...new Set([pick(GAMES), pick(['Cricket', 'Volleyball', 'Badminton', 'Kabaddi', 'Chess', 'Table tennis', 'Athletics', 'Yoga'])])];
+  if (neverPlayed.has(s.id)) continue;
+  for (const sp of mine) rec('sports_signups', { studentId: s.id, sport: sp }, s.id, sp, atDay(-35, '12:00'));
+  rec('fitness_checks', { studentId: s.id, date: day(-20), run600mSec: s === rahul ? 148 : int(125, 220), sitReachCm: int(2, 28), bmi: rand() < 0.5 ? Math.round((17 + rand() * 8) * 10) / 10 : null, recordedBy: COACH }, s.id, day(-20), atDay(-20, '10:00'));
+}
+const ACH: [Any, string, string, string, number][] = [
+  [rahul, 'Runner-up, chess (U-17)', 'silver', 'Inter-college Chess Meet, Hyderabad (sample)', -16],
+  [students[4], 'Best raider', 'gold', 'Inter-house Kabaddi', -6], [students[9], '100 m sprint', 'bronze', 'District Athletics Meet (sample)', -25],
+  [students[14], 'Volleyball team', 'certificate', 'Inter-college Volleyball (sample)', -18], [ananya, 'Yoga demonstration', 'participation', 'Inter-house Yoga', -10],
+];
+for (const [s, title, medal, event, d] of ACH) rec('sports_achievements', { studentId: s.id, title, medal, event, date: day(d), recordedBy: COACH }, s.id, day(d), atDay(d, '18:00'));
+
+// Speaker sessions: 3 sample speakers, 2 past sessions (attendance + feedback), 3 upcoming
+const speaker = (name: string, background: string, topic: string, fee: number | null) => rec('speakers', { name, background, topic, contact: null, fee, sample: true }, null, null, atDay(-50, '10:00'));
+const spk = [
+  speaker('Dr. K. Anand (sample speaker)', 'Psychologist, 15 years with exam-going students', 'Handling exam pressure and building focus', 15000),
+  speaker('S. Pavani (sample alumna)', 'BJC 2022, now at a top engineering college', 'How I planned my JEE preparation', null),
+  speaker('R. Mohan (sample speaker)', 'Career counsellor', 'Careers after JEE and NEET: beyond the obvious', 10000),
+];
+const session = (o: Any) => rec('speaker_sessions', { venue: 'Seminar hall', onlineUrl: null, summary: null, recordingPath: null, alumniId: null, sample: true, createdBy: 'staff-principal', ...o }, o.audience, o.date, atDay(-30, '10:00'));
+const sMot = session({ title: 'Beat exam stress, build focus', type: 'motivational', speakerId: spk[0].id, date: day(-10), time: '14:30', audience: 'all_students', capacity: 300, summary: 'Practical routines for sleep, revision and staying calm in the exam hall.' });
+const sAlu = session({ title: 'Alumni talk: my JEE year', type: 'alumni', speakerId: spk[1].id, date: day(-24), time: '15:00', audience: `batch:${JA.rec.id}`, capacity: 40, summary: 'A BJC alumna on daily planning, mock-test review and handling a bad week.' });
+const sTop = session({ title: 'Toppers interaction: ask the 2026 rank holders', type: 'toppers', speakerId: null, date: day(6), time: '15:00', audience: 'all_students', capacity: 120, summary: 'Q&A with last year’s toppers. Bring your questions.' });
+const sPar = session({ title: 'Supporting your child through JEE/NEET', type: 'parent_seminar', speakerId: spk[0].id, date: day(8), time: '10:30', audience: 'parents', capacity: 100, summary: 'What helps and what adds pressure at home. Tea and Q&A after the talk.' });
+const sExm = session({ title: 'NEET exam-strategy workshop', type: 'exam_strategy', speakerId: spk[2].id, date: day(12), time: '14:00', audience: `batch:${NA.rec.id}`, capacity: 40, summary: 'Time management, negative marking and OMR practice.' });
+const reg = (sid: string, who: string, kind: 'student' | 'parent', studentId: string, attended: boolean) => rec('session_registrations', { sessionId: sid, who, kind, studentId, attended }, sid, who);
+const fb = (sid: string, who: string, rating: number, comment: string | null) => rec('session_feedback', { sessionId: sid, who, rating, comment }, sid, who);
+const COMMENTS = ['The 50/10 study routine is useful.', 'Liked the breathing exercise before tests.', 'Very practical, please invite again.', 'Helped me stop comparing ranks.', null, null];
+students.slice(0, 34).forEach((s, i) => {
+  const attended = s === rahul || i % 9 !== 8;
+  reg(sMot.id, s.id, 'student', s.id, attended);
+  if (attended && s !== rahul && i < 25) fb(sMot.id, s.id, i % 7 === 0 ? 3 : i % 3 === 0 ? 4 : 5, COMMENTS[i % COMMENTS.length]); // Rahul has not given feedback yet
+});
+JA.studs.forEach((s: Any, i: number) => { reg(sAlu.id, s.id, 'student', s.id, i !== 7); if (i !== 7 && i % 2 === 0) fb(sAlu.id, s.id, 5, i === 0 ? 'Now I review every mock test the same day.' : null); });
+students.slice(5, 23).forEach((s) => reg(sTop.id, s.id, 'student', s.id, false));
+students.slice(10, 22).forEach((s) => reg(sPar.id, s.guardianPhone, 'parent', s.id, false));
+NA.studs.slice(0, 9).forEach((s: Any) => reg(sExm.id, s.id, 'student', s.id, false));
+for (const [s, aud] of [[sTop, 'students'], [sPar, 'parents'], [sExm, 'students']] as const) rec('events', { title: s.data.title, date: s.data.date, endDate: null, kind: 'event', audience: aud, location: s.data.venue, note: `${s.data.time} · register in the app. Session id ${s.id} (sample data)`, createdBy: 'staff-principal' }, 'event', s.data.date);
+
+// Wellbeing (private): consent for 32 students (not Ananya, so her app shows the privacy note), 6 weeks of check-ins
+const thisWeek = weekStart(TODAY);
+const WEEKS = [5, 4, 3, 2, 1, 0].map((w) => addDays(thisWeek, -7 * w));
+const highStress = [jee[5], neet[7]];
+const consenting = students.filter((s) => s !== ananya).slice(0, 32);
+consenting.forEach((s, i) => {
+  rec('wellbeing_consent', { studentId: s.id, at: atDay(-42, '19:00'), shareWithParent: s === rahul || i % 4 === 0 }, s.id, null, atDay(-42, '19:00'));
+  WEEKS.forEach((ws, w) => {
+    if (w === 5 && i % 2 === 1) return; // half have checked in this week so far
+    if (w < 5 && rand() < 0.12 && s !== rahul) return;
+    const hi = highStress.includes(s) && w >= 4;
+    const stress = s === rahul ? [2, 2, 3, 3, 4, 3][w] : hi ? (w === 4 ? 4 : 5) : int(2, 3) + (w === 4 && i % 5 === 0 ? 1 : 0);
+    const note = s === rahul && w === 4 ? 'Worried about the Physics test results.' : hi && w === 5 ? 'Too much syllabus left, not sleeping well. (sample)' : null;
+    rec('wellbeing_checkins', { studentId: s.id, weekStart: ws, mood: Math.max(1, Math.min(5, 6 - stress + int(-1, 0))), sleepHours: hi ? 5 : int(6, 8), stress, note, distress: false }, s.id, ws, at(ws, '20:30'));
+  });
+});
+for (const s of highStress) {
+  rec('wellbeing_flags', { studentId: s.id, status: 'needs_conversation', raisedBy: 'high stress 2+ weeks', date: day(-1) }, s.id, 'needs_conversation');
+  rec('counsellor_notes', { studentId: s.id, note: 'Exam worry and short sleep. Agreed a sleep routine and a check-in next week. (sample data)', by: COUNSELLOR, date: day(-3) }, s.id, day(-3));
+}
+const booking = (s: Any, d: number, time: string, mode: string, status: string, topic: string | null) => rec('counsellor_bookings', { studentId: s.id, date: day(d), time, mode, status, topic }, s.id, day(d));
+booking(highStress[0], 1, '11:00', 'in_person', 'requested', 'Exam stress');
+booking(highStress[1], 2, '15:00', 'in_person', 'confirmed', null);
+booking(students[20], -5, '12:00', 'call', 'done', 'Homesick in the hostel');
+booking(students[26], -2, '14:00', 'in_person', 'cancelled', null);
+const ANON: [string, string | null][] = [
+  ['How do I stop comparing my rank with my friends?', 'Compare yourself with your own last test, not with others. Pick one chapter to improve each week and track only that. Come and talk any time.'],
+  ['I get very nervous the night before a test and cannot sleep. What can I do?', 'Stop new topics by 8 PM, do a light revision of formulas, then 10 minutes of slow breathing. Many students feel this; it gets better with routine.'],
+  ['Is it normal to feel homesick in the hostel in the first term?', null],
+  ['My parents expect a top rank. How do I tell them I am trying my best?', null],
+];
+ANON.forEach(([text, answer], i) => rec('anon_questions', { text, answer, answeredAt: answer ? atDay(-i - 1, '17:00') : null, distress: false, ticket: createHash('sha256').update(`anon-${i}`).digest('hex').slice(0, 12) }, createHash('sha256').update(`anon-${i}`).digest('hex').slice(0, 12), answer ? 'answered' : 'open', atDay(-i - 3, '21:00')));
+
+// Open-book: question bank, 3 assignments (1 closed + marked, 2 open now), weekly big questions
+const RUBRIC = [{ criterion: 'Concept understanding', max: 4 }, { criterion: 'Method', max: 3 }, { criterion: 'Correct use of resources', max: 1 }, { criterion: 'Explanation', max: 2 }];
+const obq = (subject: string, chapter: string, kind: string, answerType: string, text: string, modelAnswer: string, createdBy: string, options: string[] = []) => rec('openbook_questions', { subject, chapter, kind, answerType, text, options, modelAnswer, rubric: RUBRIC, openBookSuitable: true, createdBy }, subject, kind);
+const qPhys = [
+  obq('Physics', 'Rotational motion', 'application', 'short', 'A ring and a disc of the same mass and radius roll down the same incline from rest. Which reaches the bottom first? Use your notes to justify with the moment of inertia.', 'The disc. I(disc)=MR²/2 < I(ring)=MR², so a larger share of energy goes into translation; a = g sinθ/(1+I/MR²) is larger for the disc.', 'staff-krishna'),
+  obq('Physics', 'Rotational motion', 'real_life', 'short', 'Why does a figure skater spin faster when she pulls her arms in? Explain with angular momentum.', 'No external torque, so L = Iω is conserved. Pulling arms in reduces I, so ω increases.', 'staff-krishna'),
+  obq('Physics', 'Laws of motion', 'analysis', 'long', 'A lift accelerates up at 2 m/s², moves at constant speed, then decelerates. Sketch how a bathroom scale reading changes for a 60 kg person and explain each part.', 'N = m(g+a): 708 N while accelerating up, 588 N at constant speed, 468 N while decelerating (g = 9.8).', 'staff-krishna'),
+  obq('Physics', 'Laws of motion', 'mcq_explain', 'mcq_explain', 'A block on a rough table does not move when pushed lightly. The friction force is: pick one and explain why.', 'B: equal to the applied force, because static friction adjusts up to its limit μsN.', 'staff-krishna', ['Zero', 'Equal to the applied force', 'Equal to μsN always', 'Greater than the applied force']),
+];
+const qChem = [
+  obq('Chemistry', 'Chemical bonding', 'own_words', 'short', 'In your own words, explain why water is a bent molecule while CO₂ is linear.', 'O in water has two lone pairs (sp³, ~104.5°); C in CO₂ has no lone pairs, two double bonds, sp, 180°.', 'staff-radhika'),
+  obq('Chemistry', 'Chemical bonding', 'case_data', 'short', 'Using the given boiling points of H₂O, H₂S, H₂Se and H₂Te, explain the trend and the exception.', 'Boiling point rises with molar mass from H₂S to H₂Te (van der Waals); H₂O is anomalously high due to hydrogen bonding.', 'staff-radhika'),
+];
+const qBio = [
+  obq('Biology', 'Human physiology', 'real_life', 'short', 'Why do we feel thirsty after eating very salty food? Trace the path from the blood to the brain.', 'Higher plasma osmolality is sensed by hypothalamic osmoreceptors, which trigger thirst and ADH release so the kidneys keep more water.', 'staff-swathi'),
+  obq('Biology', 'Human physiology', 'application', 'short', 'A person has damaged alveoli. Using Fick’s law, explain why their oxygen uptake falls.', 'Less surface area and thicker membrane reduce the diffusion rate (rate ∝ area × gradient / thickness).', 'staff-swathi'),
+  obq('Biology', 'Human physiology', 'analysis', 'long', 'Compare how the heart rate and breathing rate change during a 600 m run, and explain why both change together.', 'Both rise: more CO₂ and lower pH stimulate the medulla; sympathetic stimulation raises heart rate to deliver O₂ and remove CO₂.', 'staff-swathi'),
+];
+const RES_PCF = { ownNotes: true, ncert: true, formulaSheet: true, calculator: true, internet: false };
+const assignment = (b: Any, title: string, subject: string, qs: Any[], perStudent: number, opensAt: string, closesAt: string, by: string, resources = RES_PCF) => rec('openbook_assignments', { batchId: b.rec.id, title, subject, questionIds: qs.map((q) => q.id), perStudent, resources, durationMin: 45, opensAt, closesAt, createdBy: by }, b.rec.id, closesAt.slice(0, 10), opensAt);
+const aChem = assignment(JA, 'Chemistry chapter assignment: Chemical bonding', 'Chemistry', qChem, 2, atDay(-9, '16:00'), atDay(-7, '21:00'), 'staff-radhika', { ownNotes: true, ncert: true, formulaSheet: false, calculator: false, internet: false });
+const aPhys = assignment(JA, 'Physics open-book practice: Rotation and Laws of motion', 'Physics', qPhys, 2, minsFromNow(-180), atDay(3, '21:00'), 'staff-krishna');
+const aBio = assignment(NA, 'Biology open-book practice: Human physiology', 'Biology', qBio, 2, minsFromNow(-120), atDay(4, '21:00'), 'staff-swathi');
+const ANSWERS = ['Because the moment of inertia is smaller, more of the energy goes into moving forward, so it is faster. From my notes: a = g sinθ / (1 + I/MR²).', 'Angular momentum stays the same because there is no outside torque, so when I gets smaller ω must get bigger.', 'Using N = m(g + a) from the NCERT example, the reading goes up first, then normal, then down.', 'It is equal to the applied force, since static friction only becomes μsN at the limit.'];
+const attempt = (a: Any, s: Any, qids: string[], pledged: string, submitted: string | null, marked: Record<string, number[]> | null, feedback: string | null) => {
+  const marks = marked ? Object.fromEntries(qids.map((q, i) => [q, Object.fromEntries(RUBRIC.map((r, j) => [r.criterion, Math.min(r.max, marked[q]?.[j] ?? [3, 2, 1, 1][j] + (i % 2))]))])) : null;
+  const total = marks ? Object.values(marks).reduce((t, m) => t + Object.values(m).reduce((x, y) => x + y, 0), 0) : null;
+  rec('openbook_attempts', { assignmentId: a.id, studentId: s.id, questionIds: qids, pledgedAt: pledged, answers: submitted ? Object.fromEntries(qids.map((q, i) => [q, ANSWERS[(i + s.fullName.length) % ANSWERS.length]])) : {}, submittedAt: submitted, suggestion: marks, marks, feedback, total, max: marks ? qids.length * 10 : null, markedBy: marks ? a.data.createdBy : null, similarity: [] }, a.id, s.id, pledged);
+};
+JA.studs.forEach((s: Any, i: number) => {
+  const qids = [qChem[i % 2].id, qChem[(i + 1) % 2].id];
+  const scores = s === rahul ? { [qids[0]]: [4, 3, 1, 1], [qids[1]]: [3, 2, 1, 2] } : {};
+  attempt(aChem, s, qids, atDay(-8, '18:00'), atDay(-8, '18:40'), scores, s === rahul ? 'Clear use of VSEPR; add the bond angle values next time. (Rubric-marked by Radhika)' : 'Good explanation in your own words. (sample)');
+});
+JA.studs.slice(1, 5).forEach((s: Any, i: number) => attempt(aPhys, s, [qPhys[i % 4].id, qPhys[(i + 1) % 4].id], minsFromNow(-150 + i * 10), minsFromNow(-110 + i * 10), i < 2 ? {} : null, i < 2 ? 'Concept is right; show the formula you used from the sheet. (sample)' : null));
+NA.studs.slice(0, 3).forEach((s: Any, i: number) => attempt(aBio, s, [qBio[i % 3].id, qBio[(i + 1) % 3].id], minsFromNow(-100), minsFromNow(-60), null, null));
+const bqP = rec('big_questions', { subject: 'Physics', weekStart: thisWeek, text: 'Why does a spinning top not fall over, but falls as soon as it slows down? Explain using torque and angular momentum.', createdBy: 'staff-krishna' }, 'Physics', thisWeek, atDay(-1, '08:00'));
+const bqB = rec('big_questions', { subject: 'Biology', weekStart: thisWeek, text: 'Why do your fingers wrinkle in water, but not your arms? Suggest an explanation and how you would test it.', createdBy: 'staff-swathi' }, 'Biology', thisWeek, atDay(-1, '08:00'));
+const bigA = (q: Any, s: Any, text: string, featured: boolean) => rec('big_answers', { questionId: q.id, studentId: s.id, text, featured }, q.id, s.id);
+bigA(bqP, jee[2], 'The spinning top has a large angular momentum along its axis. Gravity gives a torque, but the torque only changes the direction of L slowly (precession) instead of tipping it. When the top slows, L becomes small and the same torque can tip it over.', true);
+bigA(bqP, jee[7], 'Because when it spins fast it is stable like a cycle wheel. When it slows down it is not stable.', false);
+bigA(bqP, jee[13], 'Torque from gravity makes L rotate sideways, so the top precesses. Precession needs enough L, so at low spin it falls.', false);
+bigA(bqB, neet[3], 'Wrinkling is controlled by nerves: blood vessels in the fingertips narrow in water. It may give a better grip on wet things. Test: compare grip on wet objects with wrinkled and dry fingers.', true);
+bigA(bqB, neet[9], 'The skin on fingers absorbs water and swells more than on the arm.', false);
+
 // ------------------------------------------------------------------ write
 for (const l of leads) l.updatedAt = l.lastContactAt && l.lastContactAt > l.createdAt ? l.lastContactAt : l.createdAt;
 save();

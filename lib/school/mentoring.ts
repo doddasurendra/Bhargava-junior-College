@@ -7,6 +7,9 @@ import { attendance, discipline, mentorNotes, mentorships, messages, ptmSlots, t
 import { sendTemplate } from '../whatsapp/service';
 import { allBatches, batchOf, firstName, menteeIds, requireSeesStudent, SchoolError, store, studentsById } from './common';
 import { attendanceSummary, consecutiveAbsences, earlyWarnings, weeklyReportParams } from './logic';
+import { participation, sportsProfile } from '../studentLife/sports';
+import { attendedBy } from '../studentLife/sessions';
+import { flagsFor } from '../studentLife/wellbeing';
 
 const MENTOR_RATIO = 20;
 
@@ -36,6 +39,9 @@ export async function studentSignals(studentId: string, today = todayIST()) {
   const scorePcts = results.map((x) => (x.r!.data.max ? (x.r!.data.score / x.r!.data.max) * 100 : 0));
   const checks = (await wellbeing.list(store(), { k1: studentId })).sort((a, c) => c.data.month.localeCompare(a.data.month));
   const warnings = earlyWarnings({ attendancePct: att.pct, scorePcts, latestStress: checks[0]?.data.stress ?? null, consecutiveAbsences: consecutiveAbsences(regs, studentId) });
+  // student life: the counsellor's flag (never the reason or notes) and no games in 30 days
+  if ((await flagsFor([studentId])).has(studentId)) warnings.unshift('Wellbeing: needs a conversation (from the counsellor)');
+  if (!(await participation(30, today)).get(studentId)) warnings.push('No sports or games in the last 30 days: encourage them to play');
   return { batch: b?.data.name ?? null, attendance: att, scorePcts, latestCheck: checks[0]?.data ?? null, warnings };
 }
 
@@ -180,7 +186,8 @@ export async function sendWeeklyReports(today = todayIST()) {
         if (r?.data.submittedAt) results.push({ title: t.data.title, pct: r.data.max ? (r.data.score / r.data.max) * 100 : 0 });
       }
       const note = (await mentorNotes.list(store(), { k1: sid, k2From: from, k2To: today })).find((n) => n.data.shareWithParent)?.data.note ?? null;
-      const params = weeklyReportParams({ studentFirstName: firstName(s.fullName), weekLabel: `${formatDate(from, { day: 'numeric', month: 'short' })} – ${formatDate(today, { day: 'numeric', month: 'short' })}`, attendance: { present: att.present + att.late, days: att.days - att.leave }, tests: results, mentorNote: note });
+      const [sp, sessionsAttended] = await Promise.all([sportsProfile(sid, today), attendedBy(sid, from)]);
+      const params = weeklyReportParams({ studentFirstName: firstName(s.fullName), weekLabel: `${formatDate(from, { day: 'numeric', month: 'short' })} – ${formatDate(today, { day: 'numeric', month: 'short' })}`, attendance: { present: att.present + att.late, days: att.days - att.leave }, tests: results, mentorNote: note, sportsPlayed: sp.playedThisWeek, sessions: sessionsAttended.filter((x) => x.date <= today).map((x) => x.title) });
       for (const g of await getAppStore().guardiansOf(sid)) {
         const r = await sendTemplate({ template: 'weekly_report', to: g.phone, params, leadId: s.leadId, dedupeKey: `weekly:${today}:${sid}:${g.phone}` }).catch(() => null);
         if (r?.status === 'sent') counts.messages++;

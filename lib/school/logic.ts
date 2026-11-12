@@ -147,14 +147,20 @@ export interface WeekSummary {
   attendance: { present: number; days: number };
   tests: { title: string; pct: number }[];
   mentorNote: string | null;
+  /** games periods attended this week */
+  sportsPlayed?: number;
+  /** speaker sessions attended this week */
+  sessions?: string[];
 }
 
-/** §6.9: the Sunday WhatsApp parent report as template parameters (attendance, test trend, mentor's note). */
+/** §6.9: the Sunday WhatsApp parent report as template parameters (attendance, test trend, mentor's note, sports, sessions). */
 export function weeklyReportParams(w: WeekSummary): string[] {
   const att = w.attendance.days ? `${w.attendance.present}/${w.attendance.days} days` : 'no classes recorded';
   const tests = w.tests.length ? w.tests.map((t) => `${t.title} ${Math.round(t.pct)}%`).join(', ') : 'no tests this week';
   const note = (w.mentorNote ?? 'No note this week.').replace(/\s+/g, ' ').slice(0, 300);
-  return [w.studentFirstName, w.weekLabel, att, tests, note];
+  const sports = w.sportsPlayed ? `${w.sportsPlayed} games period${w.sportsPlayed === 1 ? '' : 's'}` : 'none this week';
+  const sessions = w.sessions?.length ? w.sessions.join(', ').slice(0, 200) : 'none this week';
+  return [w.studentFirstName, w.weekLabel, att, tests, note, sports, sessions];
 }
 
 /** A teacher may not be in two batches at once; returns the clashing period if any. */

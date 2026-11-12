@@ -74,6 +74,18 @@ export const DEFAULT_RULES = {
   'library.manage': ['super_admin', 'admin_office'],
   'events.manage': ['super_admin', 'principal', 'academic_coordinator', 'admin_office'],
 
+  // ---- student life: sports, speaker sessions, wellbeing, open-book
+  'sports.manage': ['super_admin', 'sports_coach'],
+  'sports.view': ['super_admin', 'management', 'principal', 'academic_coordinator', 'class_teacher', 'sports_coach', 'hostel_warden'],
+  'sessions.manage': ['super_admin', 'principal', 'data_executive', 'academic_coordinator'],
+  /** private check-ins, notes, bookings, anonymous questions: the counsellor only */
+  'wellbeing.counsel': ['student_counsellor'],
+  /** anonymous college-wide trends, safety alerts; never names or notes */
+  'wellbeing.trends': ['super_admin', 'management', 'principal'],
+  /** edit the helpline list */
+  'wellbeing.helplines': ['super_admin', 'principal', 'student_counsellor'],
+  'openbook.manage': [...ACADEMIC_HEADS, 'faculty'],
+
   // ---- hostel & transport (§9A.2 rows 13–14)
   'hostel.manage': ['super_admin', 'hostel_warden'],
   'outpass.approve': ['super_admin', 'hostel_warden'],

@@ -158,6 +158,9 @@ function ProfileCard({ p }: { p: Profile }) {
             <Row k="Area" v={p.area} />
             <Row k="Email" v={p.email} />
             <Row k="Stay" v={p.stay === 'hostel' ? `Hostel${p.hostelRoom ? ` · room ${p.hostelRoom}` : ''}` : `Day scholar${p.bus ? ` · bus ${p.bus}` : ''}`} />
+            <Row k="House" v={p.house} />
+            <Row k="Sports achievements" v={p.sportsAchievements.length ? p.sportsAchievements.join('; ') : null} />
+            <Row k="Sessions attended" v={p.sessionsAttended.length ? p.sessionsAttended.join('; ') : null} />
           </dl>
         </Panel>
         <Panel title="Parents / guardians">

@@ -71,6 +71,8 @@ export const LOGIN_GROUPS: LoginGroup[] = [
       { key: 'hostel_warden', title: 'Hostel warden', body: 'Rooms, night attendance, out-passes, sick room and hostel alerts to parents.', how: STAFF, href: crm('hostel_warden') },
       { key: 'transport_incharge', title: 'Transport in-charge', body: 'Buses, routes, bus attendance and live location.', how: STAFF, href: crm('transport_incharge') },
       { key: 'data_executive', title: 'Content & marketing', body: 'Website content, lead imports and marketing spend.', how: STAFF, href: crm('data_executive') },
+      { key: 'sports_coach', title: 'Sports coach', body: 'Houses, fixtures and results, games-period attendance, fitness checks and achievements.', how: STAFF, href: crm('sports_coach') },
+      { key: 'student_counsellor', title: 'Student counsellor', body: 'Private wellbeing check-ins, counselling bookings, anonymous questions and safety alerts.', how: STAFF, href: crm('student_counsellor') },
     ],
   },
 ];

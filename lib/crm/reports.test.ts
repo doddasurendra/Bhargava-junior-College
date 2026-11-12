@@ -21,7 +21,8 @@ afterAll(() => {
 });
 
 describe('7 PM report', () => {
-  it('stores a snapshot, messages management with a phone once a day, and is safe to re-run', async () => {
+  // builds a PDF: ~5 s on a slow Windows laptop, so give it more than the 5 s default
+  it('stores a snapshot, messages management with a phone once a day, and is safe to re-run', { timeout: 20_000 }, async () => {
     const { tx } = await import('../store/file');
     await tx((db) => {
       db.staff.push({ id: 'staff-md', fullName: 'Managing Director', email: null, phone: '+919777700001', roles: ['management'], active: true });

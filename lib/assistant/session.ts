@@ -7,6 +7,8 @@ import type { Attribution } from '../validation';
 import { AssistantUnavailable, runAssistant, type Turn } from './agent';
 import { recordTurn } from './analytics';
 import { detectLang, GREETING, groundedAnswer, isGreeting } from '../rag';
+import { detectDistress } from '../studentLife/safety';
+import { raiseSafetyAlert } from '../studentLife/wellbeing';
 
 const MAX_TURNS_PER_CHAT = 40;
 const HISTORY_TURNS = 24;
@@ -53,6 +55,15 @@ export async function assistantTurn(p: { c?: string; t?: string; text: string; a
   await st.addMessage({ conversationId: conv.id, author: 'contact', staffId: null, text: p.text, waMessageId: null });
   const consent = Boolean(conv.consentAt);
   const base = { c: conv.id, t: token, consent };
+
+  // Safety protocol: the AI never counsels. Possible distress → a calm message with the helpline, an alert to
+  // the Student Counsellor and the Principal, and the chat goes to a person (chat and voice share this path).
+  if (detectDistress(p.text)) {
+    const safety = await raiseSafetyAlert({ source: 'chat', refId: conv.id, studentId: null, text: p.text });
+    await st.addMessage({ conversationId: conv.id, author: 'bot', staffId: null, text: safety.message, waMessageId: null });
+    await st.update(conv.id, { status: 'waiting', handoffReason: 'Wellbeing safety alert: please respond now', handoffAt: new Date().toISOString() });
+    return { ...base, reply: safety.message, links: [{ label: 'Wellbeing support', href: '/student-life/wellbeing' }], fallback: false, needsConsent: false, live: true, handoffForm: null };
+  }
 
   try {
     const r = await runAssistant(await history(conv.id), { conversationId: conv.id, consent, attribution: p.attribution });
