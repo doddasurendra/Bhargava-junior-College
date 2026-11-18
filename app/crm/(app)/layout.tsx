@@ -58,6 +58,7 @@ export default async function CrmShell({ children }: { children: ReactNode }) {
     ...(exportsFor(user).length ? [{ href: '/crm/exports', label: 'Reports & exports' }] : []),
     ...(can(user, 'leave.request') || can(user, 'leave.approve') ? [{ href: '/crm/leave', label: 'Leave' }] : []),
     ...(isDeveloper(user) ? [] : [{ href: '/crm/me', label: 'My profile' }, { href: '/crm/my-attendance', label: 'My attendance' }]),
+    ...(can(user, 'staff.records') ? [{ href: '/crm/staff-directory', label: 'Staff records' }] : []),
     ...(can(user, 'staff.attendance') ? [{ href: '/crm/staff-attendance', label: 'Staff attendance' }] : []),
     ...(canUseAssistant(user) ? [{ href: '/crm/college-assistant', label: 'College assistant' }] : []),
     ...(can(user, 'whatsapp.setup') ? [{ href: '/crm/assistant', label: 'Website chat analytics' }] : []),

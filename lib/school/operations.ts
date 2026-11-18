@@ -1,4 +1,6 @@
 import 'server-only';
+import { createHash } from 'node:crypto';
+import { college } from '@/content/college';
 import { getAppStore } from '../app/service';
 import { can } from '../crm/permissions';
 import type { Staff } from '../crm/types';
@@ -170,6 +172,40 @@ export async function markBusAttendance(user: Staff, busId: string, trip: 'picku
   const date = todayIST();
   const prev = (await busAttendance.list(store(), { k1: busId, k2: date })).find((r) => r.data.trip === trip);
   return busAttendance.put(store(), { busId, date, trip, present: present.filter((x) => b.data.studentIds.includes(x)), markedBy: user.id }, prev?.id);
+}
+
+/**
+ * Transport in-charge → WhatsApp to the parents of every student on a bus (or only `onlyStudentIds`, e.g. a
+ * missed pickup). The same message reaches a number at most once per day. Results say exactly what the API
+ * did; without WhatsApp credentials they come back as "simulated" (logged, not delivered).
+ */
+export async function sendBusNotice(user: Staff, busId: string, message: string, onlyStudentIds: string[] = []) {
+  need(can(user, 'transport.manage'));
+  const text = message.trim().replace(/\s+/g, ' ');
+  if (text.length < 5) throw new SchoolError('Write the message for parents (at least 5 characters).');
+  if (text.length > 300) throw new SchoolError('Keep the message under 300 characters.');
+  const b = await buses.get(store(), busId);
+  if (!b) throw new SchoolError('Bus not found.');
+  const ids = onlyStudentIds.length ? onlyStudentIds.filter((x) => b.data.studentIds.includes(x)) : b.data.studentIds;
+  if (ids.length === 0) throw new SchoolError('No students on this bus.');
+  const byId = await studentsById();
+  const day = todayIST();
+  const tag = createHash('sha256').update(text).digest('hex').slice(0, 12);
+  const out = { sent: 0, simulated: 0, failed: 0, skipped: 0 };
+  for (const sid of ids) {
+    const s = byId.get(sid);
+    if (!s) continue;
+    const guardians = await getAppStore().guardiansOf(sid);
+    if (guardians.length === 0) out.skipped++;
+    for (const g of guardians) {
+      const r = await sendTemplate({ template: 'transport_alert', to: g.phone, params: [firstName(s.fullName), b.data.busNo, b.data.route, text, college.phones[0].display], leadId: s.leadId, actorId: user.id, dedupeKey: `bus:${busId}:${day}:${tag}:${g.phone}` }).catch((e) => ({ status: 'failed' as const, reason: (e as Error).message, simulated: false }));
+      if (r.simulated) out.simulated++;
+      else if (r.status === 'sent') out.sent++;
+      else if (r.status === 'failed') out.failed++;
+      else out.skipped++;
+    }
+  }
+  return out;
 }
 
 /** GPS device / driver app pushes the bus position (header-key authenticated route). */

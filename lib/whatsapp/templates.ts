@@ -227,6 +227,16 @@ export const TEMPLATES = [
     manual: false,
   },
   {
+    key: 'transport_alert',
+    name: 'bjc_transport_alert',
+    category: 'utility',
+    language: 'en',
+    description: 'Sent by the transport in-charge to the parents of students on one bus (delay, route change, missed pickup).',
+    body: 'Transport update for {{1}} (bus {{2}}, {{3}}): {{4}}. Questions: {{5}}.',
+    params: ['Student first name', 'Bus number', 'Route', 'Message', 'College phone'],
+    manual: false,
+  },
+  {
     key: 'marks_update',
     name: 'bjc_marks_update',
     category: 'utility',

@@ -114,6 +114,20 @@ export async function myProfile(user: Staff) {
   };
 }
 
+/** Admin office / leadership: every staff member's employment record. No passwords, 2FA or salary here. */
+export async function staffDirectory(actor: Staff) {
+  if (!can(actor, 'staff.records')) throw new SchoolError('You do not have permission to do this.');
+  const [staff, profiles, periods, all] = await Promise.all([getCrmRepo().listAllStaff(), staffProfiles.list(store()), timetable.list(store()), batches.list(store())]);
+  const prof = new Map(profiles.map((p) => [p.data.staffId, p.data]));
+  const names = new Map(all.map((b) => [b.id, b.data.name]));
+  return staff
+    .map((s) => {
+      const mine = periods.filter((p) => p.data.facultyId === s.id);
+      return { id: s.id, name: s.fullName, email: s.email, phone: s.phone, roles: s.roles, active: s.active, profile: prof.get(s.id) ?? null, subjects: [...new Set(mine.map((p) => p.data.subject))], classes: [...new Set(mine.map((p) => names.get(p.data.batchId) ?? ''))].filter(Boolean) };
+    })
+    .sort((a, b) => Number(b.active) - Number(a.active) || a.name.localeCompare(b.name));
+}
+
 export function attendanceCsv(name: string, month: string, m: Awaited<ReturnType<typeof attendanceMonth>>) {
   const esc = (v: string) => (/^[=+\-@]/.test(v) ? `'${v}` : v).replace(/"/g, '""');
   const lines = [['Date', 'Status', 'Check in', 'Check out', 'Marked by'].join(','), ...m.days.map((d) => [d.date, d.status, d.checkIn ?? '', d.checkOut ?? '', d.source ?? ''].map((v) => `"${esc(v)}"`).join(','))];

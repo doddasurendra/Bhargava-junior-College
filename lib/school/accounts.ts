@@ -95,7 +95,12 @@ export async function decideFeeChange(user: Staff, id: string, approve: boolean,
   return out;
 }
 
+/** Roles that work with fee money at all. Everyone else (teachers, wardens, telecallers…) sees none of it. */
+export const FEE_PERMS = ['fees.dues', 'fees.export', 'payment.approve', 'concession.request', 'refund.request', 'concession.approve.slab', 'concession.approve.above', 'refund.approve'] as const;
+export const usesAccounts = (user: Staff) => FEE_PERMS.some((p) => can(user, p));
+
 export async function feeRequestsFor(user: Staff) {
+  need(usesAccounts(user));
   const all = (await feeRequests.list(store())).map((r) => ({ id: r.id, createdAt: r.createdAt, ...r.data }));
   const canDecide = (r: (typeof all)[number]) => can(user, r.kind === 'refund' ? 'refund.approve' : r.level === 'slab' ? 'concession.approve.slab' : 'concession.approve.above');
   return all.map((r) => ({ ...r, canDecide: r.status === 'pending' && canDecide(r) && r.requestedBy !== user.id }));

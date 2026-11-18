@@ -306,3 +306,23 @@ describe('access levels (master prompt §3)', () => {
     expect(m.days.find((d) => d.date === '2026-11-17')).toMatchObject({ status: 'half_day', source: 'admin' });
   });
 });
+
+describe('office departments see only their own (master prompt §10)', () => {
+  it('fee requests, staff records and bus messages are refused outside their department', async () => {
+    const F2 = await import('./accounts');
+    const S = await import('./staffAttendance');
+    const transport = st('staff-transport', ['transport_incharge']);
+    await expect(F2.feeRequestsFor(warden)).rejects.toThrow('permission');
+    await expect(F2.feeRequestsFor(faculty)).rejects.toThrow('permission');
+    await expect(F2.feeRequestsFor(accounts)).resolves.toBeInstanceOf(Array);
+    await expect(S.staffDirectory(faculty)).rejects.toThrow('permission');
+    await expect(S.staffDirectory(accounts)).rejects.toThrow('permission');
+    expect((await S.staffDirectory(adminOffice)).length).toBeGreaterThan(0);
+    const bus = await O.saveBus(transport, { route: 'Route 9', busNo: 'TS-09', driverName: 'Raju', driverPhone: null });
+    await O.assignBus(transport, s2, bus.id);
+    await expect(O.sendBusNotice(faculty, bus.id, 'Bus is 20 minutes late')).rejects.toThrow('permission');
+    await expect(O.sendBusNotice(transport, bus.id, 'hi')).rejects.toThrow('at least 5');
+    expect(await O.sendBusNotice(transport, bus.id, 'Bus is 20 minutes late')).toEqual({ sent: 0, simulated: 1, failed: 0, skipped: 0 });
+    expect(await O.sendBusNotice(transport, bus.id, 'Bus is 20 minutes late')).toEqual({ sent: 0, simulated: 0, failed: 0, skipped: 1 }); // not twice a day
+  });
+});

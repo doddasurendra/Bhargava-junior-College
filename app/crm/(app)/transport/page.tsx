@@ -1,4 +1,4 @@
-import { assignBusAction, busAttendanceAction, saveBusAction } from '@/app/crm/school-actions';
+import { assignBusAction, busAttendanceAction, busNoticeAction, saveBusAction } from '@/app/crm/school-actions';
 import { QuickForm } from '@/components/crm/QuickForm';
 import { Empty, Panel } from '@/components/crm/ui';
 import { requireStaff } from '@/lib/crm/auth';
@@ -48,6 +48,12 @@ export default async function TransportPage() {
                         </form>
                       );
                     })}
+                  </div>
+                )}
+                {b.data.studentIds.length > 0 && (
+                  <div className="mt-4 border-t border-line pt-3">
+                    <p className="mb-1 text-xs font-semibold uppercase tracking-wider text-muted">Message the parents on this bus (WhatsApp)</p>
+                    <QuickForm action={busNoticeAction} submit="Send to parents" cols={1} fields={[{ name: 'busId', type: 'hidden', value: b.id }, { name: 'message', label: 'Message', type: 'text', required: true, maxLength: 300, placeholder: 'Bus is running 20 minutes late this evening' }]} />
                   </div>
                 )}
               </Panel>

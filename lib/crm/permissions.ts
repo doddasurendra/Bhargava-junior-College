@@ -63,7 +63,7 @@ export const DEFAULT_RULES = {
   'doubts.answer': [...ACADEMIC_HEADS, 'faculty'],
   'mentor.notes': ['super_admin', 'principal', 'class_teacher'],
   'wellbeing.view': ['super_admin', 'principal', 'class_teacher'],
-  'notices.publish': ['super_admin', 'principal', 'academic_coordinator', 'admin_office', 'hostel_warden'],
+  'notices.publish': ['super_admin', 'principal', 'academic_coordinator', 'admin_office', 'hostel_warden', 'data_executive'],
   'ptm.manage': ['super_admin', 'principal', ...TEACHERS],
   'messages.reply': ['super_admin', 'principal', ...TEACHERS],
   'discipline.record': ['super_admin', 'principal', 'class_teacher'],
@@ -75,7 +75,9 @@ export const DEFAULT_RULES = {
   'alumni.manage': ['super_admin', 'admin_office', 'data_executive'],
   'homework.assign': [...ACADEMIC_HEADS, ...TEACHERS],
   'library.manage': ['super_admin', 'admin_office'],
-  'events.manage': ['super_admin', 'principal', 'academic_coordinator', 'admin_office'],
+  'events.manage': ['super_admin', 'principal', 'academic_coordinator', 'admin_office', 'data_executive'],
+  /** read-only staff directory: employment details, never salary or credentials */
+  'staff.records': ['super_admin', 'management', 'principal', 'admin_office'],
 
   // ---- student life: sports, speaker sessions, wellbeing, open-book
   'sports.manage': ['super_admin', 'sports_coach'],

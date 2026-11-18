@@ -290,6 +290,17 @@ export const saveBusAction = async (_: ActionState, fd: FormData) =>
     return 'Bus saved.';
   }, ['/crm/transport']);
 
+export const busNoticeAction = async (_: ActionState, fd: FormData) =>
+  run(async () => {
+    const r = await O.sendBusNotice(await requireStaff('transport.manage'), req(fd, 'busId', 'Bus'), req(fd, 'message', 'Message'));
+    const parts = [];
+    if (r.sent) parts.push(`${r.sent} handed to WhatsApp`);
+    if (r.simulated) parts.push(`${r.simulated} NOT delivered: WhatsApp is not configured, so they were only logged`);
+    if (r.failed) parts.push(`${r.failed} failed`);
+    if (r.skipped) parts.push(`${r.skipped} not sent (already sent today, opted out, or no parent number)`);
+    return parts.length ? `${parts.join('. ')}.` : 'Nothing to send.';
+  }, ['/crm/transport']);
+
 export const assignBusAction = async (_: ActionState, fd: FormData) =>
   run(async () => {
     await O.assignBus(await requireStaff('transport.manage'), req(fd, 'studentId', 'Student'), s(fd, 'busId'));

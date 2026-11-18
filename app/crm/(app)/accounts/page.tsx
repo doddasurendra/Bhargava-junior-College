@@ -6,13 +6,14 @@ import { requireStaff } from '@/lib/crm/auth';
 import { can } from '@/lib/crm/permissions';
 import { addDays, formatDate, todayIST } from '@/lib/dates';
 import { formatINR } from '@/lib/fees';
-import { dailyCollection, duesList, feeRequestsFor } from '@/lib/school/accounts';
+import { dailyCollection, duesList, feeRequestsFor, usesAccounts } from '@/lib/school/accounts';
 import { allStudents } from '@/lib/school/common';
 
 export const metadata = { title: 'Accounts' };
 
 export default async function AccountsPage({ searchParams }: { searchParams: { date?: string } }) {
   const user = await requireStaff();
+  if (!usesAccounts(user)) throw new Error('You do not have permission to do this.');
   const canDues = can(user, 'fees.dues');
   const today = todayIST();
   const date = searchParams.date && /^\d{4}-\d{2}-\d{2}$/.test(searchParams.date) ? searchParams.date : today;
