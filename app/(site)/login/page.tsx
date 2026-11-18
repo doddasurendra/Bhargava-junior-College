@@ -37,7 +37,7 @@ export default function LoginHub() {
       ))}
       <Section>
         <p className="text-sm text-muted">
-          New teacher or staff member? <Link href="/crm/login/register" className="underline">Request an account</Link>; the college administrator approves it before you can sign in. Principal, management, Super Admin and Developer accounts are created by the administrator only. Forgot your password? Use <Link href="/crm/login/forgot" className="underline">Forgot password</Link>. Parents and students sign in with the mobile number registered with the college and a one-time code.
+          New teacher or staff member? <Link href="/crm/login/register" className="underline">Request an account</Link>; the college administrator approves it before you can sign in. Principal, management, Super Admin and Developer accounts are created by the administrator only. Forgot your password? Use <Link href="/crm/login/forgot" className="underline">Forgot password</Link>. Admitted students and their parents can <Link href="/app/register/student" className="underline">register as a student</Link> or <Link href="/app/register/parent" className="underline">register as a parent</Link>, then sign in.
         </p>
       </Section>
     </>

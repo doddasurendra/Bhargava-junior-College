@@ -34,6 +34,9 @@ export default async function AppLoginPage({ searchParams }: { searchParams: Rec
         <LoginForm />
         <CollegeIdForm />
       </div>
+      <p className="mt-4 text-center text-sm">
+        New here? Register as a <Link href="/app/register/student" className="font-semibold underline">student</Link> or a <Link href="/app/register/parent" className="font-semibold underline">parent</Link>
+      </p>
       {devLoginEnabled() && <DevSignIn />}
       <p className="mt-6 text-center text-xs text-muted">
         Use the mobile number registered with the college. Applicants can sign in to follow their admission. Trouble signing in? Call{' '}

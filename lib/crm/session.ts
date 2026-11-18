@@ -26,7 +26,7 @@ const sign = (body: string) => createHmac('sha256', secret()).update(body).diges
  * `aud` separates token kinds — a staff CRM session, a half-finished staff sign-in waiting for its 2FA code,
  * and a Student & Parent app session. None works as another.
  */
-export type Audience = 'crm' | 'app' | 'mfa' | 'viewas';
+export type Audience = 'crm' | 'app' | 'mfa' | 'viewas' | 'reg';
 
 export interface Claims {
   sub: string;

@@ -64,6 +64,7 @@ export default async function CrmShell({ children }: { children: ReactNode }) {
     ...(can(user, 'whatsapp.setup') ? [{ href: '/crm/whatsapp', label: 'WhatsApp setup' }] : []),
     ...(BLOCK_KEYS.some((k) => canEditBlock(user.roles, k)) ? [{ href: '/crm/cms', label: 'Website content' }] : []),
     ...(can(user, 'marketing.spend') ? [{ href: '/crm/marketing', label: 'Marketing spend' }] : []),
+    ...(can(user, 'guardians.manage') ? [{ href: '/crm/parent-requests', label: 'Parent access requests' }] : []),
     ...(can(user, 'staff.manage') ? [{ href: '/crm/staff', label: 'Staff accounts' }] : []),
     ...(can(user, 'rbac.manage') ? [{ href: '/crm/permissions', label: 'Permissions' }] : []),
     ...(can(user, 'security.view') ? [{ href: '/crm/security', label: 'Security' }] : []),

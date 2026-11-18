@@ -15,8 +15,8 @@ export function CollegeIdForm() {
   return (
     <ActionForm action={collegeIdLoginAction} reset={false} className="mt-4 space-y-3 border-t border-line pt-4">
       <label className="block">
-        <span className="label">College ID</span>
-        <input name="collegeId" required autoComplete="username" placeholder="BJC-2027-JEE-0001" className="input font-mono uppercase" />
+        <span className="label">College ID or email</span>
+        <input name="collegeId" required autoComplete="username" placeholder="BJC-2027-JEE-0001" className="input font-mono" />
       </label>
       <label className="block">
         <span className="label">Password</span>

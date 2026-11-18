@@ -43,6 +43,23 @@ npm run typecheck
 
 **Signing in locally (no shortcuts):** every role signs in manually. Staff use email + password: run `npm run staff:logins` once to give each local demo staff account a `.test` email and a random password (listed in `.data/staff-logins.txt`, gitignored). New teachers and staff request an account at `/crm/login/register` and a Super Admin approves it under **Staff accounts → Registration requests**; until then sign-in is refused with "waiting for approval". Families sign in with mobile + one-time code (shown on screen only in development, because WhatsApp isn't connected). The old password-free picker only appears if you set `DEV_LOGIN_PICKER=1`.
 
+**Student and parent self-registration:**
+- **Student** (`/app/register/student`):
+  1. Enter College ID + date of birth + a mobile on the college's record: their own number, or a parent's (then the parent receives the code).
+  2. Verify with a WhatsApp code.
+  3. Choose an email and password.
+  4. Confirm the email from the link: without SMTP, the link is printed in the server console.
+  
+  Sign-in with College ID *or* email + password works only after the email is confirmed.
+- **Parent** (`/app/register/parent`):
+  1. Enter name, relation, mobile, and the child's College ID + date of birth.
+  2. Verify the mobile with a WhatsApp code.
+  3. What happens next depends on the number:
+     - A number already on the child's admission record links at once.
+     - A new number goes to **Parent access requests** (`/crm/parent-requests`, admin office), where the request is approved (WhatsApp welcome) or declined with a reason.
+  
+  Register once per child with the same number; the app's switcher moves between children. The registration steps are held in a signed 15-minute cookie, so the browser can't skip the code check.
+
 **Teacher workflow (master prompt §4):** *Student 360* (`/crm/students`): every teacher can search and read every student's academic record and edit only their own classes. *Attendance* (batch page): one register per class per date, per-student remarks, and corrections kept with who and when (teachers can correct up to 7 days back). There is a **Send attendance to parents on WhatsApp** button (all students or ticked ones) with live delivery status. *Marks*: a teacher enters only the subjects they teach; there is a **Send examination marks to parents on WhatsApp** button for published results only. *My profile* (`/crm/me`) and *My attendance* (`/crm/my-attendance`: check-in/out, monthly %, leave, CSV) show only your own records. The principal's office sees and corrects everyone at `/crm/staff-attendance`. Parent and student screens refresh themselves every 30 s. Without WhatsApp credentials, every message is recorded but shown as **Not delivered**, never as sent.
 
 When no Supabase variables are set, all writes go to a **local JSON store** at `.data/dev-db.json`. This file is gitignored because it holds personal data. With no SMS provider configured, OTP codes are printed to the server console and shown on the Track page (development only).

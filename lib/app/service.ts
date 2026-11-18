@@ -139,11 +139,17 @@ export async function logout() {
 const MAX_FAILS = 5;
 const LOCK_MS = 15 * 60_000;
 
-/** Same answer for an unknown College ID and a wrong password; lockout after 5 failures. */
-export async function loginWithCollegeId(collegeIdRaw: string, password: string): Promise<'ok' | 'invalid' | 'locked'> {
-  const collegeId = collegeIdRaw.trim().toUpperCase();
+/**
+ * College ID (or the registered email) + password. Same answer for an unknown ID and a wrong password;
+ * lockout after 5 failures. A self-registered account signs in only once its email is verified — and that is
+ * said only after the right password, so it reveals nothing to someone guessing.
+ */
+export async function loginWithCollegeId(idRaw: string, password: string): Promise<'ok' | 'invalid' | 'locked' | 'unverified'> {
+  const id = idRaw.trim();
   const store = getRecordStore();
-  const cred = (await studentCredentials.list(store, { k1: collegeId }))[0];
+  const cred = id.includes('@')
+    ? (await studentCredentials.list(store)).find((c) => c.data.email === id.toLowerCase())
+    : (await studentCredentials.list(store, { k1: id.toUpperCase() }))[0];
   if (!cred) return 'invalid';
   if (cred.data.lockedUntil && new Date(cred.data.lockedUntil) > new Date()) return 'locked';
   if (!checkPassword(password, cred.data.passwordHash)) {
@@ -151,8 +157,9 @@ export async function loginWithCollegeId(collegeIdRaw: string, password: string)
     await studentCredentials.put(store, { ...cred.data, failed, lockedUntil: failed >= MAX_FAILS ? new Date(Date.now() + LOCK_MS).toISOString() : null }, cred.id);
     return failed >= MAX_FAILS ? 'locked' : 'invalid';
   }
+  if (cred.data.source === 'self' && !cred.data.emailVerifiedAt) return 'unverified';
   await studentCredentials.put(store, { ...cred.data, failed: 0, lockedUntil: null }, cred.id);
-  await startAppSession(`cid:${collegeId}`);
+  await startAppSession(`cid:${cred.data.collegeId}`);
   return 'ok';
 }
 
@@ -164,7 +171,7 @@ export async function setStudentPassword(u: AppUser, password: string): Promise<
   if (/^(.)\1+$/.test(password) || password.toLowerCase().includes(p.collegeId.toLowerCase())) return 'That password is too easy to guess.';
   const store = getRecordStore();
   const prev = (await studentCredentials.list(store, { k1: p.collegeId }))[0];
-  await studentCredentials.put(store, { collegeId: p.collegeId, studentId: p.studentId, passwordHash: hashPassword(password), failed: 0, lockedUntil: null }, prev?.id);
+  await studentCredentials.put(store, { ...(prev?.data ?? {}), collegeId: p.collegeId, studentId: p.studentId, passwordHash: hashPassword(password), failed: 0, lockedUntil: null }, prev?.id);
   return null;
 }
 

@@ -474,9 +474,43 @@ export const consents = collection({
 /** College ID + password for students (optional; OTP stays available). */
 export const studentCredentials = collection({
   name: 'student_credentials',
-  schema: z.object({ collegeId: z.string(), studentId: id, passwordHash: z.string(), failed: z.number().int().min(0), lockedUntil: z.string().nullable() }),
+  schema: z.object({
+    collegeId: z.string(),
+    studentId: id,
+    passwordHash: z.string(),
+    failed: z.number().int().min(0),
+    lockedUntil: z.string().nullable(),
+    /** self-registration: sign-in email (also accepted instead of the College ID) and its verification */
+    email: z.string().email().max(254).nullable().default(null),
+    emailVerifiedAt: z.string().nullable().default(null),
+    emailTokenHash: z.string().nullable().default(null),
+    emailTokenExp: z.string().nullable().default(null),
+    /** the mobile that received the registration code (the student's own, or a parent's) */
+    verifiedPhone: z.string().nullable().default(null),
+    source: z.enum(['app', 'self']).default('app'),
+  }),
   k1: (d) => d.collegeId,
   k2: (d) => d.studentId,
+});
+
+/**
+ * A parent asking to link their (OTP-verified) mobile to a child they named by College ID + date of birth.
+ * A number the college already has links straight away; a new number waits for the admin office.
+ */
+export const parentLinkRequests = collection({
+  name: 'parent_link_requests',
+  schema: z.object({
+    phone: z.string().regex(/^\+91[6-9]\d{9}$/),
+    name: text(80),
+    relation: z.enum(['father', 'mother', 'guardian', 'other']),
+    studentId: id,
+    status: z.enum(['pending', 'approved', 'rejected']),
+    decidedBy: z.string().nullable().default(null),
+    decidedAt: z.string().nullable().default(null),
+    note: optText(300),
+  }),
+  k1: (d) => d.phone,
+  k2: (d) => d.status,
 });
 
 export const alumni = collection({
