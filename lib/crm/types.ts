@@ -31,7 +31,7 @@ export type Role = BuiltinRole | `custom_${string}`;
 export const ROLE_LABELS: Record<string, string> = {
   developer: 'Developer',
   super_admin: 'Super Admin',
-  management: 'Management / Chairman',
+  management: 'Management / Director / Chairman',
   principal: 'Principal',
   admission_manager: 'Admission Manager',
   data_executive: 'Content & Marketing',

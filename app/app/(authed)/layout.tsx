@@ -7,6 +7,7 @@ import { redirect } from 'next/navigation';
 import { hasConsent, requireAppUser } from '@/lib/app/service';
 import { logoutAction, switchProfileAction } from '../actions';
 import { AppNav } from './AppNav';
+import { LiveRefresh } from '@/components/LiveRefresh';
 
 export const metadata: Metadata = { title: { default: 'Student & Parent app', template: '%s · Bhargava' }, robots: { index: false } };
 export const dynamic = 'force-dynamic';
@@ -52,6 +53,7 @@ export default async function AppShell({ children }: { children: ReactNode }) {
         )}
       </header>
       <main className="px-4 py-4">{children}</main>
+      <LiveRefresh seconds={30} />
       <AppNav kind={p?.kind ?? null} />
     </div>
   );

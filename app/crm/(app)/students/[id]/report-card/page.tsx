@@ -7,7 +7,7 @@ import { college, fullAddress } from '@/content/college';
 import { requireStaff } from '@/lib/crm/auth';
 import { formatDate, todayIST } from '@/lib/dates';
 import { studentResults } from '@/lib/school/academics';
-import { requireSeesStudent, SchoolError, studentsById } from '@/lib/school/common';
+import { requireReadsStudent, SchoolError, studentsById } from '@/lib/school/common';
 import { sharedNotes, studentSignals } from '@/lib/school/mentoring';
 
 export const metadata = { title: 'Report card' };
@@ -17,7 +17,7 @@ export const dynamic = 'force-dynamic';
 export default async function ReportCardPage({ params }: { params: { id: string } }) {
   const user = await requireStaff('students.view');
   try {
-    await requireSeesStudent(user, params.id);
+    await requireReadsStudent(user, params.id);
   } catch (e) {
     if (e instanceof SchoolError) notFound();
     throw e;

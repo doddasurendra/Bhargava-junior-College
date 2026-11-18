@@ -41,6 +41,10 @@ npm test                     # unit tests (fees, scholarship, phone, visits, sto
 npm run typecheck
 ```
 
+**Signing in locally (no shortcuts):** every role signs in manually. Staff use email + password: run `npm run staff:logins` once to give each local demo staff account a `.test` email and a random password (listed in `.data/staff-logins.txt`, gitignored). New teachers and staff request an account at `/crm/login/register` and a Super Admin approves it under **Staff accounts → Registration requests**; until then sign-in is refused with "waiting for approval". Families sign in with mobile + one-time code (shown on screen only in development, because WhatsApp isn't connected). The old password-free picker only appears if you set `DEV_LOGIN_PICKER=1`.
+
+**Teacher workflow (master prompt §4):** *Student 360* (`/crm/students`): every teacher can search and read every student's academic record and edit only their own classes. *Attendance* (batch page): one register per class per date, per-student remarks, and corrections kept with who and when (teachers can correct up to 7 days back). There is a **Send attendance to parents on WhatsApp** button (all students or ticked ones) with live delivery status. *Marks*: a teacher enters only the subjects they teach; there is a **Send examination marks to parents on WhatsApp** button for published results only. *My profile* (`/crm/me`) and *My attendance* (`/crm/my-attendance`: check-in/out, monthly %, leave, CSV) show only your own records. The principal's office sees and corrects everyone at `/crm/staff-attendance`. Parent and student screens refresh themselves every 30 s. Without WhatsApp credentials, every message is recorded but shown as **Not delivered**, never as sent.
+
 When no Supabase variables are set, all writes go to a **local JSON store** at `.data/dev-db.json`. This file is gitignored because it holds personal data. With no SMS provider configured, OTP codes are printed to the server console and shown on the Track page (development only).
 
 ### With local Supabase

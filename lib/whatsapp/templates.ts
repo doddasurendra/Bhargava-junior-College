@@ -216,6 +216,26 @@ export const TEMPLATES = [
     params: ['Student first name', 'Test', 'Score'],
     manual: false,
   },
+  {
+    key: 'attendance_update',
+    name: 'bjc_attendance_update',
+    category: 'utility',
+    language: 'en',
+    description: 'Sent by a teacher with “Send attendance to parents”: the day’s saved attendance for one student, with the month so far.',
+    body: 'Attendance for {{1}} on {{2}} ({{3}}): {{4}}. This month so far: {{5}}. Bhargava Junior College, {{6}}.',
+    params: ['Student first name', 'Date', 'Batch', 'Status and remark', 'Month attendance %', 'College phone'],
+    manual: false,
+  },
+  {
+    key: 'marks_update',
+    name: 'bjc_marks_update',
+    category: 'utility',
+    language: 'en',
+    description: 'Sent by a teacher with “Send marks to parents”, only for published results: subject-wise marks for one test.',
+    body: '{{1}}’s marks in {{2}}: {{3}}. Total {{4}}, rank {{5}}. Full analysis in the Bhargava app.',
+    params: ['Student first name', 'Test', 'Subject-wise marks', 'Total', 'Rank'],
+    manual: false,
+  },
 ] as const satisfies readonly TemplateDef[];
 
 export type TemplateKey = (typeof TEMPLATES)[number]['key'];

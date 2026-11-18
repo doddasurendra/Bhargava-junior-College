@@ -37,7 +37,7 @@ export const LOGIN_GROUPS: LoginGroup[] = [
     title: 'Leadership',
     intro: 'Dashboards, approvals and the 7 PM report.',
     items: [
-      { key: 'management', title: 'Management / Chairman', body: 'Executive dashboard with the 10 daily numbers, funnel, seats vs target, the 7 PM report, refunds and big concessions.', how: STAFF, href: crm('management') },
+      { key: 'management', title: 'Director / Management / Chairman', body: 'Institution-wide dashboard with the 10 daily numbers, funnel, seats vs target, the 7 PM report, refunds and big concessions.', how: STAFF, href: crm('management') },
       { key: 'principal', title: 'Principal', body: 'Academic overview, results publishing, staff leave, notices, discipline and the college assistant.', how: STAFF, href: crm('principal') },
       { key: 'super_admin', title: 'Super Admin', body: 'Staff accounts, roles and permissions, security and login audit, website content.', how: STAFF, href: crm('super_admin') },
     ],

@@ -65,7 +65,30 @@ export async function visibleStudentIds(user: Staff): Promise<Set<string> | 'all
 }
 
 export async function requireSeesStudent(user: Staff, studentId: string) {
+  if (!(await seesStudent(user, studentId))) throw new SchoolError('Student not found.');
+}
+
+export async function seesStudent(user: Staff, studentId: string) {
   const v = await visibleStudentIds(user);
+  return v === 'all' || v.has(studentId);
+}
+
+/** Roles that read every student's academic record (Student 360), without write access outside their own classes. */
+export const ACADEMIC_READ_ROLES = ['faculty', 'class_teacher', 'academic_coordinator'];
+
+/**
+ * Which students this staff member may READ (master prompt §3, Level 2): teachers see every student's
+ * academic information through Student 360; everyone else reads what they can work on (visibleStudentIds).
+ * Writes (marks, attendance, notes) still go through visibleStudentIds / requireTeaches.
+ */
+export async function readableStudentIds(user: Staff): Promise<Set<string> | 'all'> {
+  if (!can(user, 'students.view')) return new Set();
+  if (ACADEMIC_READ_ROLES.includes(user.roles[0])) return 'all';
+  return visibleStudentIds(user);
+}
+
+export async function requireReadsStudent(user: Staff, studentId: string) {
+  const v = await readableStudentIds(user);
   if (v !== 'all' && !v.has(studentId)) throw new SchoolError('Student not found.');
 }
 

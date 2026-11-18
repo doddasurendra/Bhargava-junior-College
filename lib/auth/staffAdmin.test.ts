@@ -38,6 +38,14 @@ const identity: Identity = {
     passwords.set(id, password);
     return id;
   },
+  async register(_email, _name, password) {
+    const id = `staff-new-${++n}`;
+    passwords.set(id, password);
+    return id;
+  },
+  async passwordMatches(id, _email, password) {
+    return passwords.get(id) === password;
+  },
 };
 
 const ctx = { ip: '198.51.100.9', userAgent: 'test' };

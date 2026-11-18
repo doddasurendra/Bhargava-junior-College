@@ -11,7 +11,8 @@
     "seed:demo": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON scripts/seed-demo.ts",
     "seed:demo:reset": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON scripts/seed-demo.ts --clear && node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON scripts/seed-demo.ts",
     "seed:demo:clear": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON scripts/seed-demo.ts --clear",
-    "seed:supabase": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON scripts/seed-supabase.ts",
+    "staff:logins": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON scripts/staff-logins.ts",
+    "seed:supabase":"node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON scripts/seed-supabase.ts",
     "seed:supabase:clear": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON scripts/seed-supabase.ts --clear"
   },
   "dependencies": {

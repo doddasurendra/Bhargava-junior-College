@@ -67,8 +67,11 @@ export const DEFAULT_RULES = {
   'ptm.manage': ['super_admin', 'principal', ...TEACHERS],
   'messages.reply': ['super_admin', 'principal', ...TEACHERS],
   'discipline.record': ['super_admin', 'principal', 'class_teacher'],
-  'leave.request': [...TEACHERS, 'academic_coordinator', 'hostel_warden', 'transport_incharge'],
+  // every employee may apply for leave (the approver can't approve their own)
+  'leave.request': ['principal', 'admission_manager', 'data_executive', 'telecaller', 'admission_counsellor', 'front_desk', 'admission_office', 'accounts', 'admin_office', 'academic_coordinator', ...TEACHERS, 'hostel_warden', 'transport_incharge', 'sports_coach', 'student_counsellor'],
   'leave.approve': ['super_admin', 'principal'],
+  /** see and correct every staff member's own attendance (everyone else sees only their own) */
+  'staff.attendance': ['super_admin', 'principal', 'admin_office', 'management'],
   'alumni.manage': ['super_admin', 'admin_office', 'data_executive'],
   'homework.assign': [...ACADEMIC_HEADS, ...TEACHERS],
   'library.manage': ['super_admin', 'admin_office'],

@@ -6,12 +6,12 @@ import { getAppStore } from '../app/service';
 import { getContent } from '../cms';
 import { can } from '../crm/permissions';
 import type { Staff } from '../crm/types';
-import { formatDate, todayIST } from '../dates';
-import { attendance, batches, doubts, materials, notices, testResults, tests, timetable, ATTENDANCE, DOUBT_CHANNELS } from '../records/collections';
+import { addDays, formatDate, todayIST } from '../dates';
+import { attendance, batches, doubts, materials, notices, parentNotifications, testResults, tests, timetable, ATTENDANCE, DOUBT_CHANNELS } from '../records/collections';
 import { siteUrl } from '../seo';
 import { sendTemplate } from '../whatsapp/service';
 import { allBatches, allStudents, batchOf, canTeachBatch, firstName, myBatchIds, requireTeaches, SchoolError, store, studentsById } from './common';
-import { rankResults, scoreAttempt, timetableClash } from './logic';
+import { attendanceSummary, rankResults, scoreAttempt, timetableClash } from './logic';
 import type { Difficulty, Subject } from '../practice/bank';
 import { pickQuestions } from '../practice/logic';
 
@@ -71,10 +71,20 @@ export async function batchTimetable(batchId: string) {
 
 // ---------------------------------------------------------------- attendance (+ same-day absence alert to parents)
 
-export async function markAttendance(user: Staff, batchId: string, date: string, marks: Record<string, string>) {
+/** How far back a teacher may correct a register; older corrections go through the academic heads. */
+export const CORRECTION_DAYS = 7;
+
+/**
+ * Save the day's register for a batch: one register per batch per date (saving again corrects it, and every
+ * changed mark is kept in `corrections` with who and when). Absent students' parents get the same-day
+ * absence alert once. Returns counts of what actually happened to those alerts.
+ */
+export async function markAttendance(user: Staff, batchId: string, date: string, marks: Record<string, string>, remarks: Record<string, string> = {}) {
   need(user, can(user, 'attendance.mark'));
   await requireTeaches(user, batchId);
-  if (date > todayIST()) throw new SchoolError('You can’t mark attendance for a future date.');
+  const today = todayIST();
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) throw new SchoolError('Pick a date.');
+  if (date > today) throw new SchoolError('You can’t mark attendance for a future date.');
   const b = await batches.get(store(), batchId);
   if (!b) throw new SchoolError('Batch not found.');
   const clean: Record<string, (typeof ATTENDANCE)[number]> = {};
@@ -83,24 +93,127 @@ export async function markAttendance(user: Staff, batchId: string, date: string,
     if (!m || !(ATTENDANCE as readonly string[]).includes(m)) throw new SchoolError('Mark every student in the batch.');
     clean[sid] = m as (typeof ATTENDANCE)[number];
   }
-  const existing = (await attendance.list(store(), { k1: batchId, k2: date }))[0];
-  const already = new Set(existing?.data.notifiedAbsent ?? []);
-  const rec = await attendance.put(store(), { batchId, date, period: 'day', marks: clean, markedBy: user.id, notifiedAbsent: [...already] }, existing?.id);
+  const notes: Record<string, string> = {};
+  for (const [sid, r] of Object.entries(remarks)) if (clean[sid] && r.trim()) notes[sid] = r.trim().slice(0, 200);
 
-  // Parents hear the same day (§9: daily attendance alerts), once per student per day.
+  const existing = (await attendance.list(store(), { k1: batchId, k2: date }))[0];
+  const changes = existing ? Object.entries(clean).filter(([sid, m]) => existing.data.marks[sid] !== m).map(([sid, m]) => ({ studentId: sid, from: existing.data.marks[sid] ?? 'none', to: m })) : [];
+  if (existing && changes.length && date < addDays(today, -CORRECTION_DAYS) && !can(user, 'academics.manage')) {
+    throw new SchoolError(`Registers older than ${CORRECTION_DAYS} days are corrected by the academic coordinator.`);
+  }
+  const corrections = [...(existing?.data.corrections ?? []), ...(changes.length ? [{ at: new Date().toISOString(), by: user.id, changes }] : [])].slice(-100);
+  const already = new Set(existing?.data.notifiedAbsent ?? []);
+  const rec = await attendance.put(store(), { batchId, date, period: 'day', marks: clean, remarks: notes, markedBy: existing?.data.markedBy ?? user.id, notifiedAbsent: [...already], corrections }, existing?.id);
+
+  // Parents hear the same day (§9: daily attendance alerts), once per student per date.
   const byId = await studentsById();
   const notified = [...already];
-  for (const [sid, m] of Object.entries(clean)) {
-    if (m !== 'absent' || already.has(sid)) continue;
+  const alerts = { sent: 0, simulated: 0, failed: 0, skipped: 0 };
+  {
+    for (const [sid, m] of Object.entries(clean)) {
+      if (m !== 'absent' || already.has(sid)) continue;
+      const s = byId.get(sid);
+      if (!s) continue;
+      for (const g of await getAppStore().guardiansOf(sid)) {
+        const r = await sendTemplate({ template: 'absence_alert', to: g.phone, params: [firstName(s.fullName), formatDate(date), b.data.name, college.phones[0].display], leadId: s.leadId, actorId: user.id, dedupeKey: `absent:${sid}:${date}:${g.phone}` }).catch((e) => ({ status: 'failed' as const, reason: (e as Error).message, simulated: false }));
+        if (r.simulated) alerts.simulated++;
+        else if (r.status === 'sent') alerts.sent++;
+        else if (r.status === 'failed') alerts.failed++;
+        else alerts.skipped++;
+      }
+      notified.push(sid);
+    }
+    if (notified.length !== already.size) await attendance.put(store(), { ...rec.data, notifiedAbsent: notified }, rec.id);
+  }
+  return { absent: Object.values(clean).filter((m) => m === 'absent').length, corrected: existing ? changes.length : null, alerts };
+}
+
+export type ParentSendResult = { student: string; to: string; result: 'sent' | 'simulated' | 'failed' | 'skipped'; reason: string | null };
+
+async function recordSend(kind: 'attendance' | 'marks', ref: string, studentId: string, phone: string, sentBy: string, r: { status: string; reason?: string; outboxId?: string | null; simulated?: boolean }): Promise<ParentSendResult['result']> {
+  const result = r.simulated ? 'simulated' : r.status === 'sent' ? 'sent' : r.status === 'failed' ? 'failed' : 'skipped';
+  await parentNotifications.put(store(), { kind, ref, studentId, phone, outboxId: r.outboxId ?? null, result, reason: r.reason?.slice(0, 300) ?? null, sentBy, at: new Date().toISOString() });
+  return result;
+}
+
+const maskTo = (p: string) => `******${p.slice(-4)}`;
+
+/**
+ * “Send attendance to parents on WhatsApp”: the saved register for that date, to every verified guardian of
+ * each student (or only `onlyStudentIds`). The same status is never sent twice to the same number; a
+ * corrected status can be sent again. Results say exactly what the API did — never “delivered” up front.
+ */
+export async function sendAttendanceToParents(user: Staff, batchId: string, date: string, onlyStudentIds?: string[]): Promise<ParentSendResult[]> {
+  need(user, can(user, 'attendance.mark'));
+  await requireTeaches(user, batchId);
+  const b = await batches.get(store(), batchId);
+  if (!b) throw new SchoolError('Batch not found.');
+  const reg = (await attendance.list(store(), { k1: batchId, k2: date }))[0];
+  if (!reg) throw new SchoolError('Save the attendance for this date first.');
+  const month = (await attendance.list(store(), { k1: batchId, k2From: `${date.slice(0, 7)}-01`, k2To: date })).map((r) => r.data);
+  const byId = await studentsById();
+  const ids = (onlyStudentIds?.length ? onlyStudentIds : Object.keys(reg.data.marks)).filter((sid) => reg.data.marks[sid]);
+  if (ids.length === 0) throw new SchoolError('Pick at least one student from this register.');
+  const LABEL: Record<string, string> = { present: 'Present', absent: 'Absent', late: 'Late', leave: 'On leave' };
+  const out: ParentSendResult[] = [];
+  for (const sid of ids) {
     const s = byId.get(sid);
     if (!s) continue;
-    for (const g of await getAppStore().guardiansOf(sid)) {
-      await sendTemplate({ template: 'absence_alert', to: g.phone, params: [firstName(s.fullName), formatDate(date), b.data.name, college.phones[0].display], leadId: s.leadId, dedupeKey: `absent:${sid}:${date}:${g.phone}` }).catch(() => undefined);
+    const mark = reg.data.marks[sid];
+    const remark = reg.data.remarks?.[sid];
+    const pct = attendanceSummary(month, sid).pct;
+    const guardians = await getAppStore().guardiansOf(sid);
+    if (guardians.length === 0) {
+      out.push({ student: s.fullName, to: '—', result: 'skipped', reason: 'No verified parent number on record.' });
+      continue;
     }
-    notified.push(sid);
+    for (const g of guardians) {
+      const r = await sendTemplate({
+        template: 'attendance_update',
+        to: g.phone,
+        params: [firstName(s.fullName), formatDate(date), b.data.name, `${LABEL[mark]}${remark ? ` (${remark})` : ''}`, pct === null ? 'not recorded yet' : `${pct}%`, college.phones[0].display],
+        leadId: s.leadId,
+        actorId: user.id,
+        dedupeKey: `att-send:${batchId}:${date}:${sid}:${g.phone}:${mark}`,
+      }).catch((e) => ({ status: 'failed' as const, reason: (e as Error).message }));
+      const result = await recordSend('attendance', `${batchId}:${date}`, sid, g.phone, user.id, r);
+      out.push({ student: s.fullName, to: maskTo(g.phone), result, reason: r.reason ?? null });
+    }
   }
-  if (notified.length !== already.size) await attendance.put(store(), { ...rec.data, notifiedAbsent: notified }, rec.id);
-  return { absent: Object.values(clean).filter((m) => m === 'absent').length };
+  return out;
+}
+
+/** “Send examination marks to parents on WhatsApp”: published results only, subject-wise. */
+export async function sendMarksToParents(user: Staff, testId: string): Promise<ParentSendResult[]> {
+  const t = await tests.get(store(), testId);
+  if (!t) throw new SchoolError('Test not found.');
+  need(user, can(user, 'tests.manage') || can(user, 'results.publish'));
+  await requireTeaches(user, t.data.batchId);
+  if (!t.data.published) throw new SchoolError('These results are not published yet. Unpublished marks are never sent to parents.');
+  const ranks = await rankList(testId);
+  const byId = await studentsById();
+  const out: ParentSendResult[] = [];
+  for (const r of ranks.filter((x) => x.submittedAt)) {
+    const s = byId.get(r.studentId);
+    if (!s) continue;
+    const subj = Object.entries(r.bySubject ?? {}).map(([k, v]) => `${k} ${v}`).join(', ') || t.data.subjects.join(', ');
+    const guardians = await getAppStore().guardiansOf(s.id);
+    if (guardians.length === 0) out.push({ student: s.fullName, to: '—', result: 'skipped', reason: 'No verified parent number on record.' });
+    for (const g of guardians) {
+      const res = await sendTemplate({ template: 'marks_update', to: g.phone, params: [firstName(s.fullName), t.data.title, subj, `${r.score}/${r.max}`, `${r.rank} of ${ranks.length}`], leadId: s.leadId, actorId: user.id, dedupeKey: `marks-send:${testId}:${s.id}:${g.phone}:${r.score}` }).catch((e) => ({ status: 'failed' as const, reason: (e as Error).message }));
+      const result = await recordSend('marks', testId, s.id, g.phone, user.id, res);
+      out.push({ student: s.fullName, to: maskTo(g.phone), result, reason: res.reason ?? null });
+    }
+  }
+  return out;
+}
+
+/** Latest send per student and number for a register or test, with the live outbox status. */
+export async function sentToParents(ref: string) {
+  const rows = (await parentNotifications.list(store(), { k1: ref })).sort((a, b) => b.data.at.localeCompare(a.data.at));
+  const latest = new Map<string, (typeof rows)[number]['data']>();
+  for (const r of rows) if (!latest.has(`${r.data.studentId}:${r.data.phone}`)) latest.set(`${r.data.studentId}:${r.data.phone}`, r.data);
+  return [...latest.values()];
 }
 
 export async function batchRegisters(batchId: string, from: string, to: string) {
@@ -167,14 +280,39 @@ export async function addFromBank(user: Staff, testId: string, f: { subject: str
 }
 
 /** Offline test: faculty enter marks per student. */
-export async function enterMarks(user: Staff, testId: string, marks: Record<string, { score: number; bySubject?: Record<string, number> }>) {
+/**
+ * Subjects of this test the user may enter marks for: all of them for the exam cell / academic heads,
+ * otherwise only the subjects they teach this batch on the timetable (a Maths teacher can't touch Physics).
+ */
+export async function markableSubjects(user: Staff, t: { batchId: string; subjects: string[] }): Promise<string[]> {
+  if (can(user, 'academics.manage')) return t.subjects;
+  const mine = new Set((await timetable.list(store(), { k1: t.batchId })).filter((p) => p.data.facultyId === user.id).map((p) => p.data.subject));
+  return t.subjects.filter((s) => mine.has(s));
+}
+
+export async function enterMarks(user: Staff, testId: string, marks: Record<string, { score?: number; bySubject?: Record<string, number> }>) {
   const t = await editableTest(user, testId);
+  if (t.data.published && !can(user, 'results.publish')) throw new SchoolError('These results are published. Ask the exam cell to correct them.');
+  const allowed = await markableSubjects(user, t.data);
+  if (allowed.length === 0) throw new SchoolError(`You don’t teach ${t.data.subjects.join(' / ')} to this batch, so you can’t enter these marks.`);
+  const whole = allowed.length === t.data.subjects.length;
   const b = await batches.get(store(), t.data.batchId);
-  const existing = new Map((await testResults.list(store(), { k1: testId })).map((r) => [r.data.studentId, r.id]));
+  const existing = new Map((await testResults.list(store(), { k1: testId })).map((r) => [r.data.studentId, r]));
   for (const [sid, m] of Object.entries(marks)) {
     if (!b?.data.studentIds.includes(sid)) continue;
-    if (!Number.isFinite(m.score) || m.score > t.data.maxMarks || m.score < -t.data.maxMarks) throw new SchoolError(`Marks must be at most ${t.data.maxMarks}.`);
-    await testResults.put(store(), { testId, studentId: sid, score: m.score, max: t.data.maxMarks, bySubject: m.bySubject ?? {}, submittedAt: new Date().toISOString(), enteredBy: user.id }, existing.get(sid));
+    const prev = existing.get(sid);
+    // Subject marks outside the teacher's own subjects are kept as they were.
+    const bySubject = { ...(prev?.data.bySubject ?? {}) };
+    for (const [subj, v] of Object.entries(m.bySubject ?? {})) {
+      if (!allowed.includes(subj)) throw new SchoolError(`You can’t enter ${subj} marks for this test.`);
+      if (!Number.isFinite(v) || Math.abs(v) > t.data.maxMarks) throw new SchoolError(`${subj} marks must be at most ${t.data.maxMarks}.`);
+      bySubject[subj] = v;
+    }
+    // A teacher of only some of the subjects changes the total through their subject marks, never directly.
+    const subjTotal = Object.values(bySubject).reduce((s, x) => s + x, 0);
+    const score = whole && m.score !== undefined ? m.score : subjTotal;
+    if (!Number.isFinite(score) || score > t.data.maxMarks || score < -t.data.maxMarks) throw new SchoolError(`Marks must be at most ${t.data.maxMarks}.`);
+    await testResults.put(store(), { testId, studentId: sid, score, max: t.data.maxMarks, bySubject, submittedAt: new Date().toISOString(), enteredBy: user.id }, prev?.id);
   }
 }
 

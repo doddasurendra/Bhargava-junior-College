@@ -10,6 +10,7 @@ import { loadRbac } from '../crm/rbac';
 import { getRecordStore } from '../records';
 import { createFileIdentity, createSupabaseIdentity, type Identity } from './identity';
 import { createStaffAdmin, type StaffAdmin } from './staffAdmin';
+import { createRegistration, type Registration } from './registration';
 
 let store: AuthStore | null = null;
 let service: AuthService | null = null;
@@ -29,7 +30,10 @@ let staffAdmin: StaffAdmin | null = null;
 
 export function getIdentity(): Identity {
   if (identity) return identity;
-  if (!usingSupabase()) return (identity = createFileIdentity());
+  if (!usingSupabase()) {
+    const st = getAuthStore();
+    return (identity = createFileIdentity(st, (email) => st.staffIdForEmail(email), siteUrl));
+  }
   const anon = process.env.SUPABASE_ANON_KEY;
   if (!anon) throw new Error('SUPABASE_ANON_KEY must be set for staff sign-in emails');
   return (identity = createSupabaseIdentity(process.env.SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!, anon, siteUrl));
@@ -38,6 +42,12 @@ export function getIdentity(): Identity {
 export function getStaffAdmin(): StaffAdmin {
   if (!staffAdmin) staffAdmin = createStaffAdmin({ repo: getCrmRepo(), store: getAuthStore(), identity: getIdentity(), customRoles: async () => (await loadRbac(getRecordStore())).customRoles.map((r) => r.key) });
   return staffAdmin;
+}
+
+let registration: Registration | null = null;
+export function getRegistration(): Registration {
+  if (!registration) registration = createRegistration({ records: getRecordStore(), store: getAuthStore(), identity: getIdentity(), repo: getCrmRepo() });
+  return registration;
 }
 
 /** Supabase Auth checks the password; we only take the user id and issue our own session cookie. */

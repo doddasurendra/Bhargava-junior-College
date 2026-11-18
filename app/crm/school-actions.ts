@@ -71,10 +71,45 @@ export const markAttendanceAction = async (_: ActionState, fd: FormData) =>
   run(async () => {
     const user = await requireStaff('attendance.mark');
     const marks: Record<string, string> = {};
-    for (const [k, v] of fd.entries()) if (k.startsWith('m:') && typeof v === 'string') marks[k.slice(2)] = v;
-    const r = await A.markAttendance(user, req(fd, 'batchId', 'Batch'), req(fd, 'date', 'Date'), marks);
-    return `Attendance saved. ${r.absent} absent; parents of absent students have been informed.`;
+    const remarks: Record<string, string> = {};
+    for (const [k, v] of fd.entries()) {
+      if (typeof v !== 'string') continue;
+      if (k.startsWith('m:')) marks[k.slice(2)] = v;
+      else if (k.startsWith('r:')) remarks[k.slice(2)] = v;
+    }
+    const r = await A.markAttendance(user, req(fd, 'batchId', 'Batch'), req(fd, 'date', 'Date'), marks, remarks);
+    const parts = [r.corrected === null ? 'Attendance saved.' : r.corrected === 0 ? 'No marks changed.' : `Register corrected: ${r.corrected} change${r.corrected === 1 ? '' : 's'} recorded.`, `${r.absent} absent.`];
+    const a = r.alerts;
+    if (a.sent) parts.push(`${a.sent} absence alert${a.sent === 1 ? '' : 's'} handed to WhatsApp (delivery shows below).`);
+    if (a.simulated) parts.push(`${a.simulated} absence alert${a.simulated === 1 ? '' : 's'} NOT delivered: WhatsApp is not configured (logged only).`);
+    if (a.failed) parts.push(`${a.failed} alert${a.failed === 1 ? '' : 's'} failed.`);
+    if (a.skipped) parts.push(`${a.skipped} not sent (opted out or not configured).`);
+    return parts.join(' ');
+  }, ['/crm/academics/batch', '/app/attendance', '/app']);
+
+function sendSummary(rows: A.ParentSendResult[]) {
+  const c = { sent: 0, simulated: 0, failed: 0, skipped: 0 };
+  for (const r of rows) c[r.result]++;
+  const parts = [];
+  if (c.sent) parts.push(`${c.sent} handed to WhatsApp; delivery ticks appear as WhatsApp confirms them`);
+  if (c.simulated) parts.push(`${c.simulated} NOT delivered: WhatsApp Business API credentials are not set, so the messages were only logged`);
+  if (c.failed) parts.push(`${c.failed} failed (${rows.find((r) => r.result === 'failed')?.reason ?? 'error'})`);
+  if (c.skipped) parts.push(`${c.skipped} not sent (${[...new Set(rows.filter((r) => r.result === 'skipped').map((r) => r.reason))].join('; ')})`);
+  return parts.length ? `${parts.join('. ')}.` : 'Nothing to send.';
+}
+
+export const sendAttendanceToParentsAction = async (_: ActionState, fd: FormData) =>
+  run(async () => {
+    const user = await requireStaff('attendance.mark');
+    const only = fd.getAll('studentId').filter((x): x is string => typeof x === 'string' && Boolean(x));
+    return sendSummary(await A.sendAttendanceToParents(user, req(fd, 'batchId', 'Batch'), req(fd, 'date', 'Date'), only));
   }, ['/crm/academics/batch']);
+
+export const sendMarksToParentsAction = async (_: ActionState, fd: FormData) =>
+  run(async () => {
+    const user = await requireStaff('tests.manage');
+    return sendSummary(await A.sendMarksToParents(user, req(fd, 'testId', 'Test')));
+  }, ['/crm/academics/test']);
 
 export const addMaterialAction = async (_: ActionState, fd: FormData) =>
   run(async () => {
@@ -108,8 +143,17 @@ export const addFromBankAction = async (_: ActionState, fd: FormData) =>
 export const enterMarksAction = async (_: ActionState, fd: FormData) =>
   run(async () => {
     const user = await requireStaff('tests.manage');
-    const marks: Record<string, { score: number }> = {};
-    for (const [k, v] of fd.entries()) if (k.startsWith('s:') && typeof v === 'string' && v.trim() !== '') marks[k.slice(2)] = { score: Number(v) };
+    // s:<studentId> = total · x:<studentId>:<subject> = that subject's marks
+    const marks: Record<string, { score?: number; bySubject: Record<string, number> }> = {};
+    const row = (sid: string) => (marks[sid] ??= { bySubject: {} });
+    for (const [k, v] of fd.entries()) {
+      if (typeof v !== 'string' || v.trim() === '') continue;
+      if (k.startsWith('s:')) row(k.slice(2)).score = Number(v);
+      else if (k.startsWith('x:')) {
+        const [, sid, ...subj] = k.split(':');
+        if (sid && subj.length) row(sid).bySubject[subj.join(':')] = Number(v);
+      }
+    }
     await A.enterMarks(user, req(fd, 'testId', 'Test'), marks);
     return 'Marks saved.';
   }, ['/crm/academics/test']);

@@ -1,7 +1,9 @@
 import { AddStaffForm, EditStaffForm, type RoleOpt } from '@/components/crm/StaffForms';
 import { Panel } from '@/components/crm/ui';
 import { mfaRoles } from '@/lib/auth/service';
-import { getAuthStore, getIdentity } from '@/lib/auth/store';
+import { getAuthStore, getIdentity, getRegistration } from '@/lib/auth/store';
+import { RegistrationDecision } from '@/components/crm/RegistrationForms';
+import { SELF_REGISTER_ROLES } from '@/lib/records/collections';
 import { requireStaff } from '@/lib/crm/auth';
 import { can } from '@/lib/crm/permissions';
 import { startViewAsAction } from '@/app/crm/admin-actions';
@@ -15,7 +17,7 @@ export const metadata = { title: 'Staff accounts' };
 export default async function StaffPage() {
   const user = await requireStaff('staff.manage');
   const canViewAs = can(user, 'impersonate');
-  const [staff, auths] = await Promise.all([getCrmRepo().listAllStaff(), getAuthStore().listAll()]);
+  const [staff, auths, pending] = await Promise.all([getCrmRepo().listAllStaff(), getAuthStore().listAll(), getRegistration().list('pending')]);
   const mfaOn = new Set(auths.filter((a) => a.totpEnabledAt).map((a) => a.staffId));
   const emails = getIdentity().emails;
   const rbac = await loadRbac(getRecordStore());
@@ -66,6 +68,23 @@ export default async function StaffPage() {
         </div>
         <AddStaffForm roles={roles} emails={emails} />
       </div>
+      <Panel title={`Registration requests (${pending.length})`}>
+        {pending.length === 0 ? (
+          <p className="text-sm text-muted">No requests waiting. Teachers and staff request an account at <span className="font-mono">/crm/login/register</span>.</p>
+        ) : (
+          <ul className="-my-3 divide-y divide-line">
+            {pending.map((r) => (
+              <li key={r.id} className="py-3">
+                <p className="font-semibold text-heading">{r.data.fullName} <span className="text-xs font-normal text-muted">· requested {ROLE_LABELS[r.data.requestedRole]}</span></p>
+                <p className="text-xs text-muted [overflow-wrap:anywhere]">
+                  Employee ID <span className="font-mono">{r.data.employeeId}</span> · {r.data.designation}, {r.data.department} · {r.data.email} · {r.data.phone} · {new Date(r.createdAt).toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' })}
+                </p>
+                <RegistrationDecision id={r.id} requested={r.data.requestedRole} roles={SELF_REGISTER_ROLES.map((x) => ({ value: x, label: ROLE_LABELS[x] }))} />
+              </li>
+            ))}
+          </ul>
+        )}
+      </Panel>
       <Panel title="Active">
         <ul className="-my-3 divide-y divide-line">{active.map(row)}</ul>
       </Panel>
@@ -75,7 +94,7 @@ export default async function StaffPage() {
         </Panel>
       )}
       <p className="text-xs text-muted">
-        Faculty, wardens and transport roles can be given now; their own screens come with the Student &amp; Parent app phases. A sign-in email can’t be changed here. To change one, deactivate the account and add a new one.
+        {emails ? 'New staff added here get an invitation email to set their own password.' : 'Local mode (no mailer): the one-time set-password link for staff added here is printed in the server console, valid 24 hours.'} A sign-in email can’t be changed here. To change one, deactivate the account and add a new one.
       </p>
     </div>
   );

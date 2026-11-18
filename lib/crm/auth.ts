@@ -2,7 +2,7 @@ import 'server-only';
 import { reqCache as cache } from '../reqcache';
 import { cookies, headers } from 'next/headers';
 import { redirect } from 'next/navigation';
-import { getAuthService, getPasswordVerifier } from '../auth/store';
+import { getAuthService, getPasswordVerifier, getRegistration } from '../auth/store';
 import type { Ctx, FirstStep } from '../auth/service';
 import { checkSession, revokeSession, startSession, STAFF_IDLE_MS } from '../auth/sessions';
 import { getRecordStore } from '../records';
@@ -112,7 +112,11 @@ export function getPendingMfa(): string | null {
   return decodeToken(cookies().get(MFA_COOKIE)?.value, 'mfa')?.sub ?? null;
 }
 
-export const devLoginEnabled = () => process.env.NODE_ENV === 'development' && !usingSupabase();
+/**
+ * The password-free sample-staff picker. Off unless a developer explicitly sets DEV_LOGIN_PICKER=1 on a local
+ * file-store run: by default everyone, locally too, signs in with their own email and password.
+ */
+export const devLoginEnabled = () => process.env.NODE_ENV === 'development' && !usingSupabase() && process.env.DEV_LOGIN_PICKER === '1';
 
 /** null = signed in · 'mfa' = go to the 2FA step · otherwise an error message */
 async function finishFirstStep(r: FirstStep): Promise<string | 'mfa' | null> {
@@ -137,5 +141,7 @@ export async function loginAsDevStaff(staffId: string): Promise<string | 'mfa' |
 export async function loginWithPassword(email: string, password: string): Promise<string | 'mfa' | null> {
   const verify = getPasswordVerifier();
   if (!verify) return 'Sign-in is not configured.';
-  return finishFirstStep(await getAuthService().passwordLogin(email, password, verify, requestCtx()));
+  const r = await finishFirstStep(await getAuthService().passwordLogin(email, password, verify, requestCtx()));
+  if (r && r !== 'mfa') return (await getRegistration().pendingMessage(email, password).catch(() => null)) ?? r;
+  return r;
 }

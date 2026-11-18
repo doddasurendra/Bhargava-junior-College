@@ -5,7 +5,7 @@ import type { Staff } from '../crm/types';
 import { addDays, formatDate, todayIST } from '../dates';
 import { attendance, discipline, mentorNotes, mentorships, messages, ptmSlots, testResults, tests, wellbeing } from '../records/collections';
 import { sendTemplate } from '../whatsapp/service';
-import { allBatches, batchOf, firstName, menteeIds, requireSeesStudent, SchoolError, store, studentsById } from './common';
+import { allBatches, batchOf, firstName, menteeIds, requireReadsStudent, requireSeesStudent, SchoolError, seesStudent, store, studentsById } from './common';
 import { attendanceSummary, consecutiveAbsences, earlyWarnings, weeklyReportParams } from './logic';
 import { participation, sportsProfile } from '../studentLife/sports';
 import { attendedBy } from '../studentLife/sessions';
@@ -69,15 +69,23 @@ export async function recordCheckIn(user: Staff, input: { studentId: string; mon
   return wellbeing.put(store(), { ...input, recordedBy: user.id, followUp }, prev?.id);
 }
 
+/**
+ * The student's file for a staff member. `own` = the student is in their working scope (their batch, mentee,
+ * or everyone for heads/office): private mentor notes, wellbeing check-ins and discipline are included only
+ * then. Any teacher with academic read access (Student 360) still gets the attendance signals and the
+ * remarks already shared with the family.
+ */
 export async function studentFile(user: Staff, studentId: string) {
-  await requireSeesStudent(user, studentId);
-  const [notes, checks, disc, signals] = await Promise.all([
-    can(user, 'mentor.notes') ? mentorNotes.list(store(), { k1: studentId }) : Promise.resolve([]),
-    can(user, 'wellbeing.view') ? wellbeing.list(store(), { k1: studentId }) : Promise.resolve([]),
-    can(user, 'discipline.record') ? discipline.list(store(), { k1: studentId }) : Promise.resolve([]),
+  await requireReadsStudent(user, studentId);
+  const own = await seesStudent(user, studentId);
+  const [allNotes, checks, disc, signals] = await Promise.all([
+    mentorNotes.list(store(), { k1: studentId }),
+    own && can(user, 'wellbeing.view') ? wellbeing.list(store(), { k1: studentId }) : Promise.resolve([]),
+    own && can(user, 'discipline.record') ? discipline.list(store(), { k1: studentId }) : Promise.resolve([]),
     studentSignals(studentId),
   ]);
-  return { notes: notes.map((n) => n.data), checks: checks.map((c) => c.data).sort((a, b) => b.month.localeCompare(a.month)), discipline: disc.map((d) => d.data), signals };
+  const notes = own && can(user, 'mentor.notes') ? allNotes : allNotes.filter((n) => n.data.shareWithParent);
+  return { own, notes: notes.map((n) => n.data), checks: checks.map((c) => c.data).sort((a, b) => b.month.localeCompare(a.month)), discipline: disc.map((d) => d.data), signals };
 }
 
 export async function addDiscipline(user: Staff, input: { studentId: string; note: string; action: string | null }) {

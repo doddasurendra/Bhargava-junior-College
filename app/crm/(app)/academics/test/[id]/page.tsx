@@ -1,6 +1,7 @@
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { addFromBankAction, addQuestionAction, enterMarksAction, publishTestAction } from '@/app/crm/school-actions';
+import { SendMarksForm } from '@/components/crm/AttendanceForm';
 import { chaptersOf, QUESTIONS, SUBJECTS } from '@/lib/practice/bank';
 import { ActionButton, QuickForm, type QField } from '@/components/crm/QuickForm';
 import { Empty, Panel } from '@/components/crm/ui';
@@ -8,7 +9,8 @@ import { requireStaff } from '@/lib/crm/auth';
 import { can } from '@/lib/crm/permissions';
 import { formatDate } from '@/lib/dates';
 import { batches, testResults, tests } from '@/lib/records/collections';
-import { canTeachBatch, rankList } from '@/lib/school/academics';
+import { canTeachBatch, markableSubjects, rankList, sentToParents } from '@/lib/school/academics';
+import { mode as whatsappMode } from '@/lib/whatsapp/service';
 import { store, studentsById } from '@/lib/school/common';
 
 export const metadata = { title: 'Test' };
@@ -19,9 +21,20 @@ export default async function TestPage({ params }: { params: { id: string } }) {
   if (!t || !(await canTeachBatch(user, t.data.batchId))) notFound();
   const [b, ranks, results, byId] = await Promise.all([batches.get(store(), t.data.batchId), rankList(t.id), testResults.list(store(), { k1: t.id }), studentsById()]);
   const taken = results.length > 0;
+  const sends = t.data.published ? await sentToParents(t.id) : [];
+  const allowed = await markableSubjects(user, t.data);
+  const whole = allowed.length === t.data.subjects.length;
+  const locked = t.data.published && !can(user, 'results.publish');
+  const num = { type: 'number' as const, min: -t.data.maxMarks, max: t.data.maxMarks, step: 0.25 };
   const marksFields: QField[] = [
     { name: 'testId', type: 'hidden', value: t.id },
-    ...(b?.data.studentIds ?? []).map((sid) => ({ name: `s:${sid}`, label: byId.get(sid)?.fullName ?? 'Student', type: 'number' as const, min: -t.data.maxMarks, max: t.data.maxMarks, step: 0.25, defaultValue: results.find((r) => r.data.studentId === sid)?.data.score?.toString() ?? '' })),
+    ...(b?.data.studentIds ?? []).flatMap((sid): QField[] => {
+      const prev = results.find((r) => r.data.studentId === sid)?.data;
+      const name = byId.get(sid)?.fullName ?? 'Student';
+      // One subject: just the total. Several: a box per subject this teacher may mark (the total is their sum).
+      if (t.data.subjects.length === 1) return whole ? [{ name: `s:${sid}`, label: name, ...num, defaultValue: prev?.score?.toString() ?? '' }] : [];
+      return allowed.map((subj) => ({ name: `x:${sid}:${subj}`, label: `${name} · ${subj}`, ...num, defaultValue: prev?.bySubject?.[subj]?.toString() ?? '' }));
+    }),
   ];
 
   return (
@@ -34,6 +47,18 @@ export default async function TestPage({ params }: { params: { id: string } }) {
         </div>
         {can(user, 'results.publish') && !t.data.published && <ActionButton action={publishTestAction} label="Publish results" hidden={{ testId: t.id }} className="btn-primary py-2" />}
       </div>
+
+      <Panel title="Send marks to parents">
+        {!t.data.published ? (
+          <Empty>Not published yet. Marks can be sent to parents only after the exam cell publishes the results.</Empty>
+        ) : (
+          <div className="space-y-2">
+            <p className="text-sm text-muted">Each parent number on record gets the student’s subject-wise marks, total and rank. A student’s same score is never sent twice to the same number. {whatsappMode().kind !== 'cloud' && <strong className="text-heading">WhatsApp is not connected yet: messages are recorded but not delivered.</strong>}</p>
+            <SendMarksForm testId={t.id} />
+            {sends.length > 0 && <p className="text-xs text-muted">Last sends: {sends.filter((x) => x.result === 'sent').length} handed to WhatsApp, {sends.filter((x) => x.result === 'simulated').length} not delivered (not configured), {sends.filter((x) => x.result === 'failed').length} failed, {sends.filter((x) => x.result === 'skipped').length} skipped.</p>}
+          </div>
+        )}
+      </Panel>
 
       {t.data.mode === 'online' ? (
         <Panel title={`Questions (${t.data.questions.length})`}>
@@ -78,8 +103,12 @@ export default async function TestPage({ params }: { params: { id: string } }) {
           )}
         </Panel>
       ) : (
-        <Panel title="Enter marks">
-          {(b?.data.studentIds.length ?? 0) === 0 ? <Empty>No students in this batch.</Empty> : <QuickForm action={enterMarksAction} submit="Save marks" cols={3} reset={false} fields={marksFields} />}
+        <Panel title={`Enter marks${t.data.subjects.length > 1 ? ` · ${allowed.join(', ') || 'none of your subjects'}` : ''}`}>
+          {(b?.data.studentIds.length ?? 0) === 0 ? <Empty>No students in this batch.</Empty>
+            : locked ? <Empty>Published. Corrections go through the exam cell.</Empty>
+            : allowed.length === 0 ? <Empty>You don’t teach {t.data.subjects.join(' / ')} to this batch, so you can view these marks but not enter them.</Empty>
+            : <QuickForm action={enterMarksAction} submit="Save marks" cols={3} reset={false} fields={marksFields} />}
+          {!locked && !t.data.published && <p className="mt-2 text-xs text-muted">Saved marks stay private until the exam cell publishes the results. Only then can students and parents see them, and only then can they be sent on WhatsApp.</p>}
         </Panel>
       )}
 

@@ -69,12 +69,34 @@ export const ATTENDANCE = ['present', 'absent', 'late', 'leave'] as const;
 /** One register per batch per day (per period if several are taken). */
 export const attendance = collection({
   name: 'attendance',
-  schema: z.object({ batchId: id, date: isoDate, period: z.string().max(20).default('day'), marks: z.record(z.enum(ATTENDANCE)), markedBy: id, notifiedAbsent: z.array(id).default([]) }),
+  schema: z.object({
+    batchId: id,
+    date: isoDate,
+    period: z.string().max(20).default('day'),
+    marks: z.record(z.enum(ATTENDANCE)),
+    /** optional per-student remark ("came at 9:40, bus late") */
+    remarks: z.record(z.string().max(200)).default({}),
+    markedBy: id,
+    notifiedAbsent: z.array(id).default([]),
+    /** every change to an already-saved register: who, when, which students from → to */
+    corrections: z.array(z.object({ at: z.string(), by: id, changes: z.array(z.object({ studentId: id, from: z.string(), to: z.string() })) })).max(100).default([]),
+  }),
   k1: (d) => d.batchId,
   k2: (d) => d.date,
 });
 
-export const MATERIAL_KINDS = ['notes', 'dpp', 'assignment', 'recording', 'live'] as const;
+/**
+ * What a teacher sent to parents from a register or a test ("Send … to parents on WhatsApp"). The outbox row
+ * carries the live delivery status (webhook); this links it to the batch/date or test. k1 = ref, k2 = student.
+ */
+export const parentNotifications = collection({
+  name: 'parent_notifications',
+  schema: z.object({ kind: z.enum(['attendance', 'marks']), ref: z.string().max(120), studentId: id, phone: z.string().max(20), outboxId: z.string().nullable(), result: z.string().max(20), reason: z.string().max(300).nullable().default(null), sentBy: id, at: z.string() }),
+  k1: (d) => d.ref,
+  k2: (d) => d.studentId,
+});
+
+export const MATERIAL_KINDS =['notes', 'dpp', 'assignment', 'recording', 'live'] as const;
 export const materials = collection({
   name: 'materials',
   schema: z.object({ batchId: id, subject: text(40), title: text(140), kind: z.enum(MATERIAL_KINDS), url, dueDate: isoDate.nullable().optional().transform((v) => v ?? null), uploadedBy: id }),
@@ -371,6 +393,64 @@ export const leaveRequests = collection({
   schema: z.object({ staffId: id, from: isoDate, to: isoDate, reason: text(300), status: z.enum(['pending', 'approved', 'rejected']), decidedBy: z.string().nullable() }).refine((d) => d.from <= d.to, 'The leave must end on or after it starts'),
   k1: (d) => d.staffId,
   k2: (d) => d.status,
+});
+
+/**
+ * Roles a teacher or staff member may ask for on the public registration form. Leadership, Super Admin and
+ * Developer accounts are never self-service: they are created by a Super Admin (or a Developer).
+ */
+export const SELF_REGISTER_ROLES = ['faculty', 'class_teacher', 'academic_coordinator', 'admission_manager', 'telecaller', 'admission_counsellor', 'front_desk', 'admission_office', 'accounts', 'admin_office', 'hostel_warden', 'transport_incharge', 'data_executive', 'sports_coach', 'student_counsellor'] as const;
+export const DEPARTMENTS = ['Mathematics', 'Physics', 'Chemistry', 'Biology', 'English', 'Languages', 'Exam cell', 'Admissions', 'Accounts', 'Administration', 'Hostel', 'Transport', 'Marketing', 'Sports', 'Counselling'] as const;
+
+/** A teacher or staff member's request for an account. The sign-in identity exists; access starts only when approved. */
+export const staffRegistrations = collection({
+  name: 'staff_registrations',
+  schema: z.object({
+    identityId: id,
+    fullName: text(80),
+    email: z.string().trim().toLowerCase().email().max(254),
+    phone: z.string().regex(/^\+91[6-9]\d{9}$/),
+    employeeId: z.string().trim().min(2).max(30),
+    department: text(40),
+    designation: text(60),
+    requestedRole: z.enum(SELF_REGISTER_ROLES),
+    status: z.enum(['pending', 'approved', 'rejected']),
+    decidedBy: z.string().nullable().default(null),
+    decidedAt: z.string().nullable().default(null),
+    decisionNote: optText(300),
+    approvedRoles: z.array(z.string()).default([]),
+  }),
+  k1: (d) => d.email,
+  k2: (d) => d.status,
+});
+
+/** Employment details shown on My profile (k1 = staff id). Private: the person, their approvers and HR roles only. */
+export const staffProfiles = collection({
+  name: 'staff_profiles',
+  schema: z.object({ staffId: id, employeeId: z.string().trim().min(2).max(30), department: text(40), designation: text(60), joinedOn: isoDate.nullable().default(null) }),
+  k1: (d) => d.staffId,
+  k2: (d) => d.employeeId.toUpperCase(),
+});
+
+export const STAFF_ATTENDANCE = ['present', 'absent', 'half_day', 'leave'] as const;
+/**
+ * A staff member's own attendance, one row per person per day (k1 = staff id, k2 = date). Self check-in /
+ * check-out sets `present`; the principal or admin office can correct it, and every correction is kept.
+ */
+export const staffAttendance = collection({
+  name: 'staff_attendance',
+  schema: z.object({
+    staffId: id,
+    date: isoDate,
+    status: z.enum(STAFF_ATTENDANCE),
+    checkIn: z.string().nullable().default(null),
+    checkOut: z.string().nullable().default(null),
+    source: z.enum(['self', 'admin']),
+    markedBy: id,
+    history: z.array(z.object({ at: z.string(), by: id, from: z.string().nullable(), to: z.string(), reason: z.string().max(300) })).max(50).default([]),
+  }),
+  k1: (d) => d.staffId,
+  k2: (d) => d.date,
 });
 
 /** Counselling session record (§7.1 step 7). */

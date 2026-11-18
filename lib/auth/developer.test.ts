@@ -43,7 +43,7 @@ describe('Developer role', () => {
 
 let dir: string;
 let cwd: string;
-const identity: Identity = { emails: false, async invite() { return `staff-new-${Math.random().toString(36).slice(2, 8)}`; }, async removeInvite() {}, async sendPasswordReset() {}, async completeReset() { return null; } };
+const identity: Identity = { emails: false, async invite() { return `staff-new-${Math.random().toString(36).slice(2, 8)}`; }, async removeInvite() {}, async sendPasswordReset() {}, async completeReset() { return null; }, async register() { return 'staff-reg'; }, async passwordMatches() { return false; } };
 const ctx = { ip: '198.51.100.9', userAgent: 'test' };
 
 beforeAll(() => {

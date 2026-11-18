@@ -1,14 +1,16 @@
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { addMaterialAction, createTestAction } from '@/app/crm/school-actions';
-import { AttendanceForm } from '@/components/crm/AttendanceForm';
+import { AttendanceForm, SendAttendanceForm } from '@/components/crm/AttendanceForm';
+import { getCrmRepo } from '@/lib/crm/repo';
+import { deliveryLabel, getMessageStore, mode as whatsappMode } from '@/lib/whatsapp/service';
 import { QuickForm } from '@/components/crm/QuickForm';
 import { Empty, Panel, programShort } from '@/components/crm/ui';
 import { requireStaff } from '@/lib/crm/auth';
 import { can } from '@/lib/crm/permissions';
 import { addDays, formatDate, todayIST } from '@/lib/dates';
 import { batches, MATERIAL_KINDS, SUBJECTS } from '@/lib/records/collections';
-import { batchMaterials, batchRegisters, batchTests, batchTimetable, canTeachBatch } from '@/lib/school/academics';
+import { batchMaterials, batchRegisters, batchTests, batchTimetable, canTeachBatch, sentToParents } from '@/lib/school/academics';
 import { store, studentsById } from '@/lib/school/common';
 import { attendanceSummary } from '@/lib/school/logic';
 
@@ -22,8 +24,21 @@ export default async function BatchPage({ params, searchParams }: { params: { id
   const today = todayIST();
   const date = searchParams.date && /^\d{4}-\d{2}-\d{2}$/.test(searchParams.date) && searchParams.date <= today ? searchParams.date : today;
   const [byId, regs, mats, tests, tt] = await Promise.all([studentsById(), batchRegisters(b.id, addDays(today, -30), today), batchMaterials(b.id), batchTests(b.id), batchTimetable(b.id)]);
-  const students = b.data.studentIds.map((sid) => ({ id: sid, name: byId.get(sid)?.fullName ?? 'Student' })).sort((x, y) => x.name.localeCompare(y.name));
+  const students = b.data.studentIds.map((sid) => ({ id: sid, name: byId.get(sid)?.fullName ?? 'Student', collegeId: byId.get(sid)?.collegeId ?? null })).sort((x, y) => x.name.localeCompare(y.name));
   const reg = regs.find((r) => r.date === date);
+  // Delivery status of what was sent to parents for this register, read live from the WhatsApp outbox.
+  const sends = reg ? await sentToParents(`${b.id}:${date}`) : [];
+  const statusOf = new Map<string, string>();
+  for (const sid of new Set(sends.map((x) => x.studentId))) {
+    const st = byId.get(sid);
+    const outbox = st ? (await getMessageStore().listForLead(st.leadId, 200)).outbound : [];
+    const lines = sends.filter((x) => x.studentId === sid).map((x) => {
+      const m = outbox.find((o) => o.id === x.outboxId);
+      return `******${x.phone.slice(-4)}: ${m ? deliveryLabel(m) : x.reason ?? x.result}`;
+    });
+    statusOf.set(sid, lines.join(' · '));
+  }
+  const staffNames = reg ? new Map((await getCrmRepo().listStaff()).map((s) => [s.id, s.fullName])) : new Map<string, string>();
 
   return (
     <div className="space-y-5">
@@ -35,8 +50,18 @@ export default async function BatchPage({ params, searchParams }: { params: { id
 
       <div className="grid gap-5 xl:grid-cols-[1.2fr_1fr]">
         <Panel title={`Attendance · ${formatDate(date)}`} actions={<form method="get" className="flex items-center gap-2"><input type="date" name="date" defaultValue={date} max={today} className="input py-1 text-xs" /><button className="btn-outline py-1 text-xs">Go</button></form>}>
-          {students.length === 0 ? <Empty>No students in this batch yet.</Empty> : <AttendanceForm key={date} batchId={b.id} date={date} students={students} existing={(reg?.marks as Record<string, string>) ?? {}} />}
-          {reg && <p className="mt-2 text-xs text-muted">Already taken for this date; saving again updates it.</p>}
+          {students.length === 0 ? <Empty>No students in this batch yet.</Empty> : <AttendanceForm key={date} batchId={b.id} date={date} today={today} students={students} existing={(reg?.marks as Record<string, string>) ?? {}} existingRemarks={reg?.remarks ?? {}} />}
+          {reg && <p className="mt-2 text-xs text-muted">Already taken for this date by {staffNames.get(reg.markedBy) ?? 'a teacher'}; saving again corrects it and the change is recorded.</p>}
+          {reg?.corrections && reg.corrections.length > 0 && (
+            <details className="mt-2 text-xs">
+              <summary className="cursor-pointer font-semibold text-heading">Correction history ({reg.corrections.length})</summary>
+              <ul className="mt-1 space-y-1 text-muted">
+                {reg.corrections.map((c, i) => (
+                  <li key={i}>{new Date(c.at).toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' })} · {staffNames.get(c.by) ?? c.by}: {c.changes.map((x) => `${byId.get(x.studentId)?.fullName ?? 'Student'} ${x.from} → ${x.to}`).join(', ')}</li>
+                ))}
+              </ul>
+            </details>
+          )}
         </Panel>
         <Panel title="Last 30 days">
           <ul className="space-y-1 text-sm">
@@ -52,6 +77,19 @@ export default async function BatchPage({ params, searchParams }: { params: { id
           </ul>
         </Panel>
       </div>
+
+      <Panel title={`Send attendance to parents · ${formatDate(date)}`}>
+        {!reg ? <Empty>Save the attendance for this date first. Only saved registers can be sent.</Empty> : (
+          <>
+            {whatsappMode().kind !== 'cloud' && (
+              <p role="status" className="mb-3 rounded-lg bg-gold-100/70 px-3 py-2 text-xs text-ink dark:bg-gold/10">
+                WhatsApp Business API is not connected yet (no credentials). Messages are recorded with their exact text but nothing reaches parents until the college’s WhatsApp number and approved templates are configured.
+              </p>
+            )}
+            <SendAttendanceForm batchId={b.id} date={date} students={students.map((s) => ({ id: s.id, name: s.name, mark: reg.marks[s.id] ?? '—', status: statusOf.get(s.id) ?? null }))} />
+          </>
+        )}
+      </Panel>
 
       <Panel title="Timetable">
         {tt.length === 0 ? <Empty>No periods yet.</Empty> : (

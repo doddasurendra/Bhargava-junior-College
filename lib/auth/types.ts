@@ -17,6 +17,9 @@ export interface StaffAuth {
   sessionVersion: number;
   /** local file store only — production passwords live in Supabase Auth */
   passwordHash?: string | null;
+  /** local file store only: sha256 of the one-time set-password link token, and when it expires */
+  resetTokenHash?: string | null;
+  resetTokenExp?: string | null;
 }
 
 export const emptyAuth = (staffId: string): StaffAuth => ({
@@ -31,7 +34,7 @@ export const emptyAuth = (staffId: string): StaffAuth => ({
   sessionVersion: 0,
 });
 
-export const LOGIN_METHODS = ['password', 'dev', 'totp', 'recovery', 'enrol', 'logout', 'admin', 'role', 'reset'] as const;
+export const LOGIN_METHODS = ['password', 'dev', 'totp', 'recovery', 'enrol', 'logout', 'admin', 'role', 'reset', 'register'] as const;
 export type LoginMethod = (typeof LOGIN_METHODS)[number];
 
 /** Every sign-in step, success or failure (acceptance criteria: "every login and failed attempt"). */

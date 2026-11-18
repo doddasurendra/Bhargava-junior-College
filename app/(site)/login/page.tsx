@@ -37,7 +37,7 @@ export default function LoginHub() {
       ))}
       <Section>
         <p className="text-sm text-muted">
-          New staff member or forgot your password? Ask the admin office to create your account, or use <Link href="/crm/login/forgot" className="underline">Forgot password</Link>. Parents and students use the mobile number registered with the college.
+          New teacher or staff member? <Link href="/crm/login/register" className="underline">Request an account</Link>; the college administrator approves it before you can sign in. Principal, management, Super Admin and Developer accounts are created by the administrator only. Forgot your password? Use <Link href="/crm/login/forgot" className="underline">Forgot password</Link>. Parents and students sign in with the mobile number registered with the college and a one-time code.
         </p>
       </Section>
     </>

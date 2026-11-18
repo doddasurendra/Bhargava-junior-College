@@ -11,7 +11,7 @@ import { dueReminders } from './reminders';
 import { slotLabel } from '../visits';
 import { createSupabaseMessageStore } from './supabaseStore';
 import { getTemplate, renderBody, validateParams, type TemplateKey } from './templates';
-import type { MessageStore, OutboundStatus } from './types';
+import type { MessageStore, OutboundMessage, OutboundStatus } from './types';
 import { keywordIntent, parseWebhook, verifySignature } from './webhook';
 
 // ---------------------------------------------------------------- configuration
@@ -59,6 +59,26 @@ export interface SendRequest {
 export interface SendResult {
   status: OutboundStatus;
   reason?: string;
+  /** the outbox row, for showing delivery ticks later (webhook updates: sent → delivered → read) */
+  outboxId?: string | null;
+  /** development without WhatsApp credentials: logged to the console only, nothing reached the family */
+  simulated?: boolean;
+}
+
+/** An outbox row that was only logged in development (no WhatsApp credentials): never show it as delivered. */
+export const isSimulated = (m: Pick<OutboundMessage, 'providerId'>) => Boolean(m.providerId?.startsWith('dev-'));
+
+/** Plain-language delivery status for staff screens. Never claims delivery the API hasn't confirmed. */
+export function deliveryLabel(m: Pick<OutboundMessage, 'status' | 'providerId' | 'error'>): string {
+  if (isSimulated(m)) return 'Not delivered: WhatsApp is not configured (development log only)';
+  switch (m.status) {
+    case 'queued': return 'Queued';
+    case 'sent': return 'Sent to WhatsApp (waiting for delivery)';
+    case 'delivered': return 'Delivered';
+    case 'read': return 'Read';
+    case 'failed': return `Failed${m.error ? `: ${m.error}` : ''}`;
+    default: return `Not sent${m.error ? `: ${m.error}` : ''}`;
+  }
 }
 
 /** Never throws for delivery problems; the result says what happened and the outbox records it. */
@@ -87,23 +107,23 @@ export async function sendTemplate(req: SendRequest): Promise<SendResult> {
   const m = mode();
   if (m.kind === 'off') {
     await st.updateOutbound(row.id, { status: 'skipped', error: 'WhatsApp is not configured.' });
-    return { status: 'skipped', reason: 'WhatsApp is not configured.' };
+    return { status: 'skipped', reason: 'WhatsApp is not configured.', outboxId: row.id };
   }
   if (m.kind === 'dev') {
     console.info(`[dev whatsapp] ${def.name} → ${maskPhone(req.to)}: ${req.redact ? body : body.slice(0, 160)}`);
     await st.updateOutbound(row.id, { status: 'sent', providerId: `dev-${row.id}` });
-    return { status: 'sent' };
+    return { status: 'sent', outboxId: row.id, simulated: true };
   }
   try {
     const providerId = await sendTemplateMessage(m.cfg, { to: req.to, template: def, params: req.params, document: req.document });
     await st.updateOutbound(row.id, { status: 'sent', providerId });
-    return { status: 'sent' };
+    return { status: 'sent', outboxId: row.id };
   } catch (e) {
     const msg = e instanceof CloudApiError ? `${e.code ?? ''} ${e.message}`.trim() : (e as Error).message;
     console.error(`[whatsapp] ${def.name} → ${maskPhone(req.to)} failed: ${msg}`);
     // TODO: retry queue for e.retryable (rate limits); today a failed message is visible in the CRM for a manual resend.
     await st.updateOutbound(row.id, { status: 'failed', error: msg.slice(0, 300) });
-    return { status: 'failed', reason: msg };
+    return { status: 'failed', reason: msg, outboxId: row.id };
   }
 }
 

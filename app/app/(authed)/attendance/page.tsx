@@ -26,7 +26,8 @@ export default async function AttendancePage() {
         <ul className="card divide-y divide-line p-0 text-sm">
           {days.map((r) => {
             const m = r.marks[p.studentId];
-            return <li key={r.date} className="flex justify-between px-4 py-2"><span>{formatDate(r.date)}</span><span className={`capitalize ${m === 'absent' ? 'font-semibold text-red-700 dark:text-red-300' : ''}`}>{m}</span></li>;
+            const note = r.remarks?.[p.studentId];
+            return <li key={r.date} className="flex justify-between gap-3 px-4 py-2"><span>{formatDate(r.date)}</span><span className="text-right"><span className={`capitalize ${m === 'absent' ? 'font-semibold text-red-700 dark:text-red-300' : ''}`}>{m}</span>{note && <span className="block text-[11px] text-muted">{note}</span>}</span></li>;
           })}
         </ul>
       )}

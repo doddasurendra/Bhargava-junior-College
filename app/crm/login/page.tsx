@@ -26,8 +26,8 @@ export default async function LoginPage({ searchParams }: { searchParams: Record
         <div className="mb-6 flex items-center gap-3">
           <Crest size={52} />
           <div>
-            <p className="font-display text-2xl text-heading">Admissions CRM</p>
-            <p className="text-sm text-muted">{college.name} · staff only</p>
+            <p className="font-display text-2xl text-heading">Staff sign-in</p>
+            <p className="text-sm text-muted">{college.name} · teachers, leadership and staff</p>
           </div>
         </div>
         {as && (
@@ -51,9 +51,12 @@ export default async function LoginPage({ searchParams }: { searchParams: Record
           ) : (
             <>
               <PasswordLoginForm />
-              <p className="mt-3 text-center text-sm">
+              <p className="mt-3 flex flex-wrap justify-center gap-x-4 gap-y-1 text-center text-sm">
                 <Link href="/crm/login/forgot" className="text-muted underline">
                   Forgot password?
+                </Link>
+                <Link href={`/crm/login/register${as && !['developer', 'super_admin', 'management', 'principal'].includes(as) ? `?as=${as}` : ''}`} className="text-muted underline">
+                  New teacher or staff? Request an account
                 </Link>
               </p>
             </>

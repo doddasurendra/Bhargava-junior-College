@@ -90,17 +90,42 @@ describe('batches & timetable', () => {
   });
 });
 
+const recent = new Date(Date.now() - 86_400_000).toISOString().slice(0, 10);
 describe('attendance', () => {
   it('only teachers of the batch mark it; absentees’ parents get one alert per day', async () => {
     const date = '2026-11-02';
     await expect(A.markAttendance(otherFaculty, batchId, date, { [s1]: 'present', [s2]: 'absent' })).rejects.toThrow('don’t teach');
     await expect(A.markAttendance(faculty, batchId, date, { [s1]: 'present' })).rejects.toThrow('every student');
     await expect(A.markAttendance(faculty, batchId, '2999-01-01', { [s1]: 'present', [s2]: 'absent' })).rejects.toThrow('future');
-    expect(await A.markAttendance(faculty, batchId, date, { [s1]: 'present', [s2]: 'absent' })).toEqual({ absent: 1 });
+    // development without WhatsApp credentials: the alert is recorded but reported as NOT delivered
+    expect(await A.markAttendance(faculty, batchId, date, { [s1]: 'present', [s2]: 'absent' })).toEqual({ absent: 1, corrected: null, alerts: { sent: 0, simulated: 1, failed: 0, skipped: 0 } });
     // re-marking the same day doesn't alert again
     await A.markAttendance(faculty, batchId, date, { [s1]: 'present', [s2]: 'absent' });
     const msgs = (await outbound()).filter((m) => m.template.endsWith('absence_alert'));
     expect(msgs).toHaveLength(1);
+  });
+
+  it('keeps remarks and records every correction with who and when', async () => {
+    const date = recent;
+    await A.markAttendance(faculty, batchId, date, { [s1]: 'present', [s2]: 'present' }, { [s1]: 'bus late' });
+    const r = await A.markAttendance(mentor, batchId, date, { [s1]: 'late', [s2]: 'present' });
+    expect(r.corrected).toBe(1);
+    const reg = (await A.batchRegisters(batchId, date, date))[0];
+    expect(reg.markedBy).toBe(faculty.id);
+    expect(reg.corrections).toEqual([expect.objectContaining({ by: mentor.id, changes: [{ studentId: s1, from: 'present', to: 'late' }] })]);
+    // one register per batch per date, never a duplicate
+    expect((await A.batchRegisters(batchId, date, date))).toHaveLength(1);
+  });
+
+  it('sends the saved register to parents and says honestly that nothing was delivered without credentials', async () => {
+    await expect(A.sendAttendanceToParents(faculty, batchId, '2026-11-05')).rejects.toThrow('Save the attendance');
+    await expect(A.sendAttendanceToParents(otherFaculty, batchId, recent)).rejects.toThrow('don’t teach');
+    const rows = await A.sendAttendanceToParents(faculty, batchId, recent, [s1]);
+    expect(rows).toEqual([{ student: 'Asha Rao', to: '******0001', result: 'simulated', reason: null }]);
+    const again = await A.sendAttendanceToParents(faculty, batchId, recent, [s1]);
+    expect(again[0]).toMatchObject({ result: 'skipped', reason: 'Already sent.' });
+    const msg = (await outbound()).filter((m) => m.template === 'bjc_attendance_update') as unknown as { body: string }[];
+    expect(msg[0].body).toContain('Late');
   });
 });
 
@@ -227,5 +252,57 @@ describe('admin office', () => {
     await O.issueCertificate(adminOffice, { studentId: s2, kind: 'tc', purpose: null, conduct: 'Good' });
     await expect(O.issueCertificate(adminOffice, { studentId: s2, kind: 'tc', purpose: null, conduct: 'Good' })).rejects.toThrow('already');
     await expect(O.issueCertificate(faculty, { studentId: s1, kind: 'study', purpose: null, conduct: null })).rejects.toThrow('permission');
+  });
+});
+
+describe('access levels (master prompt §3)', () => {
+  it('Student 360: every teacher reads every student, but writes stay with their own classes', async () => {
+    const C = await import('./common');
+    const stranger = { ...st('staff-fac9', ['faculty']), perms: undefined };
+    expect(await C.readableStudentIds(stranger)).toBe('all');
+    expect((await C.visibleStudentIds(stranger)) as Set<string>).toEqual(new Set());
+    await expect(C.requireReadsStudent(stranger, s1)).resolves.toBeUndefined();
+    const file = await M.studentFile(stranger, s1);
+    expect(file.own).toBe(false);
+    expect(file.checks).toEqual([]);
+    await expect(M.addMentorNote({ ...st('staff-ct9', ['class_teacher']) }, { studentId: s1, kind: 'note', note: 'x', shareWithParent: false })).rejects.toThrow('not found');
+    // the warden still reads only hostellers
+    const w = await C.readableStudentIds(warden);
+    expect(w !== 'all' && w.has(s1) && !w.has(s2)).toBe(true);
+  });
+
+  it('marks: a teacher enters only the subjects they teach, and never after publication', async () => {
+    await A.addPeriod(coordinator, { batchId, day: 2, start: '08:30', end: '09:30', subject: 'Chemistry', facultyId: otherFaculty.id, room: null });
+    const t = await A.createTest(coordinator, { batchId, title: 'Unit test 1', date: '2026-11-04', mode: 'offline', durationMin: 60, maxMarks: 200, subjects: ['Physics', 'Chemistry'] });
+    expect(await A.markableSubjects(faculty, t.data)).toEqual(['Physics']);
+    await expect(A.enterMarks(faculty, t.id, { [s1]: { bySubject: { Chemistry: 50 } } })).rejects.toThrow('can’t enter Chemistry');
+    await A.enterMarks(faculty, t.id, { [s1]: { score: 199, bySubject: { Physics: 70 } } });
+    await A.enterMarks(otherFaculty, t.id, { [s1]: { bySubject: { Chemistry: 60 } } });
+    const r = (await A.rankList(t.id)).find((x) => x.studentId === s1)!;
+    expect(r.bySubject).toEqual({ Physics: 70, Chemistry: 60 });
+    expect(r.score).toBe(130); // the total is the subject sum, not the 199 typed by a one-subject teacher
+    await expect(A.sendMarksToParents(faculty, t.id)).rejects.toThrow('not published');
+    await A.publishTest(coordinator, t.id);
+    await expect(A.enterMarks(faculty, t.id, { [s1]: { bySubject: { Physics: 71 } } })).rejects.toThrow('published');
+    const sent = await A.sendMarksToParents(faculty, t.id);
+    expect(sent[0]).toMatchObject({ student: 'Asha Rao', result: 'simulated' });
+  });
+
+  it('My attendance: each teacher sees only their own; the principal’s office corrects with a reason', async () => {
+    const S = await import('./staffAttendance');
+    const principal = { ...st('staff-prin', ['principal']) };
+    await repo.saveStaff(st('staff-fac', ['faculty']));
+    await S.checkIn(faculty);
+    await expect(S.checkIn(faculty)).rejects.toThrow('already checked in');
+    const mine = await S.myAttendance(faculty, new Date().toISOString().slice(0, 7));
+    expect(mine.days.some((d) => d.checkIn)).toBe(true);
+    const theirs = await S.myAttendance(otherFaculty, new Date().toISOString().slice(0, 7));
+    expect(theirs.days.some((d) => d.checkIn)).toBe(false);
+    await expect(S.staffDay(faculty, '2026-11-18')).rejects.toThrow('permission');
+    await expect(S.markStaff(faculty, otherFaculty.id, '2026-11-17', 'absent', 'test')).rejects.toThrow('permission');
+    await expect(S.markStaff(principal, faculty.id, '2026-11-17', 'absent', '')).rejects.toThrow('reason');
+    await S.markStaff(principal, faculty.id, '2026-11-17', 'half_day', 'Left at noon, approved');
+    const m = await S.attendanceMonth(faculty.id, '2026-11', '2026-11-18');
+    expect(m.days.find((d) => d.date === '2026-11-17')).toMatchObject({ status: 'half_day', source: 'admin' });
   });
 });

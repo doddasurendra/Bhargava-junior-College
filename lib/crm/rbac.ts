@@ -134,6 +134,7 @@ export const PERMISSION_INFO: Record<Permission, { module: string; label: string
   'discipline.record': { module: 'Academics', label: 'Discipline records' },
   'leave.request': { module: 'Staff', label: 'Request leave' },
   'leave.approve': { module: 'Staff', label: 'Approve staff leave' },
+  'staff.attendance': { module: 'Staff', label: 'See and correct every staff member’s attendance' },
   'alumni.manage': { module: 'Students', label: 'Alumni network' },
   'homework.assign': { module: 'Academics', label: 'Set homework and assignments (own batches)' },
   'library.manage': { module: 'Library', label: 'Library books, issue and return' },
