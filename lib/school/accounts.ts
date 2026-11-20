@@ -53,7 +53,8 @@ export async function duesForStudent(studentId: string, today = todayIST()) {
 export async function sendFeeReminders(user: Staff | null, today = todayIST()) {
   if (user) need(can(user, 'fees.dues'));
   const byId = await studentsById();
-  let sent = 0;
+  /** sent = handed to WhatsApp by the API; notDelivered = logged only (no WhatsApp connected); never counted as sent */
+  const out = { sent: 0, notDelivered: 0, failed: 0, skipped: 0 };
   for (const sch of await feeSchedules.list(store())) {
     const s = byId.get(sch.data.studentId);
     if (!s) continue;
@@ -64,10 +65,13 @@ export async function sendFeeReminders(user: Staff | null, today = todayIST()) {
     if (!soon) continue;
     for (const g of await getAppStore().guardiansOf(s.id)) {
       const r = await sendTemplate({ template: 'fee_reminder', to: g.phone, params: [formatINR(next.outstanding), s.fullName, formatDate(next.due)], leadId: s.leadId, dedupeKey: `fee:${sch.id}:${next.due}:${today}:${g.phone}` }).catch(() => null);
-      if (r?.status === 'sent') sent++;
+      if (!r || r.status === 'failed') out.failed++;
+      else if (r.simulated || (r.status === 'skipped' && /not configured/i.test(r.reason ?? ''))) out.notDelivered++;
+      else if (r.status === 'sent') out.sent++;
+      else out.skipped++;
     }
   }
-  return sent;
+  return out;
 }
 
 // ---------------------------------------------------------------- concessions & refunds (§9A.2 rows 2, 4, 9; §9A.3)

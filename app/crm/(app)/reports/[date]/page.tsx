@@ -29,6 +29,7 @@ export default async function ReportPage({ params }: { params: { date: string } 
           <h1 className="font-display text-3xl text-heading">Admissions report · {formatDate(r.date, { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}</h1>
           <p className="mt-1 text-sm text-muted">
             Snapshot generated {formatDateTime(r.generatedAt)} · sent to {r.recipients} {r.recipients === 1 ? 'person' : 'people'}
+            {(r.notDelivered ?? 0) > 0 && <> · <strong className="text-heading">{r.notDelivered} not delivered: WhatsApp / email are not connected yet</strong></>}
           </p>
         </div>
         <div className="flex gap-2 print:hidden">

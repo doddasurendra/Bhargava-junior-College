@@ -191,7 +191,7 @@ export async function sendBusNotice(user: Staff, busId: string, message: string,
   const byId = await studentsById();
   const day = todayIST();
   const tag = createHash('sha256').update(text).digest('hex').slice(0, 12);
-  const out = { sent: 0, simulated: 0, failed: 0, skipped: 0 };
+  const out = { sent: 0, simulated: 0, failed: 0, skipped: 0, notConfigured: 0 };
   for (const sid of ids) {
     const s = byId.get(sid);
     if (!s) continue;
@@ -202,6 +202,7 @@ export async function sendBusNotice(user: Staff, busId: string, message: string,
       if (r.simulated) out.simulated++;
       else if (r.status === 'sent') out.sent++;
       else if (r.status === 'failed') out.failed++;
+      else if (/not configured/i.test(('reason' in r && r.reason) || '')) out.notConfigured++;
       else out.skipped++;
     }
   }

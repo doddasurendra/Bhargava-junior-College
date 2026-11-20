@@ -15,6 +15,9 @@ import { store, studentsById } from '@/lib/school/common';
 
 export const metadata = { title: 'Test' };
 
+/** Logged but not delivered because no WhatsApp provider is connected (dev log, or skipped in production). */
+const notConfigured = (x: { result: string; reason?: string | null }) => x.result === 'simulated' || (x.result === 'skipped' && /not configured/i.test(x.reason ?? ''));
+
 export default async function TestPage({ params }: { params: { id: string } }) {
   const user = await requireStaff('tests.manage');
   const t = await tests.get(store(), params.id);
@@ -55,7 +58,7 @@ export default async function TestPage({ params }: { params: { id: string } }) {
           <div className="space-y-2">
             <p className="text-sm text-muted">Each parent number on record gets the student’s subject-wise marks, total and rank. A student’s same score is never sent twice to the same number. {whatsappMode().kind !== 'cloud' && <strong className="text-heading">WhatsApp is not connected yet: messages are recorded but not delivered.</strong>}</p>
             <SendMarksForm testId={t.id} />
-            {sends.length > 0 && <p className="text-xs text-muted">Last sends: {sends.filter((x) => x.result === 'sent').length} handed to WhatsApp, {sends.filter((x) => x.result === 'simulated').length} not delivered (not configured), {sends.filter((x) => x.result === 'failed').length} failed, {sends.filter((x) => x.result === 'skipped').length} skipped.</p>}
+            {sends.length > 0 && <p className="text-xs text-muted">Last sends: {sends.filter((x) => x.result === 'sent').length} handed to WhatsApp, {sends.filter((x) => notConfigured(x)).length} not delivered (WhatsApp not connected), {sends.filter((x) => x.result === 'failed').length} failed, {sends.filter((x) => x.result === 'skipped' && !notConfigured(x)).length} skipped.</p>}
           </div>
         )}
       </Panel>

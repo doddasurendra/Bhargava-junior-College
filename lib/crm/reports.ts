@@ -8,7 +8,7 @@ import { marketingSpend } from '../records/collections';
 import { addDays, formatDate, todayIST } from '../dates';
 import { siteUrl } from '../seo';
 import { tx } from '../store/file';
-import { sendTemplate } from '../whatsapp/service';
+import { mode as whatsappMode, sendTemplate } from '../whatsapp/service';
 import { computeMetrics, dailySeries, filterData, periods, type Metrics, type MetricsData, type MetricsExtras, type MetricsFilter, type PeriodKey } from './metrics';
 import { can } from './permissions';
 import { getCrmRepo } from './repo';
@@ -62,7 +62,10 @@ export interface DailyReport {
   today: Metrics;
   mtd: Metrics;
   season: Metrics;
+  /** people the report actually reached (WhatsApp API accepted it, or the email provider sent it) */
   recipients: number;
+  /** people it was meant for but only logged, because WhatsApp / email are not connected */
+  notDelivered?: number;
 }
 
 const REPORT_ROLES: Role[] = ['super_admin', 'management', 'principal'];
@@ -122,6 +125,7 @@ export async function generateDailyReport(now = new Date(), opts: { send?: boole
 
   let sent = 0;
   let emailed = 0;
+  let notDelivered = 0;
   if (opts.send !== false) {
     const v = (k: string) => String(today.daily.find((f) => f.key === k)?.value ?? 0);
     const params = [formatDate(date, { weekday: 'short', day: 'numeric', month: 'short' }), v('collected'), v('visits_actual'), v('confirmed'), String(today.backlog.escalated48), String(today.backlog.visitsNeedingOutcome), `${siteUrl}/crm/reports/${date}`];
@@ -129,17 +133,22 @@ export async function generateDailyReport(now = new Date(), opts: { send?: boole
     for (const s of recipients.filter((x) => x.phone)) {
       const r = await sendTemplate({ template: 'daily_report', to: s.phone!, params, actorId: null, dedupeKey: `daily_report:${date}:${s.id}` });
       // A re-run finds today's message already sent (dedupe) — it still counts as delivered to that person.
-      if (r.status === 'sent' || r.reason === 'Already sent.') sent++;
+      // A development log or "not configured" skip is NOT a delivery.
+      const live = whatsappMode().kind === 'cloud';
+      if (live && ((r.status === 'sent' && !r.simulated) || r.reason === 'Already sent.')) sent++;
+      else if (!live || r.simulated || /not configured/i.test(r.reason ?? '')) notDelivered++;
     }
     // §8: also by email, with the PDF on letterhead attached
     const to = recipients.map((s) => s.email).filter((e): e is string => Boolean(e));
     if (to.length) {
       const pdf = await reportPdf(report);
       const r = await sendEmail({ to, subject: `Bhargava admissions: 7 PM report for ${formatDate(date)}`, html: reportEmailHtml(report, `${siteUrl}/crm/reports/${date}`), attachments: [{ filename: `BJC-daily-report-${date}.pdf`, content: pdf, contentType: 'application/pdf' }], dedupeKey: `daily_report_email:${date}` });
-      if (r.status === 'sent' || r.status === 'logged') emailed = to.length;
+      if (r.status === 'sent') emailed = to.length;
+      else if (r.status === 'logged') notDelivered += to.length; // no email provider: logged only
     }
   }
   report.recipients = sent + emailed;
+  report.notDelivered = notDelivered;
   await saveReport(report);
   return { date, recipients: sent, emailed, flagged: today.flagged.length };
 }

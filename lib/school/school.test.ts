@@ -322,8 +322,8 @@ describe('office departments see only their own (master prompt §10)', () => {
     await O.assignBus(transport, s2, bus.id);
     await expect(O.sendBusNotice(faculty, bus.id, 'Bus is 20 minutes late')).rejects.toThrow('permission');
     await expect(O.sendBusNotice(transport, bus.id, 'hi')).rejects.toThrow('at least 5');
-    expect(await O.sendBusNotice(transport, bus.id, 'Bus is 20 minutes late')).toEqual({ sent: 0, simulated: 1, failed: 0, skipped: 0 });
-    expect(await O.sendBusNotice(transport, bus.id, 'Bus is 20 minutes late')).toEqual({ sent: 0, simulated: 0, failed: 0, skipped: 1 }); // not twice a day
+    expect(await O.sendBusNotice(transport, bus.id, 'Bus is 20 minutes late')).toEqual({ sent: 0, simulated: 1, failed: 0, skipped: 0, notConfigured: 0 });
+    expect(await O.sendBusNotice(transport, bus.id, 'Bus is 20 minutes late')).toEqual({ sent: 0, simulated: 0, failed: 0, skipped: 1, notConfigured: 0 }); // not twice a day
   });
 });
 

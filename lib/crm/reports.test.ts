@@ -36,9 +36,9 @@ describe('7 PM report', () => {
 
     const reports = await import('./reports');
     const now = new Date('2026-11-03T13:30:00Z'); // 19:00 IST
-    expect(await reports.generateDailyReport(now)).toMatchObject({ date: '2026-11-03', recipients: 1 });
-    // Re-run (cron retry): no second WhatsApp, recipient count kept.
-    expect(await reports.generateDailyReport(now)).toMatchObject({ recipients: 1 });
+    expect(await reports.generateDailyReport(now)).toMatchObject({ date: '2026-11-03', recipients: 0 }); // WhatsApp not connected in tests: logged, never counted as delivered
+    // Re-run (cron retry): no second WhatsApp, and still not counted as delivered.
+    expect(await reports.generateDailyReport(now)).toMatchObject({ recipients: 0 });
     const msgs = await tx((db) => db.waMessages.filter((m) => m.template === 'bjc_daily_report'), false);
     expect(msgs).toHaveLength(1);
     expect(msgs[0].body).toMatch(/Bhargava admissions, Tue, 3 Nov: \d+ new leads/);
@@ -46,7 +46,8 @@ describe('7 PM report', () => {
     const manager = { id: 'staff-manager', fullName: 'Admission Manager', email: null, phone: null, roles: ['admission_manager' as const], active: true };
     const r = await reports.getReport(manager, '2026-11-03');
     expect(r?.today.funnel.find((f) => f.key === 'leads')?.value).toBeGreaterThanOrEqual(1);
-    expect(r?.recipients).toBe(1);
+    expect(r?.recipients).toBe(0);
+    expect(r?.notDelivered).toBe(1);
     await expect(reports.getReport({ ...manager, roles: ['telecaller'] }, '2026-11-03')).rejects.toThrow(/management/);
   });
 });

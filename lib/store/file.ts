@@ -98,7 +98,31 @@ export interface DB {
 const FILE = path.join(process.cwd(), '.data', 'dev-db.json');
 const empty = (): DB => ({ leads: [], touchpoints: [], visits: [], bsat: [], otps: [], staff: [], calls: [], audit: [], importBatches: [], signOffs: [], documents: [], payments: [], students: [], reversals: [], waMessages: [], waInbound: [], waOptOuts: [], conversations: [], convMessages: [], assistantTurns: [], dailyReports: [], guardians: [], hostelEvents: [], staffAuth: [], loginAudit: [], records: {}, counters: {}, seq: { bsat: 0 } });
 
+/**
+ * The parsed file, kept between transactions (a page does many small reads; re-parsing several MB each time
+ * made the local store very slow). Re-read whenever the file on disk changes (mtime/size), so a restored
+ * backup or a seed script is picked up; dropped when a write transaction fails.
+ */
+let cache: { db: DB; mtimeMs: number; size: number } | null = null;
+
+async function stat() {
+  try {
+    const s = await fs.stat(FILE);
+    return { mtimeMs: s.mtimeMs, size: s.size };
+  } catch {
+    return null;
+  }
+}
+
 async function load(): Promise<DB> {
+  const st = await stat();
+  if (cache && st && cache.mtimeMs === st.mtimeMs && cache.size === st.size) return cache.db;
+  const db = await parseFile();
+  cache = st ? { db, ...st } : null;
+  return db;
+}
+
+async function parseFile(): Promise<DB> {
   let db: DB;
   try {
     // Tolerate a BOM in case the file was hand-edited (e.g. saved from PowerShell or Notepad).
@@ -117,16 +141,34 @@ async function save(db: DB) {
   await fs.mkdir(path.dirname(FILE), { recursive: true });
   const tmp = `${FILE}.${process.pid}.tmp`;
   await fs.writeFile(tmp, JSON.stringify(db, null, 2));
-  await fs.rename(tmp, FILE);
+  // Windows refuses to replace a file another process has open for a moment (antivirus, an editor, a backup
+  // tool): EPERM/EBUSY/EACCES. Retry briefly instead of failing the user's action.
+  for (let attempt = 0; ; attempt++) {
+    try {
+      await fs.rename(tmp, FILE);
+      const st = await stat();
+      cache = st ? { db, ...st } : null;
+      return;
+    } catch (e) {
+      const code = (e as NodeJS.ErrnoException).code;
+      if (attempt >= 20 || !['EPERM', 'EBUSY', 'EACCES'].includes(code ?? '')) throw e;
+      await new Promise((r) => setTimeout(r, 25 * (attempt + 1)));
+    }
+  }
 }
 
 let queue: Promise<unknown> = Promise.resolve();
 export function tx<T>(fn: (db: DB) => T | Promise<T>, write = true): Promise<T> {
   const run = queue.then(async () => {
     const db = await load();
-    const result = await fn(db);
-    if (write) await save(db);
-    return result;
+    try {
+      const result = await fn(db);
+      if (write) await save(db);
+      return result;
+    } catch (e) {
+      cache = null; // a half-applied change must not survive in memory
+      throw e;
+    }
   });
   queue = run.catch(() => undefined);
   return run;

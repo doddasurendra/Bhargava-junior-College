@@ -36,7 +36,7 @@ export default async function AccountsPage({ searchParams }: { searchParams: { d
           <h1 className="font-display text-3xl text-heading">Accounts</h1>
           <p className="text-sm text-muted">Dues, reminders, concessions and refunds, daily collection and Tally export. Offline payments are approved in <Link href="/crm/verification" className="underline">Verification</Link>.</p>
         </div>
-        {canDues && <ActionButton action={remindersAction} label="Send due reminders" className="btn-primary py-2" />}
+        {canDues && <QuickForm action={remindersAction} submit="Send due reminders" fields={[]} />}
       </div>
 
       {canDues && (

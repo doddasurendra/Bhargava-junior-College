@@ -296,6 +296,7 @@ export const busNoticeAction = async (_: ActionState, fd: FormData) =>
     const parts = [];
     if (r.sent) parts.push(`${r.sent} handed to WhatsApp`);
     if (r.simulated) parts.push(`${r.simulated} NOT delivered: WhatsApp is not configured, so they were only logged`);
+    if (r.notConfigured) parts.push(`${r.notConfigured} NOT delivered: WhatsApp is not connected yet`);
     if (r.failed) parts.push(`${r.failed} failed`);
     if (r.skipped) parts.push(`${r.skipped} not sent (already sent today, opted out, or no parent number)`);
     return parts.length ? `${parts.join('. ')}.` : 'Nothing to send.';
@@ -329,8 +330,13 @@ export const scheduleAction = async (_: ActionState, fd: FormData) =>
 
 export const remindersAction = async (_: ActionState) =>
   run(async () => {
-    const k = await F.sendFeeReminders(await requireStaff('fees.dues'));
-    return `${k} reminder${k === 1 ? '' : 's'} sent.`;
+    const r = await F.sendFeeReminders(await requireStaff('fees.dues'));
+    const parts = [];
+    if (r.sent) parts.push(`${r.sent} handed to WhatsApp`);
+    if (r.notDelivered) parts.push(`${r.notDelivered} NOT delivered: WhatsApp is not connected yet`);
+    if (r.failed) parts.push(`${r.failed} failed`);
+    if (r.skipped) parts.push(`${r.skipped} skipped (already reminded today or opted out)`);
+    return parts.length ? `${parts.join('. ')}.` : 'No dues in the next 3 days: nothing to send.';
   }, ['/crm/accounts']);
 
 export const feeRequestAction = async (_: ActionState, fd: FormData) =>

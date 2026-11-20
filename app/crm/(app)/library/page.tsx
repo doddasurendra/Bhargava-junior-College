@@ -23,7 +23,7 @@ export default async function LibraryPage() {
           <h1 className="font-display text-3xl text-heading">Library</h1>
           <p className="text-sm text-muted">{books.length} titles · {out.length} on loan · {late.length} overdue · loans are for {LOAN_DAYS} days</p>
         </div>
-        <a href="/crm/exports/library" className="btn-outline py-1.5 text-sm">Export loans (Excel)</a>
+        {manage && <a href="/crm/exports/library" className="btn-outline py-1.5 text-sm">Export loans (Excel)</a>}
       </div>
 
       {manage && (
