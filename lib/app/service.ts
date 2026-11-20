@@ -1,4 +1,5 @@
 import 'server-only';
+import { showCodesOnScreen } from '../localTesting';
 import { reqCache as cache } from '../reqcache';
 import { cookies, headers } from 'next/headers';
 import { redirect } from 'next/navigation';
@@ -12,7 +13,7 @@ import { alumni, consents, studentCredentials } from '../records/collections';
 import { formatDateTime } from '../dates';
 import { issueOtp, verifyOtp } from '../otp';
 import { maskPhone } from '../phone';
-import { mode, sendOtpCode, sendTemplate } from '../whatsapp/service';
+import { sendOtpCode, sendTemplate } from '../whatsapp/service';
 import { createFileAppStore } from './fileStore';
 import { createSupabaseAppStore } from './supabaseStore';
 import type { AppStore, Profile } from './types';
@@ -98,7 +99,7 @@ export async function requestLoginCode(phone: string): Promise<{ devCode?: strin
   }
   const code = await issueOtp(phone);
   await sendOtpCode(phone, code);
-  return process.env.NODE_ENV === 'development' && mode().kind === 'dev' ? { devCode: code } : {};
+  return showCodesOnScreen() ? { devCode: code } : {};
 }
 
 export async function completeLogin(phone: string, code: string): Promise<'ok' | 'invalid' | 'expired' | 'locked'> {

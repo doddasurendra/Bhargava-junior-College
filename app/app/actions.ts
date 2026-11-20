@@ -25,7 +25,8 @@ export async function loginAction(prev: LoginState, fd: FormData): Promise<Login
     if (!/^\d{6}$/.test(code)) return { ...prev, error: 'Enter the 6-digit code.' };
     const r = await completeLogin(phone, code);
     if (r === 'ok') redirect('/app');
-    return { ...prev, error: r === 'invalid' ? 'That code is not correct.' : r === 'locked' ? 'Too many wrong attempts. Request a new code.' : 'This code has expired. Request a new code.' };
+    // One message for wrong, expired and locked codes: a different answer would tell a stranger which numbers are registered.
+    return { ...prev, error: 'That code is not correct or has expired. Check it, or request a new code.' };
   }
 
   if (!rateLimit(`app-code-ip:${ip()}`, 10, 60 * 60_000) || !rateLimit(`app-code:${phone}`, 3, 10 * 60_000)) {

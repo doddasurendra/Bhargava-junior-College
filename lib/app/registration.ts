@@ -1,4 +1,5 @@
 import 'server-only';
+import { showCodesOnScreen } from '../localTesting';
 import { createHash, randomBytes } from 'node:crypto';
 import { z } from 'zod';
 import { college } from '@/content/college';
@@ -13,7 +14,7 @@ import { maskPhone, normalizeIndianMobile } from '../phone';
 import { getRecordStore } from '../records';
 import { parentLinkRequests, studentCredentials } from '../records/collections';
 import { siteUrl } from '../seo';
-import { mode, sendOtpCode } from '../whatsapp/service';
+import { sendOtpCode } from '../whatsapp/service';
 import { addGuardian } from './admin';
 import { getAppStore } from './service';
 import { RELATIONS, type Relation } from './types';
@@ -63,7 +64,7 @@ async function matchStudent(collegeId: string, dob: string): Promise<StudentRow 
 async function sendCode(phone: string): Promise<string | undefined> {
   const code = await issueOtp(phone);
   await sendOtpCode(phone, code);
-  return process.env.NODE_ENV === 'development' && mode().kind === 'dev' ? code : undefined;
+  return showCodesOnScreen() ? code : undefined;
 }
 
 export const checkCode = (phone: string, code: string): Promise<OtpResult> => verifyOtp(phone, code);

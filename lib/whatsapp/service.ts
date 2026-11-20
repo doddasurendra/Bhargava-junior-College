@@ -13,6 +13,7 @@ import { createSupabaseMessageStore } from './supabaseStore';
 import { getTemplate, renderBody, validateParams, type TemplateKey } from './templates';
 import type { MessageStore, OutboundMessage, OutboundStatus } from './types';
 import { keywordIntent, parseWebhook, verifySignature } from './webhook';
+import { showCodesOnScreen } from '../localTesting';
 
 // ---------------------------------------------------------------- configuration
 
@@ -183,6 +184,8 @@ export class MessagingNotConfigured extends Error {}
 
 export async function sendOtpCode(phone: string, code: string) {
   const m = mode();
+  // local test run (npm run start:local): nothing can deliver it, the code is shown on screen instead
+  if (m.kind === 'off' && showCodesOnScreen()) return;
   if (m.kind === 'off') throw new MessagingNotConfigured('WhatsApp is not configured');
   if (m.kind === 'dev') console.info(`[dev otp] ${maskPhone(phone)} → ${code}`);
   const r = await sendTemplate({ template: 'otp', to: phone, params: [code], redact: true });
