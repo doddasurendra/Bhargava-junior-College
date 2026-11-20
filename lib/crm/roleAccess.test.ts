@@ -43,3 +43,17 @@ describe('admission and office roles (master prompt §9–10)', () => {
     expect(has('principal', ['leave.approve', 'staff.attendance', 'staff.records'])).toEqual([]);
   });
 });
+
+describe('leadership: institution-wide read access (master prompt §3 level 1)', () => {
+  it('principal and management can view hostel, transport and the audit log, but cannot run them', () => {
+    for (const r of ['principal', 'management'] as Role[]) {
+      expect(has(r, ['hostel.view', 'transport.view', 'security.view', 'students.view', 'staff.records'])).toEqual([]);
+      expect(lacks(r, ['hostel.manage', 'transport.manage', 'outpass.approve', 'security.manage', 'staff.manage'])).toEqual([]);
+    }
+  });
+  it('teachers and other departments do not get hostel/transport views', () => {
+    for (const r of ['faculty', 'class_teacher', 'accounts', 'telecaller', 'sports_coach'] as Role[]) expect(lacks(r, ['hostel.view', 'transport.view', 'security.view'])).toEqual([]);
+    expect(lacks('hostel_warden', ['transport.view'])).toEqual([]);
+    expect(lacks('transport_incharge', ['hostel.view'])).toEqual([]);
+  });
+});

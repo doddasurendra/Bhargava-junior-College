@@ -65,11 +65,17 @@ export function setActiveRole(role: Role) {
   cookies().set(ROLE_COOKIE, role, cookieOpts(SESSION_MAX_AGE_S));
 }
 
-/** For pages and server actions. Redirects to login when signed out; throws when not permitted. */
+/**
+ * For pages and server actions. Redirects to login when signed out. When not permitted: a page visit goes to the
+ * "No access" page (instead of a 500 crash); a server action throws, so its form shows the error.
+ */
 export async function requireStaff(perm?: Permission): Promise<Staff> {
   const staff = await getStaffSession();
   if (!staff) redirect('/crm/login');
-  if (perm && !can(staff, perm)) throw new Error('You do not have permission to do this.');
+  if (perm && !can(staff, perm)) {
+    if (headers().get('next-action')) throw new Error('You do not have permission to do this.');
+    redirect(`/crm/forbidden?need=${encodeURIComponent(perm)}`);
+  }
   return staff;
 }
 

@@ -41,6 +41,8 @@ npm test                     # unit tests (fees, scholarship, phone, visits, sto
 npm run typecheck
 ```
 
+**Low-memory machine?** `npm run dev` compiles each page on first visit and needs a lot of RAM. Instead run `npm run build` once, then `npm run start:local`: the production build on the local `.data/` store. (`npm start` alone refuses to run without `SUPABASE_SERVICE_ROLE_KEY`, by design; `start:local` is ignored on Vercel.)
+
 **Signing in locally (no shortcuts):** every role signs in manually. Staff use email + password: run `npm run staff:logins` once to give each local demo staff account a `.test` email and a random password (listed in `.data/staff-logins.txt`, gitignored). New teachers and staff request an account at `/crm/login/register` and a Super Admin approves it under **Staff accounts → Registration requests**; until then sign-in is refused with "waiting for approval". Families sign in with mobile + one-time code (shown on screen only in development, because WhatsApp isn't connected). The old password-free picker only appears if you set `DEV_LOGIN_PICKER=1`.
 
 **Student and parent self-registration:**

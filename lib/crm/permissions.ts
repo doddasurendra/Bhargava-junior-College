@@ -93,14 +93,18 @@ export const DEFAULT_RULES = {
 
   // ---- hostel & transport (§9A.2 rows 13–14)
   'hostel.manage': ['super_admin', 'hostel_warden'],
+  /** read-only hostel board for leadership (institution-wide visibility); no forms */
+  'hostel.view': ['super_admin', 'management', 'principal', 'hostel_warden'],
   'outpass.approve': ['super_admin', 'hostel_warden'],
   'transport.manage': ['super_admin', 'transport_incharge'],
+  /** read-only buses, routes and allocations for leadership */
+  'transport.view': ['super_admin', 'management', 'principal', 'transport_incharge'],
 
   // ---- management & administration
   'dashboard.view': ['super_admin', 'management', 'principal', 'admission_manager'],
   'marketing.spend': ['super_admin', 'management', 'data_executive'],
   /** login audit and everyone's 2FA status */
-  'security.view': ['super_admin', 'management'],
+  'security.view': ['super_admin', 'management', 'principal'],
   /** reset someone's 2FA, unlock an account */
   'security.manage': ['super_admin'],
   /** add staff, change roles, deactivate, send password resets */

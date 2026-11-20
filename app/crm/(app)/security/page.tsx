@@ -48,16 +48,16 @@ export default async function SecurityPage({ searchParams }: { searchParams: SP 
 
       <Panel title="Backup & recovery">
         <div className="space-y-2 text-sm">
-          <p>Data is stored in <b>{backup.backend === 'supabase' ? 'Supabase (Postgres)' : 'the local file store (.data/)'}</b> Â· {backup.total} records across {backup.collections.filter((c) => c.count > 0).length} collections.</p>
+          <p>Data is stored in <b>{backup.backend === 'supabase' ? 'Supabase (Postgres)' : 'the local file store (.data/)'}</b> · {backup.total} records across {backup.collections.filter((c) => c.count > 0).length} collections.</p>
           <p className="text-muted">
             {backup.backend === 'supabase'
-              ? 'Supabase takes daily database backups; restore a point in time from the Supabase dashboard (Database â†’ Backups). Use the download below as an extra off-site copy.'
+              ? 'Supabase takes daily database backups; restore a point in time from the Supabase dashboard (Database → Backups). Use the download below as an extra off-site copy.'
               : 'Local mode: copy the .data/ folder to back up, put it back to restore. Use the download below as an extra copy.'}
           </p>
           {manage
             ? <a href="/crm/security/backup" className="btn-outline inline-block text-xs">Download full backup (JSON)</a>
             : <p className="text-xs text-muted">Only the Super Admin can download a backup.</p>}
-          <p className="text-[11px] text-muted">Every download is recorded in the sign-in log below (reason â€œbackup_downloadâ€).</p>
+          <p className="text-[11px] text-muted">Every download is recorded in the sign-in log below (reason “backup_download”).</p>
         </div>
       </Panel>
 
@@ -84,14 +84,14 @@ export default async function SecurityPage({ searchParams }: { searchParams: SP 
                     </td>
                     <td>
                       {a.totpEnabledAt ? (
-                        <span className="text-emerald-700 dark:text-emerald-300">On Â· since {formatDateTime(a.totpEnabledAt)}</span>
+                        <span className="text-emerald-700 dark:text-emerald-300">On · since {formatDateTime(a.totpEnabledAt)}</span>
                       ) : required ? (
-                        <span className="font-semibold text-maroon dark:text-gold">Required Â· not set up yet</span>
+                        <span className="font-semibold text-maroon dark:text-gold">Required · not set up yet</span>
                       ) : (
                         <span className="text-muted">Off (optional)</span>
                       )}
                     </td>
-                    <td className="font-mono">{a.totpEnabledAt ? a.recoveryHashes.length : 'â€”'}</td>
+                    <td className="font-mono">{a.totpEnabledAt ? a.recoveryHashes.length : '—'}</td>
                     <td>
                       {lockedNow ? (
                         <span className="font-semibold text-red-700 dark:text-red-300">Locked until {formatDateTime(a.lockedUntil!)}</span>

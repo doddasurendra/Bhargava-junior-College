@@ -6,6 +6,7 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
+    "start:local": "node scripts/start-local.mjs",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "seed:demo": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON scripts/seed-demo.ts",

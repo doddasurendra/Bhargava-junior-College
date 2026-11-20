@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import { redirect } from 'next/navigation';
 import { feeDecisionAction, feeRequestAction, remindersAction, scheduleAction } from '@/app/crm/school-actions';
 import { ActionButton, QuickForm, type QField } from '@/components/crm/QuickForm';
 import { Empty, Panel, Stat } from '@/components/crm/ui';
@@ -13,7 +14,7 @@ export const metadata = { title: 'Accounts' };
 
 export default async function AccountsPage({ searchParams }: { searchParams: { date?: string } }) {
   const user = await requireStaff();
-  if (!usesAccounts(user)) throw new Error('You do not have permission to do this.');
+  if (!usesAccounts(user)) redirect('/crm/forbidden');
   const canDues = can(user, 'fees.dues');
   const today = todayIST();
   const date = searchParams.date && /^\d{4}-\d{2}-\d{2}$/.test(searchParams.date) ? searchParams.date : today;

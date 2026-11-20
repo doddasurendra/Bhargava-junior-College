@@ -114,7 +114,7 @@ export async function outpassesFor(studentId: string) {
 }
 
 export async function hostelBoard(user: Staff) {
-  need(can(user, 'hostel.manage'));
+  need(can(user, 'hostel.manage') || can(user, 'hostel.view'));
   const [rooms, passes, sick, complaints, roll] = await Promise.all([hostelRooms.list(store()), outpasses.list(store()), sickRoom.list(store(), { limit: 30 }), hostelComplaints.list(store(), { k1: 'open' }), nightAttendance.list(store(), { k2: todayIST() })]);
   const students = (await allStudents()).filter((s) => s.stay === 'hostel');
   return { rooms, passes: passes.filter((p) => ['requested', 'parent_approved', 'approved'].includes(p.data.status)), sick, complaints, roll, students };
