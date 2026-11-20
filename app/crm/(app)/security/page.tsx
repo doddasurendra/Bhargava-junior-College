@@ -1,5 +1,6 @@
 import Link from 'next/link';
 import { ResetMfaForm, UnlockForm } from '@/components/crm/AuthForms';
+import { backupSummary } from '@/lib/admin/backup';
 import { Empty, Panel, Stat } from '@/components/crm/ui';
 import { isLocked, requiresMfa } from '@/lib/auth/service';
 import { getAuthStore } from '@/lib/auth/store';
@@ -20,11 +21,12 @@ export default async function SecurityPage({ searchParams }: { searchParams: SP 
   const manage = can(user, 'security.manage');
   const failedOnly = searchParams.failed === '1';
   const store = getAuthStore();
-  const [staff, auths, events, recentFailed] = await Promise.all([
+  const [staff, auths, events, recentFailed, backup] = await Promise.all([
     getCrmRepo().listStaff(),
     store.listAll(),
     store.listEvents({ limit: 200, failedOnly }),
     store.listEvents({ limit: 500, failedOnly: true }),
+    backupSummary(user),
   ]);
   const now = new Date();
   const byId = new Map(auths.map((a) => [a.staffId, a]));
@@ -43,6 +45,21 @@ export default async function SecurityPage({ searchParams }: { searchParams: SP 
         <Stat label="Locked accounts" value={locked} tone={locked > 0 ? 'alert' : 'default'} />
         <Stat label="2FA required, not set up" value={missing} tone={missing > 0 ? 'warn' : 'good'} />
       </div>
+
+      <Panel title="Backup & recovery">
+        <div className="space-y-2 text-sm">
+          <p>Data is stored in <b>{backup.backend === 'supabase' ? 'Supabase (Postgres)' : 'the local file store (.data/)'}</b> Â· {backup.total} records across {backup.collections.filter((c) => c.count > 0).length} collections.</p>
+          <p className="text-muted">
+            {backup.backend === 'supabase'
+              ? 'Supabase takes daily database backups; restore a point in time from the Supabase dashboard (Database â†’ Backups). Use the download below as an extra off-site copy.'
+              : 'Local mode: copy the .data/ folder to back up, put it back to restore. Use the download below as an extra copy.'}
+          </p>
+          {manage
+            ? <a href="/crm/security/backup" className="btn-outline inline-block text-xs">Download full backup (JSON)</a>
+            : <p className="text-xs text-muted">Only the Super Admin can download a backup.</p>}
+          <p className="text-[11px] text-muted">Every download is recorded in the sign-in log below (reason â€œbackup_downloadâ€).</p>
+        </div>
+      </Panel>
 
       <Panel title="Staff sign-in">
         <div className="-m-4 overflow-x-auto">
@@ -67,14 +84,14 @@ export default async function SecurityPage({ searchParams }: { searchParams: SP 
                     </td>
                     <td>
                       {a.totpEnabledAt ? (
-                        <span className="text-emerald-700 dark:text-emerald-300">On · since {formatDateTime(a.totpEnabledAt)}</span>
+                        <span className="text-emerald-700 dark:text-emerald-300">On Â· since {formatDateTime(a.totpEnabledAt)}</span>
                       ) : required ? (
-                        <span className="font-semibold text-maroon dark:text-gold">Required · not set up yet</span>
+                        <span className="font-semibold text-maroon dark:text-gold">Required Â· not set up yet</span>
                       ) : (
                         <span className="text-muted">Off (optional)</span>
                       )}
                     </td>
-                    <td className="font-mono">{a.totpEnabledAt ? a.recoveryHashes.length : '—'}</td>
+                    <td className="font-mono">{a.totpEnabledAt ? a.recoveryHashes.length : 'â€”'}</td>
                     <td>
                       {lockedNow ? (
                         <span className="font-semibold text-red-700 dark:text-red-300">Locked until {formatDateTime(a.lockedUntil!)}</span>

@@ -2,7 +2,7 @@ import 'server-only';
 import { can } from '../crm/permissions';
 import type { Staff } from '../crm/types';
 import { addDays, todayIST } from '../dates';
-import { events, homework, libraryBooks, libraryLoans, studentLeave } from '../records/collections';
+import { events, homework, homeworkSubmissions, libraryBooks, libraryLoans, studentLeave } from '../records/collections';
 import { allBatches, canTeachBatch, myBatchIds, SchoolError, store, studentsById, visibleStudentIds } from './common';
 
 /** Back-office modules (Gurukul/Raion baseline): library, events calendar, homework. */
@@ -134,7 +134,49 @@ export async function removeHomework(user: Staff, id: string) {
   return 'Removed.';
 }
 
-// ---------------------------------------------------------------- student & parent portal (read-only)
+/** Submissions for one homework, with the batch roster so the teacher sees who hasn't submitted. */
+export async function submissionsForHomework(user: Staff, homeworkId: string) {
+  const h = await homework.get(store(), homeworkId);
+  if (!h) throw new SchoolError('Not found.');
+  need(can(user, 'academics.manage') || h.data.setBy === user.id || (await canTeachBatch(user, h.data.batchId)), 'You don’t teach this batch.');
+  const batch = (await allBatches()).find((b) => b.id === h.data.batchId) ?? null;
+  const subs = (await homeworkSubmissions.list(store(), { k1: homeworkId })).map((x) => ({ id: x.id, ...x.data }));
+  const students = await studentsById();
+  const roster = (batch?.data.studentIds ?? []).map((sid) => ({ studentId: sid, student: students.get(sid) ?? null, sub: subs.find((x) => x.studentId === sid) ?? null }));
+  return { homework: { id: h.id, ...h.data }, batch, roster };
+}
+
+export async function reviewSubmission(user: Staff, submissionId: string, input: { grade: string | null; feedback: string | null }) {
+  const sub = await homeworkSubmissions.get(store(), submissionId);
+  if (!sub) throw new SchoolError('Submission not found.');
+  const h = await homework.get(store(), sub.data.homeworkId);
+  need(can(user, 'academics.manage') || h?.data.setBy === user.id || (await canTeachBatch(user, sub.data.batchId)), 'You don’t teach this batch.');
+  await homeworkSubmissions.put(store(), { ...sub.data, status: 'reviewed', grade: input.grade, feedback: input.feedback, reviewedBy: user.id, reviewedAt: new Date().toISOString() }, sub.id);
+  return 'Reviewed. The student and parent can see it now.';
+}
+
+// ---------------------------------------------------------------- student & parent portal
+
+/** A student submits (or resubmits, until reviewed) one homework of their own batch. */
+export async function submitHomework(studentId: string, batchId: string | null, input: { homeworkId: string; answer: string; linkUrl: string | null }, now = new Date()) {
+  const h = await homework.get(store(), input.homeworkId);
+  if (!h || !batchId || h.data.batchId !== batchId) throw new SchoolError('This homework is not for your batch.');
+  if (input.answer.trim().length < 2) throw new SchoolError('Write your answer or a short note.');
+  const existing = (await homeworkSubmissions.list(store(), { k1: h.id, k2: studentId }))[0] ?? null;
+  if (existing?.data.status === 'reviewed') throw new SchoolError('Your teacher has already reviewed this submission.');
+  const today = todayIST(now);
+  await homeworkSubmissions.put(store(), {
+    homeworkId: h.id, studentId, batchId, answer: input.answer.trim(), linkUrl: input.linkUrl, submittedAt: now.toISOString(), late: today > h.data.dueOn,
+    status: 'submitted', grade: null, feedback: null, reviewedBy: null, reviewedAt: null,
+  }, existing?.id);
+  return existing ? 'Submission updated.' : today > h.data.dueOn ? 'Submitted (late).' : 'Submitted.';
+}
+
+/** The student's own submissions, keyed by homework id (for the student and their parent). */
+export async function submissionsForStudent(studentId: string) {
+  const all = await homeworkSubmissions.list(store(), { k2: studentId });
+  return new Map(all.map((x) => [x.data.homeworkId, { id: x.id, ...x.data }]));
+}
 
 /** Homework for one batch (the signed-in child's), open first. */
 export async function homeworkForBatch(batchId: string | null, today = todayIST()) {

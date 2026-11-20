@@ -326,3 +326,28 @@ describe('office departments see only their own (master prompt §10)', () => {
     expect(await O.sendBusNotice(transport, bus.id, 'Bus is 20 minutes late')).toEqual({ sent: 0, simulated: 0, failed: 0, skipped: 1 }); // not twice a day
   });
 });
+
+describe('homework submissions', () => {
+  it('student submits own-batch homework, teacher reviews, other teachers cannot', async () => {
+    const B = await import('./backoffice');
+    const today = new Date().toISOString().slice(0, 10);
+    const b = (await import('./common'));
+    const batch = await b.batchOf(s1);
+    expect(batch).toBeTruthy();
+    await B.setHomework(coordinator, { batchId: batch!.id, subject: 'Physics', title: 'Kinematics sheet', details: null, dueOn: '2099-01-01' });
+    const hw = (await B.homeworkForBatch(batch!.id, today)).open.find((h) => h.title === 'Kinematics sheet')!;
+    await expect(B.submitHomework(s1, 'some-other-batch', { homeworkId: hw.id, answer: 'done', linkUrl: null })).rejects.toThrow('not for your batch');
+    expect(await B.submitHomework(s1, batch!.id, { homeworkId: hw.id, answer: 'Answers on page 3', linkUrl: null })).toBe('Submitted.');
+    expect(await B.submitHomework(s1, batch!.id, { homeworkId: hw.id, answer: 'Answers on page 3 and 4', linkUrl: 'https://drive.example/x' })).toBe('Submission updated.');
+    const mine = await B.submissionsForStudent(s1);
+    expect(mine.get(hw.id)?.answer).toBe('Answers on page 3 and 4');
+    const view = await B.submissionsForHomework(coordinator, hw.id);
+    const row = view.roster.find((r) => r.studentId === s1)!;
+    expect(row.sub?.status).toBe('submitted');
+    await expect(B.submissionsForHomework(st('staff-outsider', ['faculty']), hw.id)).rejects.toThrow();
+    await expect(B.reviewSubmission(st('staff-outsider', ['faculty']), row.sub!.id, { grade: 'A', feedback: null })).rejects.toThrow();
+    await B.reviewSubmission(coordinator, row.sub!.id, { grade: 'A', feedback: 'Good work' });
+    expect((await B.submissionsForStudent(s1)).get(hw.id)?.status).toBe('reviewed');
+    await expect(B.submitHomework(s1, batch!.id, { homeworkId: hw.id, answer: 'again', linkUrl: null })).rejects.toThrow('already reviewed');
+  });
+});

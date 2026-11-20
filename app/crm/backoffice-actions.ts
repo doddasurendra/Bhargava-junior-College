@@ -74,6 +74,12 @@ export const decideStudentLeaveAction = async (_: ActionState, fd: FormData) => 
   return run(() => B.decideStudentLeave(user, req(fd, 'id', 'Application'), fd.get('decision') === 'approve', s(fd, 'note')), ['/crm/homework']);
 };
 
+export const reviewSubmissionAction = async (_: ActionState, fd: FormData) => {
+  const user = await requireStaff();
+  const id = req(fd, 'id', 'Submission');
+  return run(() => B.reviewSubmission(user, id, { grade: s(fd, 'grade')?.slice(0, 20) ?? null, feedback: s(fd, 'feedback')?.slice(0, 1000) ?? null }), ['/crm/homework', `/crm/homework/${s(fd, 'homeworkId') ?? ''}`, '/app/homework']);
+};
+
 export const removeHomeworkAction = async (_: ActionState, fd: FormData) => {
   const user = await requireStaff();
   return run(() => B.removeHomework(user, req(fd, 'id', 'Homework')), ['/crm/homework']);

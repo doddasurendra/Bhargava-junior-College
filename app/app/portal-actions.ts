@@ -7,7 +7,8 @@ import { joinAlumni, referFamily, rescheduleVisit, saveApplication, uploadDocume
 import { requireApplicant, requireEnrolled, requireParent, requireStudent } from '@/lib/app/portal';
 import { loginWithCollegeId, recordConsent, requireAppUser, revokeAppSession, setStudentPassword } from '@/lib/app/service';
 import { askDoubt, startAttempt, submitAttempt } from '@/lib/school/academics';
-import { SchoolError } from '@/lib/school/common';
+import { submitHomework } from '@/lib/school/backoffice';
+import { batchOf, SchoolError } from '@/lib/school/common';
 import { bookPtm, sendParentMessage } from '@/lib/school/mentoring';
 import { addComplaint, parentDecideOutpass, requestOutpass } from '@/lib/school/operations';
 import { createOrder, paymentsConfigured, publicKeyId, verifyCheckoutSignature } from '@/lib/payments';
@@ -112,6 +113,13 @@ export const askDoubtAction = async (_: AppState, fd: FormData): Promise<AppStat
     const safety = await screenText('doubt', d.id, p.studentId, text);
     return safety ? `Sent to your teachers. ${safety.message}` : 'Sent to your teachers.';
   }, ['/app/doubts']);
+
+export const submitHomeworkAction = async (_: AppState, fd: FormData): Promise<AppState> =>
+  run(async () => {
+    const { p } = await requireStudent();
+    const b = await batchOf(p.studentId);
+    return submitHomework(p.studentId, b?.id ?? null, { homeworkId: s(fd, 'homeworkId') ?? '', answer: (s(fd, 'answer') ?? '').slice(0, 4000), linkUrl: s(fd, 'linkUrl') });
+  }, ['/app/homework']);
 
 export const outpassRequestAction = async (_: AppState, fd: FormData): Promise<AppState> =>
   run(async () => {

@@ -1,3 +1,4 @@
+import Link from 'next/link';
 import { decideStudentLeaveAction, removeHomeworkAction, setHomeworkAction } from '@/app/crm/backoffice-actions';
 import { QuickForm } from '@/components/crm/QuickForm';
 import { Empty, Panel } from '@/components/crm/ui';
@@ -24,6 +25,7 @@ export default async function HomeworkPage() {
         <p className="font-medium text-heading">{h.title}</p>
         <p className="text-xs text-muted">{h.batch} · {h.subject} · due {formatDate(h.dueOn, { weekday: 'short', day: 'numeric', month: 'short' })}</p>
         {h.details && <p className="mt-1 whitespace-pre-line">{h.details}</p>}
+        <Link href={`/crm/homework/${h.id}`} className="mt-1 inline-block text-xs font-semibold underline">Submissions</Link>
       </div>
       {(can(user, 'academics.manage') || h.setBy === user.id) && <QuickForm action={removeHomeworkAction} submit="Remove" cols={1} fields={[{ name: 'id', type: 'hidden', value: h.id }]} />}
     </li>

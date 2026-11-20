@@ -170,6 +170,27 @@ export const homework = collection({
   k2: (d) => d.dueOn,
 });
 
+/** A student's submission for one homework / assignment. One per student per homework (resubmitting updates it until reviewed). */
+export const homeworkSubmissions = collection({
+  name: 'homework_submissions',
+  schema: z.object({
+    homeworkId: id,
+    studentId: id,
+    batchId: id,
+    answer: text(4000),
+    linkUrl: url,
+    submittedAt: z.string(),
+    late: z.boolean(),
+    status: z.enum(['submitted', 'reviewed']),
+    grade: optText(20),
+    feedback: optText(1000),
+    reviewedBy: z.string().nullable().default(null),
+    reviewedAt: z.string().nullable().default(null),
+  }),
+  k1: (d) => d.homeworkId,
+  k2: (d) => d.studentId,
+});
+
 // ---------------------------------------------------------------- practice (Eduten-style)
 
 const difficulty = z.enum(['easy', 'medium', 'hard']);
