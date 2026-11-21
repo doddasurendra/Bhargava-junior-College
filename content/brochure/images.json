@@ -1,0 +1,312 @@
+{
+  "campus-life/basketball-court": {
+    "src": "/images/brochure/campus-life/basketball-court.webp",
+    "w": 1600,
+    "h": 1068
+  },
+  "campus-life/boys-hostel": {
+    "src": "/images/brochure/campus-life/boys-hostel.webp",
+    "w": 768,
+    "h": 513
+  },
+  "campus-life/campus-building": {
+    "src": "/images/brochure/campus-life/campus-building.webp",
+    "w": 1505,
+    "h": 847
+  },
+  "campus-life/chemistry-lab": {
+    "src": "/images/brochure/campus-life/chemistry-lab.webp",
+    "w": 1600,
+    "h": 1068
+  },
+  "campus-life/digital-classroom": {
+    "src": "/images/brochure/campus-life/digital-classroom.webp",
+    "w": 1600,
+    "h": 1068
+  },
+  "campus-life/dining-hall": {
+    "src": "/images/brochure/campus-life/dining-hall.webp",
+    "w": 1591,
+    "h": 1061
+  },
+  "campus-life/environment-yoga-1": {
+    "src": "/images/brochure/campus-life/environment-yoga-1.webp",
+    "w": 1600,
+    "h": 1068
+  },
+  "campus-life/environment-yoga-2": {
+    "src": "/images/brochure/campus-life/environment-yoga-2.webp",
+    "w": 1600,
+    "h": 1068
+  },
+  "campus-life/girls-hostel": {
+    "src": "/images/brochure/campus-life/girls-hostel.webp",
+    "w": 724,
+    "h": 543
+  },
+  "campus-life/nutritious-meals": {
+    "src": "/images/brochure/campus-life/nutritious-meals.webp",
+    "w": 1591,
+    "h": 1061
+  },
+  "campus-life/physics-lab": {
+    "src": "/images/brochure/campus-life/physics-lab.webp",
+    "w": 1600,
+    "h": 1068
+  },
+  "campus-life/playground": {
+    "src": "/images/brochure/campus-life/playground.webp",
+    "w": 1600,
+    "h": 1068
+  },
+  "campus-life/spacious-classroom": {
+    "src": "/images/brochure/campus-life/spacious-classroom.webp",
+    "w": 1591,
+    "h": 1061
+  },
+  "campuses/boys-residential-kuntloor": {
+    "src": "/images/brochure/campuses/boys-residential-kuntloor.webp",
+    "w": 1600,
+    "h": 1068
+  },
+  "campuses/day-scholar-lb-nagar": {
+    "src": "/images/brochure/campuses/day-scholar-lb-nagar.webp",
+    "w": 1600,
+    "h": 900
+  },
+  "campuses/girls-residential-bairamalguda": {
+    "src": "/images/brochure/campuses/girls-residential-bairamalguda.webp",
+    "w": 549,
+    "h": 366
+  },
+  "contact/brochure-download-qr": {
+    "src": "/images/brochure/contact/brochure-download-qr.webp",
+    "w": 547,
+    "h": 547
+  },
+  "courses/engineering-jee": {
+    "src": "/images/brochure/courses/engineering-jee.webp",
+    "w": 901,
+    "h": 1600
+  },
+  "courses/medical-neet": {
+    "src": "/images/brochure/courses/medical-neet.webp",
+    "w": 736,
+    "h": 1302
+  },
+  "faculty/prof-adhi-narayana": {
+    "src": "/images/brochure/faculty/prof-adhi-narayana.webp",
+    "w": 174,
+    "h": 174
+  },
+  "faculty/prof-chandra-shekar": {
+    "src": "/images/brochure/faculty/prof-chandra-shekar.webp",
+    "w": 174,
+    "h": 174
+  },
+  "faculty/prof-gopinath": {
+    "src": "/images/brochure/faculty/prof-gopinath.webp",
+    "w": 174,
+    "h": 174
+  },
+  "faculty/prof-kalyan": {
+    "src": "/images/brochure/faculty/prof-kalyan.webp",
+    "w": 174,
+    "h": 174
+  },
+  "faculty/prof-krishna": {
+    "src": "/images/brochure/faculty/prof-krishna.webp",
+    "w": 174,
+    "h": 174
+  },
+  "faculty/prof-madhukar": {
+    "src": "/images/brochure/faculty/prof-madhukar.webp",
+    "w": 174,
+    "h": 174
+  },
+  "faculty/prof-murali-krishna": {
+    "src": "/images/brochure/faculty/prof-murali-krishna.webp",
+    "w": 174,
+    "h": 174
+  },
+  "faculty/prof-nalini": {
+    "src": "/images/brochure/faculty/prof-nalini.webp",
+    "w": 174,
+    "h": 174
+  },
+  "faculty/prof-rajashekar": {
+    "src": "/images/brochure/faculty/prof-rajashekar.webp",
+    "w": 174,
+    "h": 174
+  },
+  "faculty/prof-rama-krishna": {
+    "src": "/images/brochure/faculty/prof-rama-krishna.webp",
+    "w": 174,
+    "h": 174
+  },
+  "faculty/prof-ramesh": {
+    "src": "/images/brochure/faculty/prof-ramesh.webp",
+    "w": 174,
+    "h": 174
+  },
+  "faculty/prof-rangaraju": {
+    "src": "/images/brochure/faculty/prof-rangaraju.webp",
+    "w": 174,
+    "h": 174
+  },
+  "faculty/prof-rvr": {
+    "src": "/images/brochure/faculty/prof-rvr.webp",
+    "w": 174,
+    "h": 174
+  },
+  "faculty/prof-srihari-rao": {
+    "src": "/images/brochure/faculty/prof-srihari-rao.webp",
+    "w": 174,
+    "h": 174
+  },
+  "faculty/prof-tharaphanindri": {
+    "src": "/images/brochure/faculty/prof-tharaphanindri.webp",
+    "w": 174,
+    "h": 174
+  },
+  "faculty/prof-venkat": {
+    "src": "/images/brochure/faculty/prof-venkat.webp",
+    "w": 174,
+    "h": 174
+  },
+  "hero/campus-building": {
+    "src": "/images/brochure/hero/campus-building.webp",
+    "w": 1920,
+    "h": 1281
+  },
+  "hero/student": {
+    "src": "/images/brochure/hero/student.webp",
+    "w": 974,
+    "h": 1614
+  },
+  "leadership/chairman-venugopal-gattu": {
+    "src": "/images/brochure/leadership/chairman-venugopal-gattu.webp",
+    "w": 1280,
+    "h": 720
+  },
+  "parents-care/classroom-01": {
+    "src": "/images/brochure/parents-care/classroom-01.webp",
+    "w": 1591,
+    "h": 1061
+  },
+  "parents-care/classroom-02": {
+    "src": "/images/brochure/parents-care/classroom-02.webp",
+    "w": 1591,
+    "h": 1061
+  },
+  "parents-care/classroom-03": {
+    "src": "/images/brochure/parents-care/classroom-03.webp",
+    "w": 1591,
+    "h": 1061
+  },
+  "parents-care/classroom-04": {
+    "src": "/images/brochure/parents-care/classroom-04.webp",
+    "w": 1591,
+    "h": 1061
+  },
+  "parents-care/classroom-05": {
+    "src": "/images/brochure/parents-care/classroom-05.webp",
+    "w": 1591,
+    "h": 1061
+  },
+  "parents-care/classroom-06": {
+    "src": "/images/brochure/parents-care/classroom-06.webp",
+    "w": 1591,
+    "h": 1061
+  },
+  "parents-care/classroom-07": {
+    "src": "/images/brochure/parents-care/classroom-07.webp",
+    "w": 1591,
+    "h": 1061
+  },
+  "parents-care/classroom-08": {
+    "src": "/images/brochure/parents-care/classroom-08.webp",
+    "w": 1600,
+    "h": 1068
+  },
+  "parents-care/classroom-09": {
+    "src": "/images/brochure/parents-care/classroom-09.webp",
+    "w": 1600,
+    "h": 1068
+  },
+  "parents-care/classroom-10": {
+    "src": "/images/brochure/parents-care/classroom-10.webp",
+    "w": 1600,
+    "h": 1068
+  },
+  "parents-care/classroom-11": {
+    "src": "/images/brochure/parents-care/classroom-11.webp",
+    "w": 1591,
+    "h": 1061
+  },
+  "parents-care/classroom-12": {
+    "src": "/images/brochure/parents-care/classroom-12.webp",
+    "w": 1591,
+    "h": 1061
+  },
+  "parents-care/security-staff-1": {
+    "src": "/images/brochure/parents-care/security-staff-1.webp",
+    "w": 580,
+    "h": 435
+  },
+  "parents-care/security-staff-2": {
+    "src": "/images/brochure/parents-care/security-staff-2.webp",
+    "w": 435,
+    "h": 580
+  },
+  "parents-care/security-staff-3": {
+    "src": "/images/brochure/parents-care/security-staff-3.webp",
+    "w": 615,
+    "h": 410
+  },
+  "what-makes-different/photo-01": {
+    "src": "/images/brochure/what-makes-different/photo-01.webp",
+    "w": 1600,
+    "h": 1068
+  },
+  "what-makes-different/photo-02": {
+    "src": "/images/brochure/what-makes-different/photo-02.webp",
+    "w": 1600,
+    "h": 1068
+  },
+  "what-makes-different/photo-03": {
+    "src": "/images/brochure/what-makes-different/photo-03.webp",
+    "w": 1600,
+    "h": 1068
+  },
+  "what-makes-different/photo-04": {
+    "src": "/images/brochure/what-makes-different/photo-04.webp",
+    "w": 1600,
+    "h": 1068
+  },
+  "what-makes-different/photo-05": {
+    "src": "/images/brochure/what-makes-different/photo-05.webp",
+    "w": 1600,
+    "h": 1068
+  },
+  "what-makes-different/photo-06": {
+    "src": "/images/brochure/what-makes-different/photo-06.webp",
+    "w": 1591,
+    "h": 1061
+  },
+  "what-makes-different/photo-07": {
+    "src": "/images/brochure/what-makes-different/photo-07.webp",
+    "w": 1600,
+    "h": 1068
+  },
+  "what-makes-different/photo-08": {
+    "src": "/images/brochure/what-makes-different/photo-08.webp",
+    "w": 922,
+    "h": 615
+  },
+  "what-makes-different/photo-09": {
+    "src": "/images/brochure/what-makes-different/photo-09.webp",
+    "w": 1600,
+    "h": 1068
+  }
+}

@@ -1,5 +1,6 @@
 import Link from 'next/link';
-import { college, fullAddress, mapsLinkUrl, whatsappLink } from '@/content/college';
+import { ADDRESSES, BROCHURE_PDF, brochureText } from '@/content/brochure';
+import { college, whatsappLink } from '@/content/college';
 import { programs } from '@/content/programs';
 import { getDict, getLang } from '@/lib/i18n-server';
 import { LangSwitch, MobileMenu, NavLink, ThemeToggle } from './HeaderControls';
@@ -56,7 +57,7 @@ export function Header() {
             <Crest size={44} className="h-10 w-10 shrink-0 sm:h-11 sm:w-11" />
             <span className="min-w-0 leading-tight">
               <span className="block truncate font-display text-[17px] text-heading sm:text-lg">{college.name}</span>
-              <span className="block truncate text-[11px] uppercase tracking-[0.16em] text-muted">Saroornagar · Hyderabad</span>
+              <span className="block truncate text-[11px] uppercase tracking-[0.16em] text-muted">Hyderabad · College Code {college.collegeCode}</span>
             </span>
           </Link>
           <nav aria-label="Main" className="hidden items-center xl:flex">
@@ -83,6 +84,7 @@ export function Header() {
 }
 
 export function Footer({ social }: { social: Content['social'] }) {
+  const b = brochureText(getLang());
   const socials = ([['Instagram', social.instagram], ['YouTube', social.youtube], ['Facebook', social.facebook], ['Google reviews', social.googleBusiness]] as const).filter(([, u]) => u);
   return (
     <footer className="bg-navy-950 text-white/75">
@@ -96,8 +98,10 @@ export function Footer({ social }: { social: Content['social'] }) {
             </div>
           </div>
           <p className="mt-4 max-w-sm text-sm leading-6">
-            IIT-JEE and NEET UG with the TS Intermediate Board, on a single campus in Saroornagar. Run by {college.society}.
+            {b.cover.society}. <span className="text-gold-300">{b.cover.recognised}</span>. {b.cover.exams}.
           </p>
+          <p className="mt-3 max-w-sm font-display text-base italic leading-6 text-white">“{b.contact.quote}”</p>
+          <p className="mt-2 text-xs uppercase tracking-[0.14em] text-gold-300">{b.contact.motto}</p>
           {socials.length > 0 && (
             <ul className="mt-4 flex flex-wrap gap-3 text-sm">
               {socials.map(([label, href]) => (
@@ -175,12 +179,17 @@ export function Footer({ social }: { social: Content['social'] }) {
           </ul>
         </div>
         <div className="text-sm">
-          <p className="font-semibold text-white">Visit us</p>
-          <address className="mt-3 not-italic leading-6">
-            <a href={mapsLinkUrl} target="_blank" rel="noopener noreferrer" className="hover:text-white">
-              {fullAddress}
-            </a>
-          </address>
+          <p className="font-semibold text-white">{b.contact.addressesTitle}</p>
+          <ul className="mt-3 space-y-3">
+            {ADDRESSES.map((a, i) => (
+              <li key={a.address}>
+                <p className="text-xs font-semibold uppercase tracking-wider text-gold-300">{b.contact.offices[i]}</p>
+                <address className="not-italic leading-6">
+                  <a href={a.mapsUrl} target="_blank" rel="noopener noreferrer" className="hover:text-white">{a.address}</a>
+                </address>
+              </li>
+            ))}
+          </ul>
           <ul className="mt-3 space-y-1">
             {college.phones.map((p) => (
               <li key={p.tel}>
@@ -192,6 +201,16 @@ export function Footer({ social }: { social: Content['social'] }) {
             <li>
               <a href={`mailto:${college.email}`} className="hover:text-white">
                 {college.email}
+              </a>
+            </li>
+            <li>
+              <a href={`https://${college.website}`} target="_blank" rel="noopener noreferrer" className="hover:text-white">
+                {college.website}
+              </a>
+            </li>
+            <li>
+              <a href={BROCHURE_PDF} download className="font-semibold text-gold-300 underline hover:text-white">
+                {b.contact.download}
               </a>
             </li>
           </ul>

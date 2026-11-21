@@ -1,13 +1,20 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
+import { CourseBlock, EvolveSection, FacultyForSubjects } from '@/components/brochure';
 import { LeadForm } from '@/components/forms';
-import { Check, initials, JsonLd, PageHero, SampleBadge, Section } from '@/components/ui';
+import { Check, JsonLd, PageHero, SampleBadge, Section } from '@/components/ui';
+import { BROCHURE_PDF, brochureText } from '@/content/brochure';
 import { college } from '@/content/college';
 import { getProgram, programIncludes, programs } from '@/content/programs';
 import { getContent } from '@/lib/cms';
 import { formatINR } from '@/lib/fees';
+import { getLang } from '@/lib/i18n-server';
 import { courseJsonLd } from '@/lib/seo';
+
+/** Which brochure course block and which "Power Houses" groups belong to each program. */
+const BROCHURE_COURSE: Record<string, 'jee' | 'neet' | undefined> = { 'iit-jee': 'jee', neet: 'neet' };
+const FACULTY_GROUPS_FOR: Record<string, string[]> = { 'iit-jee': ['maths', 'physics', 'chemistry'], 'long-term-jee': ['maths', 'physics', 'chemistry'], neet: ['physics', 'chemistry', 'biology'], 'long-term-neet': ['physics', 'chemistry', 'biology'] };
 
 export function generateStaticParams() {
   return programs.map((p) => ({ slug: p.slug }));
@@ -24,20 +31,29 @@ export function generateMetadata({ params }: { params: { slug: string } }): Meta
 }
 
 export default async function ProgramPage({ params }: { params: { slug: string } }) {
-  const { faculty, fees } = await getContent();
+  const { brochures, fees } = await getContent();
   const p = getProgram(params.slug);
   if (!p) notFound();
+  const t = brochureText(getLang());
   const base = p.track === 'two-year' ? fees.twoYear : fees.longTerm;
-  const subjectFaculty = faculty.items.filter((f) => p.subjects.some((s) => s === f.subject || (f.subject === 'Biology' && (s === 'Botany' || s === 'Zoology'))));
+  const course = BROCHURE_COURSE[p.slug];
+  const pdf = brochures.urls[p.slug];
 
   return (
     <>
-      <PageHero eyebrow={`${p.goal} · ${p.duration}`} title={p.name} intro={p.summary}>
+      <PageHero eyebrow={`${p.goal} · ${p.duration}`} title={p.name} intro={course ? t.courses[course].body : p.summary}>
         <div className="flex flex-wrap gap-3">
-          <Link href="#brochure" className="btn-primary">Download brochure</Link>
-          <Link href="/visit" className="btn-gold">Book a campus visit</Link>
+          {pdf ? <a href={pdf} download className="btn-primary">{t.contact.download}</a> : <Link href="#brochure" className="btn-primary">Download brochure</Link>}
+          <Link href="/visit" className="btn-gold">{t.contact.visit}</Link>
         </div>
       </PageHero>
+
+      {course && (
+        <section className="container-x pt-14 sm:pt-20">
+          <p className="eyebrow">{t.courses.eyebrow}</p>
+          <div className="mt-4"><CourseBlock t={t} which={course} /></div>
+        </section>
+      )}
 
       <Section>
         <div className="grid gap-10 lg:grid-cols-[1.5fr_1fr]">
@@ -83,26 +99,11 @@ export default async function ProgramPage({ params }: { params: { slug: string }
               <p className="mt-4 text-sm text-muted">The detailed syllabus coverage and test calendar will be published here once the college finalises them for 2027–28.</p>
             </div>
 
-            {subjectFaculty.length > 0 && (
-              <div>
-                <h2 className="h2 text-2xl sm:text-3xl">
-                  Faculty <SampleBadge show={faculty.sample} />
-                </h2>
-                <ul className="mt-4 grid gap-3 sm:grid-cols-2">
-                  {subjectFaculty.map((f) => (
-                    <li key={f.name} className="card flex items-center gap-3 p-4">
-                      <span className="grid h-11 w-11 place-items-center rounded-full bg-gold-100 font-display text-navy">{initials(f.name)}</span>
-                      <span>
-                        <span className="block font-semibold text-heading">{f.name}</span>
-                        <span className="text-sm text-muted">
-                          {f.subject} · {f.years} yrs
-                        </span>
-                      </span>
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            )}
+            <div>
+              <h2 className="h2 text-2xl sm:text-3xl">{t.faculty.title}</h2>
+              <div className="mt-4"><FacultyForSubjects t={t} groups={FACULTY_GROUPS_FOR[p.slug] ?? []} /></div>
+              <p className="mt-4"><Link href="/faculty" className="font-semibold text-maroon underline dark:text-gold">{t.faculty.meetAll} →</Link></p>
+            </div>
           </div>
 
           <aside className="space-y-6 lg:sticky lg:top-28 lg:self-start">
@@ -124,6 +125,11 @@ export default async function ProgramPage({ params }: { params: { slug: string }
               </div>
             </div>
             <div id="brochure" className="card p-5 sm:p-6">
+              {pdf && (
+                <p className="mb-4 text-sm">
+                  <a href={pdf} download className="font-semibold text-maroon underline dark:text-gold">{t.contact.download}</a> <span className="text-muted">· {t.contact.downloadNote}</span>
+                </p>
+              )}
               <LeadForm
                 source="brochure"
                 program={p.slug}
@@ -138,6 +144,7 @@ export default async function ProgramPage({ params }: { params: { slug: string }
           </aside>
         </div>
       </Section>
+      {course && <EvolveSection t={t} className="bg-surface" />}
       <JsonLd data={courseJsonLd(p)} />
     </>
   );

@@ -1,7 +1,10 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
 import { Fragment } from 'react';
+import { EvolveSection } from '@/components/brochure';
 import { PageHero, Section } from '@/components/ui';
+import { brochureText } from '@/content/brochure';
+import { getLang } from '@/lib/i18n-server';
 import { ADDITIONS, ADMISSION_STAGES, FLOW, OPERATING_PRINCIPLE, STAGE_GROUPS, type StageGroup } from '@/content/admissionSystem';
 
 export const metadata: Metadata = {
@@ -98,6 +101,8 @@ export default function AdmissionSystemPage() {
           <Link href="/visit" className="btn-outline">Book a campus visit</Link>
         </div>
       </Section>
+      {/* How students learn once admitted: the brochure's EVOLVE model */}
+      <EvolveSection t={brochureText(getLang())} className="bg-surface" />
     </>
   );
 }

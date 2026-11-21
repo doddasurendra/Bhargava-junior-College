@@ -147,7 +147,8 @@ function Banner({ n }: { n: number }) {
       <div className="bpc-bpills">
         <span>{c.ui.whoPrefix} {c.ui.who[s.who as Who]}</span>
         <span>{s.min} {c.ui.minUnit}</span>
-        <span>{s.brochure}</span>
+        {/* opens the official 2027-28 brochure (the guide's page numbers refer to the counselling print) */}
+        <a href="/docs/BJC-Brochure-2027-28.pdf" target="_blank" rel="noopener noreferrer" style={{ color: 'inherit' }}><span style={{ textDecoration: 'underline' }}>{s.brochure}</span></a>
       </div>
     </div>
   );

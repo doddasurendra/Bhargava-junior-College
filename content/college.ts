@@ -9,8 +9,16 @@ export const college = {
   society: 'Sri Vihana Educational Society',
   // Official logo from bhargavajuniorcollege.com (BHARGAVA-JUNIOR-COLLEGE-LOGO), trimmed to a 512 px square.
   logoSrc: '/logo.png',
+  // Official brochure 2027-28: recognised by the Govt. of Telangana.
+  collegeCode: '58560',
+  recognition: 'Recognised by Govt. of Telangana, College Code: 58560',
+  chairman: { name: 'Venugopal Gattu', role: 'Chairman & Co-founder' },
+  quote: 'With the utmost personal care, we empower every student towards success.',
+  lifeMotto: 'Balance is our mantra of life',
+  website: 'www.bhargavajuniorcollege.com',
+  // Central Administration Office, as printed on the brochure's back cover.
   address: {
-    line1: 'ACE DANA PEARL, H.No 3-2-22',
+    line1: 'House No 3-2-22',
     line2: 'Nagarjuna Sagar Ring Road, Sathavahana Nagar',
     locality: 'Saroornagar',
     city: 'Hyderabad',
@@ -35,14 +43,16 @@ export const college = {
   // From bhargavajuniorcollege.com (Vision, Mission and About Us sections), checked 4 Nov 2026.
   leaderCredentialsFull: 'F.I.E. · Ph.D. (Civil Engg.), M.Tech (WRE), B.E. (Civil Engg.), D.C.E., B.Com., M.B.A. (H.R.M), M.A. (Sociology) and further postgraduate degrees, diplomas and certificates',
   tagline: 'Great education begins with great teaching — everything else follows',
-  vision: 'We envision being a beacon of academic excellence to help the aspiring students crack the prestigious entrance exams',
+  // Vision and mission word for word from the 2027-28 brochure (page 2); full text in content/brochure.
+  vision: 'We envision being a beacon of academic excellence to help aspiring students excel in prestigious entrance examinations such as IIT-JEE & NEET',
   mission:
-    'To give every student a transformative education through refined coaching methods and a carefully designed curriculum; to build the logical, analytical and technical skills that competitive exams demand; and to support each student’s intellectual growth, academic development and emotional well-being so they can reach their full potential.',
+    'At Bhargava Junior College, we are committed to providing students with a transformative educational experience through redefined academic coaching methodologies and a meticulously designed curriculum. By staying at the forefront of educational innovation, we ensure that every student receives nothing short of the best. Our mission is to equip students with strong logical, analytical and technical skills, enabling them to excel in their chosen fields and achieve their goals in competitive examinations such as IIT-JEE & NEET. We are equally committed to nurturing intellectual growth, academic development and emotional well-being within a collaborative yet competitive learning environment, encouraging every student to explore and realise their maximum potential.',
   apart: 'What sets Bhargava Junior College apart is its relentless pursuit of academic perfection: structured programs designed for IIT-JEE and NEET, with support and guidance for students at every level.',
-  facultyAvgExperience: '10+ years',
+  // The 16 professors in the brochure average 20.7 years (16+ to 24+ years each).
+  facultyAvgExperience: '20+ years',
   maxBatchSize: 40,
   mentorRatio: 20,
-  admissionsOpen: '2027–29',
+  admissionsOpen: '2027-28',
   mapsQuery: 'Bhargava Junior College, Saroornagar, Hyderabad 500035',
 } as const;
 

@@ -27,7 +27,16 @@ export function organizationJsonLd() {
       { '@type': 'OpeningHoursSpecification', dayOfWeek: ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'], opens: '07:00', closes: '17:00' },
       { '@type': 'OpeningHoursSpecification', dayOfWeek: 'Saturday', opens: '09:00', closes: '15:00' },
     ],
-    founder: { '@type': 'Organization', name: college.society },
+    // Official brochure 2027-28: college code, the three campus addresses and the chairman.
+    identifier: { '@type': 'PropertyValue', name: 'College Code (Govt. of Telangana)', value: college.collegeCode },
+    description: `${college.recognition}. IIT-JEE (JEE Main, JEE Advanced) and NEET-UG two-year integrated programmes.`,
+    location: [
+      { '@type': 'Place', name: 'Central Administration Office', address: { '@type': 'PostalAddress', streetAddress: 'House No 3-2-22, Nagarjuna Sagar Ring Road, Sathavahana Nagar', addressLocality: 'Saroornagar, Hyderabad', addressRegion: 'Telangana', postalCode: '500035', addressCountry: 'IN' } },
+      { '@type': 'Place', name: 'Boys Residential Campus, Kuntloor', address: { '@type': 'PostalAddress', streetAddress: 'Plot number 17, 18, Survey number 108 & 109, Kuntloor village, Pedda Amberpet Mandal', addressLocality: 'RangaReddy District', addressRegion: 'Telangana', postalCode: '501513', addressCountry: 'IN' } },
+      { '@type': 'Place', name: 'Girls Residential Campus, Bairamalguda', address: { '@type': 'PostalAddress', streetAddress: 'H.No: 7-2-113, 4 Sri Lakshmi Ganesh Nagar Colony, Sagar Road, Bairamalguda, Saroornagar Mandal', addressLocality: 'Hyderabad', addressRegion: 'Telangana', postalCode: '500079', addressCountry: 'IN' } },
+      { '@type': 'Place', name: 'Day Scholar Campus, LB Nagar', address: { '@type': 'PostalAddress', addressLocality: 'LB Nagar, Hyderabad', addressRegion: 'Telangana', addressCountry: 'IN' } },
+    ],
+    founder: [{ '@type': 'Organization', name: college.society }, { '@type': 'Person', name: college.chairman.name, jobTitle: college.chairman.role }],
     employee: { '@type': 'Person', name: college.leader.name, honorificSuffix: college.leader.credentials },
     review: testimonials.filter((t) => t.quote).map((t) => ({ '@type': 'Review', author: { '@type': 'Person', name: t.name }, reviewBody: t.quote })),
   };

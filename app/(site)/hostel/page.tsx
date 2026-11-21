@@ -1,12 +1,15 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
-import { Check, PageHero, Section } from '@/components/ui';
+import { BPhoto, CampusLifeBlocks, PhotoNote } from '@/components/brochure';
+import { Check, PageHero, SampleBadge, Section } from '@/components/ui';
+import { ADDRESSES, brochureText, CAMPUSES, media } from '@/content/brochure';
 import { getContent } from '@/lib/cms';
 import { formatINR } from '@/lib/fees';
+import { getLang } from '@/lib/i18n-server';
 
 export const metadata: Metadata = {
-  title: 'Hostel & campus life',
-  description: 'Separate boys’ and girls’ hostel blocks with wardens, CCTV, biometric entry with WhatsApp alerts to parents, doctor on call and a published mess menu.',
+  title: 'Hostel life: Boys (Kuntloor) and Girls (Bairamalguda) residential campuses',
+  description: 'A home away from home, where discipline meets care. Boys Residential Campus in Kuntloor and Girls Residential Campus in Bairamalguda, with 24×7 security, CCTV surveillance and a hygienic, nutritious mess.',
   alternates: { canonical: '/hostel' },
 };
 
@@ -28,13 +31,41 @@ function List({ title, items }: { title: string; items: string[] }) {
 
 export default async function HostelPage() {
   const { fees, hostel } = await getContent();
+  const t = brochureText(getLang());
+  const life = t.campusLife.blocks[2];
   return (
     <>
-      <PageHero eyebrow="Hostel & campus life" title="A hostel parents can see into" intro={`${hostel.blocks}. Every check-in and check-out sends a WhatsApp alert to parents.`} badge={hostel.sample}>
+      <PageHero eyebrow="Hostel & campus life" title={life.title} intro={`${life.tagline}. ${t.campuses.items[1].name} (${t.campuses.items[1].location}) · ${t.campuses.items[0].name} (${t.campuses.items[0].location}).`}>
         <Link href="/visit" className="btn-gold">See the hostel on a campus visit</Link>
       </PageHero>
 
       <Section>
+        <CampusLifeBlocks t={t} only={[2, 3]} />
+      </Section>
+
+      <Section id="locations" eyebrow={t.campuses.eyebrow} title={t.campuses.title} className="bg-surface">
+        <ul className="grid gap-5 md:grid-cols-2">
+          {[0, 1].map((i) => {
+            const c = t.campuses.items[i];
+            const addr = ADDRESSES[i === 0 ? 2 : 1];
+            return (
+              <li key={c.name} className="card overflow-hidden">
+                <BPhoto p={media.campuses[i]} rounded="rounded-none" className="aspect-[3/2]" sizes="(min-width: 768px) 50vw, 100vw" />
+                <div className="p-5">
+                  <p className="font-display text-xl text-heading">{c.name} · {c.location}</p>
+                  <p className="mt-1 text-sm font-semibold text-maroon dark:text-gold">{c.tagline}</p>
+                  <ul className="mt-3 space-y-1.5">{c.features.map((f) => <li key={f} className="flex gap-2 text-sm"><Check className="mt-0.5 h-4 w-4" />{f}</li>)}</ul>
+                  <address className="mt-3 text-sm not-italic text-muted">{addr.address}</address>
+                  <a href={CAMPUSES[i].mapsUrl} target="_blank" rel="noopener noreferrer" className="mt-2 inline-block text-sm font-semibold text-maroon underline dark:text-gold">{t.contact.directions}</a>
+                </div>
+              </li>
+            );
+          })}
+        </ul>
+        <PhotoNote t={t} />
+      </Section>
+
+      <Section eyebrow="Hostel details" title={<>Safety, rooms and amenities <SampleBadge show={hostel.sample} /></>}>
         <div className="grid gap-4 md:grid-cols-2">
           <List title="Safety" items={hostel.safety} />
           <List title="Rooms" items={hostel.rooms} />

@@ -16,7 +16,7 @@ export function isLang(v: unknown): v is Lang {
 }
 
 const en = {
-  admissionsOpen: 'Admissions open 2027–29',
+  admissionsOpen: 'Admission 2027-28 Open',
   nav: {
     results: 'Results',
     summary: 'Summary',
@@ -40,7 +40,7 @@ const en = {
 export type Dict = typeof en;
 
 const te: Dict = {
-  admissionsOpen: 'అడ్మిషన్లు ప్రారంభం 2027–29',
+  admissionsOpen: 'అడ్మిషన్లు 2027-28 ప్రారంభం',
   nav: {
     results: 'ఫలితాలు',
     summary: 'సారాంశం',
@@ -62,7 +62,7 @@ const te: Dict = {
 };
 
 const hi: Dict = {
-  admissionsOpen: 'प्रवेश खुले हैं 2027–29',
+  admissionsOpen: 'प्रवेश 2027-28 खुले हैं',
   nav: {
     results: 'परिणाम',
     summary: 'सारांश',

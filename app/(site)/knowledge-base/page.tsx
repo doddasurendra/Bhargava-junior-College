@@ -10,7 +10,7 @@ export const metadata: Metadata = {
   alternates: { canonical: '/knowledge-base' },
 };
 
-const CATEGORY: Record<string, string> = { admissions: 'Admissions', fees: 'Fees', academics: 'Academics', hostel: 'Hostel', transport: 'Transport', policies: 'Policies', other: 'General' };
+const CATEGORY: Record<string, string> = { parents: 'Parents', campus: 'Campuses & campus life', academics: 'Academics', admissions: 'Admissions', fees: 'Fees', hostel: 'Hostel', transport: 'Transport', policies: 'Policies', other: 'General' };
 
 /** Public knowledge base: only published, public articles (staff-only articles never appear here). */
 export default async function KnowledgeBasePage({ searchParams }: { searchParams: { q?: string } }) {

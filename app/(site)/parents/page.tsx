@@ -1,16 +1,21 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
-import { Check, PageHero, Section } from '@/components/ui';
+import { ParentsCareSection } from '@/components/brochure';
+import { Check, PageHero, SampleBadge, Section } from '@/components/ui';
+import { brochureText } from '@/content/brochure';
 import { getContent } from '@/lib/cms';
+import { getLang } from '@/lib/i18n-server';
 
-export const metadata: Metadata = { title: 'Parent corner', description: 'The parent app, PTMs, college policies and transport routes at Bhargava Junior College.', alternates: { canonical: '/parents' } };
+export const metadata: Metadata = { title: 'Parent corner: what parents care about', description: 'Your Aspirations. Our Responsibility. Individual attention in classes of 40, regular progress tracking, counselling, a safe campus and Board + IIT-JEE / NEET preparation. Plus the parent app, PTMs and policies.', alternates: { canonical: '/parents' } };
 
 export default async function ParentsPage() {
   const { parentCorner: pc } = await getContent();
+  const t = brochureText(getLang());
   return (
     <>
-      <PageHero eyebrow="Parent corner" title="Stay close to your child’s progress" intro="Daily attendance and hostel alerts, test results, the mentor’s weekly note, fees and receipts, all in the parent app." badge={pc.sample} />
-      <Section eyebrow="Parent app" title="What you see in the app">
+      <PageHero eyebrow="Parent corner" title={t.parents.title} intro={t.parents.tagline} />
+      <ParentsCareSection t={t} />
+      <Section eyebrow="Parent app" title={<>What you see in the app <SampleBadge show={pc.sample} /></>} className="bg-surface">
         <ul className="grid gap-2 sm:grid-cols-2">
           {['Attendance every day, and an alert if your child is absent', 'Hostel check-in and check-out alerts', 'Test results, rank and chapter-wise progress', 'The mentor’s note in the Sunday WhatsApp report', 'Fee dues, online payment and receipts', 'PTM booking and messages to the class teacher', 'Out-pass approvals for hostellers', 'Bus route and live location for day scholars'].map((x) => <li key={x} className="flex gap-3 text-[15px]"><Check />{x}</li>)}
         </ul>

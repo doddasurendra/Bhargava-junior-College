@@ -1,23 +1,30 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
+import { CoursesSection, EvolveSection } from '@/components/brochure';
 import { PageHero, Section } from '@/components/ui';
+import { BROCHURE_PDF, brochureText } from '@/content/brochure';
+import { getLang } from '@/lib/i18n-server';
 import { college } from '@/content/college';
 import { programIncludes, programs } from '@/content/programs';
 import { getContent } from '@/lib/cms';
 import { formatINR } from '@/lib/fees';
 
 export const metadata: Metadata = {
-  title: 'Programs: IIT-JEE & NEET with Intermediate, Long Term',
-  description: 'IIT-JEE Integrated, NEET UG Integrated (2 years with TS Intermediate Board) and one-year Long Term JEE and NEET repeater programs in Saroornagar, Hyderabad.',
+  title: 'Courses offered: IIT-JEE & NEET two-year integrated programmes',
+  description: 'Focused, integrated programmes for JEE Main · JEE Advanced & NEET with a clear academic pathway, the EVOLVE learning model, and one-year Long Term JEE and NEET programs.',
   alternates: { canonical: '/programs' },
 };
 
 export default async function ProgramsPage() {
   const { fees } = await getContent();
+  const t = brochureText(getLang());
   return (
     <>
-      <PageHero eyebrow="Programs" title="Choose the path that fits your goal" intro="Two integrated programs alongside the TS Intermediate Board, and two one-year Long Term programs for repeat attempts.">
-        <Link href="/course-finder" className="btn-gold">Help me choose</Link>
+      <PageHero eyebrow={t.courses.eyebrow} title="Choose the path that fits your goal" intro={`${t.courses.intro} Plus two one-year Long Term programs for repeat attempts.`}>
+        <div className="flex flex-wrap gap-3">
+          <Link href="/course-finder" className="btn-gold">Help me choose</Link>
+          <a href={BROCHURE_PDF} download className="btn-outline-light">{t.contact.download}</a>
+        </div>
       </PageHero>
       <Section>
         <div className="grid gap-5 md:grid-cols-2">
@@ -38,6 +45,8 @@ export default async function ProgramsPage() {
           ))}
         </div>
       </Section>
+      <CoursesSection t={t} className="bg-surface" />
+      <EvolveSection t={t} />
       <Section eyebrow="Compare" title="At a glance" className="bg-surface" badge={fees.sample}>
         <div className="overflow-x-auto rounded-2xl border border-line">
           <table className="table-base min-w-[640px] bg-surface">

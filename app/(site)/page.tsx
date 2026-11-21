@@ -1,39 +1,51 @@
+import Image from 'next/image';
 import Link from 'next/link';
+import { ClosingBanner, CollegeCodeLine, DifferentCompact, FacultyPreview, PhotoNote } from '@/components/brochure';
 import { LeadForm } from '@/components/forms';
 import { HeroCarousel } from '@/components/HeroCarousel';
 import { ModuleButtons } from '@/components/ModuleButtons';
 import { OpenChatButton } from '@/components/OpenChatButton';
-import { Check, Crest, Faq, initials, JsonLd, SampleBadge, Section } from '@/components/ui';
+import { Crest, Faq, initials, JsonLd, SampleBadge, Section } from '@/components/ui';
+import { brochureText, media } from '@/content/brochure';
 import { college, mapsEmbedUrl } from '@/content/college';
 import { programs } from '@/content/programs';
 import { getContent } from '@/lib/cms';
 import { formatDate, todayIST } from '@/lib/dates';
 import { formatINR } from '@/lib/fees';
+import { getLang } from '@/lib/i18n-server';
 import { faqJsonLd } from '@/lib/seo';
 
-const why = [
-  { title: 'Fees published, no form needed', body: 'The full fee table and a scholarship calculator are open to everyone.', href: '/fees' },
-  { title: `Batches of at most ${college.maxBatchSize}`, body: `Small classes, and one mentor for every ${college.mentorRatio} students with a weekly one-to-one.`, href: '/about' },
-  { title: 'Track your admission like a parcel', body: 'See every step, who owns it, and when you will hear next.', href: '/track' },
-  { title: 'Hostel you can see into', body: 'Biometric check-in with WhatsApp alerts, wardens on every floor, and the mess menu in the app.', href: '/hostel' },
-  { title: 'Weekly parent report', body: 'Every Sunday on WhatsApp: attendance, test trend and the mentor’s note.', href: '/about' },
-  { title: 'Results you can verify', body: 'Each topper card links to the official scorecard. No unverifiable claims.', href: '/results' },
-];
+/** CMS gallery photos: site images go through next/image (WebP), external links are shown as they are. */
+function GalleryImg({ src, alt }: { src: string; alt: string }) {
+  // eslint-disable-next-line @next/next/no-img-element
+  if (!src.startsWith('/')) return <img src={src} alt={alt} loading="lazy" className="aspect-[4/3] w-full object-cover" />;
+  return <Image src={src} alt={alt} width={800} height={600} sizes="(min-width: 768px) 33vw, 50vw" loading="lazy" className="aspect-[4/3] w-full object-cover" />;
+}
 
 export default async function HomePage() {
-  const { bsat, faculty, faqs, fees, gallery, heroSlides, results, testimonials } = await getContent();
+  const { bsat, faqs, fees, gallery, heroSlides, results, testimonials } = await getContent();
   const nextBsat = bsat.sessions.find((s) => s.date >= todayIST());
+  const lang = getLang();
+  const t = brochureText(lang);
+  // The first slide is the brochure cover; in Telugu / Hindi it uses the translated cover text.
+  const slides = lang === 'en' ? heroSlides.slides : heroSlides.slides.map((s, i) => (i === 0 && s.title === 'Two Years. One Dream.' ? { ...s, eyebrow: t.cover.eyebrow, title: t.cover.title, highlight: null, body: `${t.cover.sub} ${t.cover.exams}.` } : s));
   return (
     <>
       {/* Hero */}
       <section className="relative overflow-hidden bg-navy text-white">
+        <Image src={media.hero.building.src} alt="" aria-hidden fill priority sizes="100vw" className="object-cover opacity-25" />
+        <div aria-hidden className="absolute inset-0 bg-gradient-to-r from-navy via-navy/90 to-navy/60" />
         <div aria-hidden className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_left,rgba(201,162,74,0.22),transparent_55%),radial-gradient(ellipse_at_bottom_right,rgba(125,31,44,0.35),transparent_50%)]" />
         <div aria-hidden className="pointer-events-none absolute -left-24 top-1/2 h-[520px] w-[520px] -translate-y-1/2 opacity-[0.06]">
           <Crest size={520} className="h-full w-full" />
         </div>
         <div className="container-x relative grid gap-10 py-12 sm:py-16 lg:grid-cols-[1.2fr_1fr] lg:items-center lg:py-20">
           <div className="animate-rise">
-            <HeroCarousel slides={heroSlides.slides} intervalSec={heroSlides.intervalSec} />
+            <div className="mb-5 space-y-1">
+              <CollegeCodeLine t={t} light />
+              <p className="text-xs font-semibold uppercase tracking-[0.18em] text-gold-300">{t.cover.exams}</p>
+            </div>
+            <HeroCarousel slides={slides} intervalSec={heroSlides.intervalSec} />
             <div className="mt-3">
               <Link href="/parent-counselling" className="btn-outline-light px-6 py-3">🤝 Parent Counselling / తల్లిదండ్రుల కౌన్సెలింగ్</Link>
             </div>
@@ -151,20 +163,8 @@ export default async function HomePage() {
         </div>
       </section>
 
-      {/* Why */}
-      <Section eyebrow="Why Bhargava" title="What most coaching colleges don’t do, and we do">
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {why.map((w) => (
-            <Link key={w.title} href={w.href} className="card flex gap-4 p-6 transition hover:border-gold">
-              <Check className="mt-0.5" />
-              <div>
-                <h3 className="font-sans text-base font-semibold text-heading">{w.title}</h3>
-                <p className="mt-1 text-sm leading-6 text-muted">{w.body}</p>
-              </div>
-            </Link>
-          ))}
-        </div>
-      </Section>
+      {/* Why: the brochure's eight differentiators */}
+      <DifferentCompact t={t} />
 
       {/* BSAT banner */}
       <section className="container-x">
@@ -190,17 +190,8 @@ export default async function HomePage() {
       </section>
 
       {/* Faculty + testimonials */}
-      <Section eyebrow="Faculty" title="Teachers who have done this for a decade and more" badge={faculty.sample} intro={`Average faculty experience is ${college.facultyAvgExperience}. Leadership: ${college.leader.name}, ${college.leader.credentials}.`}>
-        <ul className="grid grid-cols-2 gap-4 lg:grid-cols-4">
-          {faculty.items.map((f) => (
-            <li key={f.name} className="card p-5">
-              <span className="grid h-12 w-12 place-items-center rounded-full bg-gold-100 font-display text-navy">{initials(f.name)}</span>
-              <p className="mt-3 font-semibold text-heading">{f.name}</p>
-              <p className="text-sm text-muted">{f.subject}</p>
-              <p className="mt-2 font-mono text-sm text-maroon dark:text-gold">{f.years} yrs experience</p>
-            </li>
-          ))}
-        </ul>
+      <Section eyebrow={t.faculty.eyebrow} title={t.faculty.title}>
+        <FacultyPreview t={t} />
         <div className="mt-12">
           <p className="eyebrow">What parents say</p>
           <ul className="mt-4 grid gap-4 md:grid-cols-3">
@@ -217,17 +208,19 @@ export default async function HomePage() {
       </Section>
 
       {/* Gallery */}
-      <Section eyebrow="Campus gallery" title="Life on one focused campus" badge={gallery.sample}>
+      <Section eyebrow={t.campusLife.motto} title={t.campusLife.title} intro={t.campusLife.intro} badge={gallery.sample}>
         {gallery.items.some((g) => g.imageUrl) ? (
-          <ul className="grid grid-cols-2 gap-3 md:grid-cols-3">
-            {gallery.items.filter((g) => g.imageUrl).slice(0, 6).map((g) => (
-              <li key={g.imageUrl!} className="overflow-hidden rounded-2xl border border-line">
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src={g.imageUrl!} alt={g.title} loading="lazy" className="aspect-[4/3] w-full object-cover" />
-                <p className="px-3 py-2 text-sm text-muted">{g.title}</p>
-              </li>
-            ))}
-          </ul>
+          <>
+            <ul className="grid grid-cols-2 gap-3 md:grid-cols-3">
+              {gallery.items.filter((g) => g.imageUrl).slice(0, 6).map((g) => (
+                <li key={g.imageUrl!} className="overflow-hidden rounded-2xl border border-line">
+                  <GalleryImg src={g.imageUrl!} alt={g.title} />
+                  <p className="px-3 py-2 text-sm text-muted">{g.title}</p>
+                </li>
+              ))}
+            </ul>
+            {!gallery.sample && <PhotoNote t={t} />}
+          </>
         ) : (
           <ul className="grid grid-cols-2 gap-3 md:grid-cols-5">
             {[
@@ -263,6 +256,9 @@ export default async function HomePage() {
         </div>
         <JsonLd data={faqJsonLd(faqs.items)} />
       </Section>
+
+      {/* Brochure back cover */}
+      <ClosingBanner t={t} photo={media.hero.student} />
 
       {/* Map */}
       <Section eyebrow="Visit the campus" title="Come and see the classrooms, labs and hostel">

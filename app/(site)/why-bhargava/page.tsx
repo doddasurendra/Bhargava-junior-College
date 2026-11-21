@@ -1,14 +1,17 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
+import { DifferentSection } from '@/components/brochure';
 import { ModuleButtons } from '@/components/ModuleButtons';
+import { brochureText } from '@/content/brochure';
+import { getLang } from '@/lib/i18n-server';
 import { Check, PageHero, Section } from '@/components/ui';
 import { OPERATING_PRINCIPLE } from '@/content/admissionSystem';
 import { college } from '@/content/college';
 import { MODULE_BUTTONS } from '@/content/platform';
 
 export const metadata: Metadata = {
-  title: 'Why Bhargava',
-  description: `Why families choose ${college.name}: published fees, batches of at most ${college.maxBatchSize}, a mentor for every ${college.mentorRatio} students, admission tracking, hostel alerts and verifiable results.`,
+  title: 'Why Bhargava: what makes us different',
+  description: `More than a classroom. Expert faculty & mentorship, classes capped at ${college.maxBatchSize}, a structured academic system, safe campus life, Board + IIT-JEE / NEET preparation and modern infrastructure.`,
   alternates: { canonical: '/why-bhargava' },
 };
 
@@ -25,10 +28,12 @@ const REASONS: { title: string; body: string; href: string }[] = [
 ];
 
 export default function WhyBhargavaPage() {
+  const t = brochureText(getLang());
   return (
     <>
-      <PageHero eyebrow="Why Bhargava" title="What we do that most coaching colleges don’t" intro={`${college.name}, ${college.address.locality}: IIT-JEE and NEET with the TS Intermediate Board on one focused campus, run by ${college.society}.`} />
-      <Section>
+      <PageHero eyebrow="Why Bhargava" title={t.different.eyebrow} intro={`${college.name}: IIT-JEE and NEET with the TS Intermediate Board, run by ${college.society}. ${t.different.difference}`} />
+      <DifferentSection t={t} />
+      <Section eyebrow="And on top of that" title="What we do that most coaching colleges don’t" className="bg-surface">
         <ul className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
           {REASONS.map((r) => (
             <li key={r.title}>
@@ -43,7 +48,7 @@ export default function WhyBhargavaPage() {
           ))}
         </ul>
       </Section>
-      <Section eyebrow="Our promise" title="How we run admissions" className="bg-surface">
+      <Section eyebrow="Our promise" title="How we run admissions">
         <blockquote className="max-w-3xl rounded-2xl border-l-4 border-gold bg-bg p-6 font-display text-xl leading-8 text-heading">{OPERATING_PRINCIPLE}</blockquote>
         <p className="mt-4 text-sm"><Link href="/admission-system" className="underline">See the ten-stage admission system</Link></p>
       </Section>
