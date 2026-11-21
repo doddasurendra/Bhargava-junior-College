@@ -13,6 +13,8 @@ import { can, isDeveloper } from '@/lib/crm/permissions';
 import { BLOCK_KEYS, canEditBlock } from '@/lib/cms/blocks';
 import { ROLE_LABELS } from '@/lib/crm/types';
 import { homeFor } from '@/lib/crm/home';
+import { centresFor, hubNav } from '@/lib/kb/nav';
+import { staffViewer } from '@/lib/kb/service';
 
 export const dynamic = 'force-dynamic';
 
@@ -24,7 +26,8 @@ export default async function CrmShell({ children }: { children: ReactNode }) {
   const roleOptions = allRoles.map((r) => ({ value: r, label: ROLE_LABELS[r] }));
   const admissions = can(user, 'lead.call') || can(user, 'lead.viewAll') || can(user, 'visit.view');
   const home = homeFor(user.roles[0]);
-  const nav = [
+  const kbViewer = await staffViewer(user);
+  const nav: { href: string; label: string; sub?: boolean }[] = [
     ...(isDeveloper(user) ? [{ href: '/crm/developer', label: 'Developer console' }] : []),
     ...(can(user, 'dashboard.view') || can(user, 'academics.view') || can(user, 'students.view') || can(user, 'fees.dues') ? [{ href: '/crm/summary', label: 'Summary' }] : []),
     ...(can(user, 'dashboard.view') ? [{ href: '/crm/dashboard', label: 'Dashboard' }] : []),
@@ -60,6 +63,8 @@ export default async function CrmShell({ children }: { children: ReactNode }) {
     ...(isDeveloper(user) ? [] : [{ href: '/crm/me', label: 'My profile' }, { href: '/crm/my-attendance', label: 'My attendance' }]),
     ...(can(user, 'staff.records') ? [{ href: '/crm/staff-directory', label: 'Staff records' }] : []),
     ...(can(user, 'staff.attendance') ? [{ href: '/crm/staff-attendance', label: 'Staff attendance' }] : []),
+    // Knowledge group (§23): hub screens, then each centre this role can open
+    ...(can(user, 'kb.view') ? [{ href: '/crm/knowledge', label: '📚 Knowledge Hub' }, ...hubNav(user, kbViewer, 'en').filter((i) => /\/(repository|documents|approvals|analytics|supabase)$/.test(i.href)).map((i) => ({ ...i, sub: true })), ...centresFor(kbViewer).filter((c) => c.kind === 'content').map((c) => ({ href: `/crm/knowledge/centres/${c.id}`, label: `${c.icon} ${c.name.en.replace(/ (Knowledge )?Centre$/, '')}`, sub: true }))] : []),
     ...(canUseAssistant(user) ? [{ href: '/crm/college-assistant', label: 'College assistant' }] : []),
     ...(can(user, 'whatsapp.setup') ? [{ href: '/crm/assistant', label: 'Website chat analytics' }] : []),
     ...(can(user, 'whatsapp.setup') ? [{ href: '/crm/whatsapp', label: 'WhatsApp setup' }] : []),
@@ -83,7 +88,7 @@ export default async function CrmShell({ children }: { children: ReactNode }) {
           </Link>
           <nav aria-label="CRM" className="flex gap-1 overflow-x-auto lg:mt-8 lg:flex-col">
             {nav.map((n) => (
-              <Link key={n.href} href={n.href} className="whitespace-nowrap rounded-lg px-3 py-2 text-sm font-medium hover:bg-white/10 hover:text-white">
+              <Link key={n.href} href={n.href} className={n.sub ? 'hidden whitespace-nowrap rounded-lg py-1 pl-7 pr-3 text-xs text-white/65 hover:bg-white/10 hover:text-white lg:block' : 'whitespace-nowrap rounded-lg px-3 py-2 text-sm font-medium hover:bg-white/10 hover:text-white'}>
                 {n.label}
               </Link>
             ))}

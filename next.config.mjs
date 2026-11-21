@@ -12,8 +12,9 @@ const nextConfig = {
   // NEXT_DIST_DIR lets a production build run while `next dev` holds .next (default unchanged).
   distDir: process.env.NEXT_DIST_DIR || '.next',
   reactStrictMode: true,
-  // CSV lead imports send the file text to a server action (2 MB file limit + JSON overhead).
-  experimental: { serverActions: { bodySizeLimit: '3mb' } },
+  // CSV lead imports and Knowledge Hub replace/import forms post files to server actions. Vercel itself caps a
+  // request at 4.5 MB, so large KB uploads go straight to Supabase Storage with a signed URL (/api/kb/upload/sign).
+  experimental: { serverActions: { bodySizeLimit: '52mb' }, serverComponentsExternalPackages: ['unpdf'] },
   // Route names from the brief (§10) that map onto pages already built under other paths.
   async redirects() {
     const alias = (source, destination) => ({ source, destination, permanent: false });
@@ -48,7 +49,11 @@ const nextConfig = {
     ];
   },
   async headers() {
-    return [{ source: '/(.*)', headers: securityHeaders }];
+    return [
+      { source: '/(.*)', headers: securityHeaders },
+      // the Knowledge Hub offline worker serves the app (/app/...), not just /
+      { source: '/kb-sw.js', headers: [{ key: 'Service-Worker-Allowed', value: '/app/' }, { key: 'Cache-Control', value: 'no-cache' }] },
+    ];
   },
 };
 

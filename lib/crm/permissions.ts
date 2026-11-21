@@ -100,6 +100,17 @@ export const DEFAULT_RULES = {
   /** read-only buses, routes and allocations for leadership */
   'transport.view': ['super_admin', 'management', 'principal', 'transport_incharge'],
 
+  // ---- Knowledge Hub (§1–§22): what each person may READ is decided per item by access level and sensitivity
+  // (lib/kb/access.ts); these permissions decide who may write, approve and administer.
+  'kb.view': ['super_admin', 'management', 'principal', 'admission_manager', 'data_executive', 'telecaller', 'admission_counsellor', 'front_desk', 'admission_office', 'accounts', 'admin_office', 'academic_coordinator', 'class_teacher', 'faculty', 'hostel_warden', 'transport_incharge', 'sports_coach', 'student_counsellor'],
+  'kb.edit': ['super_admin', 'management', 'principal', 'admission_manager', 'data_executive', 'admission_office', 'accounts', 'admin_office', 'academic_coordinator', 'class_teacher', 'faculty', 'student_counsellor', 'hostel_warden'],
+  'kb.approve': ['super_admin', 'management', 'principal', 'academic_coordinator', 'admission_manager'],
+  'kb.analytics': ['super_admin', 'management', 'principal'],
+  /** Supabase Integration Centre, KB settings, re-index, retention (Super Admin / Developer) */
+  'kb.admin': ['super_admin'],
+  'notify.manage': ['super_admin', 'principal', 'admin_office'],
+  'grievance.handle': ['super_admin', 'principal', 'academic_coordinator', 'student_counsellor', 'admin_office'],
+
   // ---- management & administration
   'dashboard.view': ['super_admin', 'management', 'principal', 'admission_manager'],
   'marketing.spend': ['super_admin', 'management', 'data_executive'],
