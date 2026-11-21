@@ -184,6 +184,13 @@ Rules:
 }
 
 async function logGap(q: string, lang: Lang, assistant: string) {
+  try {
+    await writeGap(q, lang, assistant);
+  } catch (e) {
+    console.error('[kb ai] gap not logged', (e as Error).message);
+  }
+}
+async function writeGap(q: string, lang: Lang, assistant: string) {
   const norm = normQuestion(q);
   if (!norm) return;
   const st = getRecordStore();
@@ -214,7 +221,11 @@ export async function answer(v: Viewer, assistant: AssistantId, question: string
   const prompt = settings.assistants[assistant]?.prompt || ASSISTANT_INFO[assistant].prompt;
   const done = async (a: Omit<AiAnswer, 'convId' | 'index'>) => {
     const text = v.kind === 'public' ? maskPhones(a.text) : a.text;
-    const ids = await record(v, assistant, { ...a, text, q, ms: Date.now() - t0 });
+    // history is best-effort: an answer must never fail because the store can't be written
+    const ids = await record(v, assistant, { ...a, text, q, ms: Date.now() - t0 }).catch((e: Error) => {
+      console.error('[kb ai] history not saved', e.message);
+      return { convId: '', index: -1 };
+    });
     await audit(v, 'ai_query', 'ai', null, q.slice(0, 200), `${assistant} · ${a.mode} · ${a.found ? 'answered' : 'not found'} · ${a.sources.length} sources`);
     return { ...a, text, ...ids };
   };
