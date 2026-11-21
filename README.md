@@ -335,8 +335,26 @@ Scheduled jobs (`vercel.json`): the 7 PM report (13:30 UTC), visit reminders (ev
 - [ ] Confirm which number is on WhatsApp Business (enter it under Website content → Social links)
 - [ ] Replace every CMS block's sample content and switch it to "real data"
 - [ ] Parent testimonial quotes, the leadership message, photos and scorecard verification links
-- [ ] Native-speaker review of the Telugu/Hindi strings in `lib/i18n.ts`
+- [ ] Native-speaker review of the Telugu/Hindi strings in `lib/i18n.ts` and the brochure translations in `content/brochure/te.ts` and `hi.ts`
 - [ ] Credentials for the integrations above, and approval of the WhatsApp templates
+- [x] Official 2027-28 brochure text and photos (see *Official brochure content* below)
+- [ ] Confirm the title of **Dr. G. V. Venkat Ramana** (shown under the Chairman on /about and /faculty)
+- [ ] Confirm the spelling **"Prof. Adhi Naryana"** (printed that way in the brochure; the photo file says "narayana")
+- [ ] Send the original high-resolution faculty photos: the 16 in the brochure were cut from the PDF (about 175 px), so the site shows them at 96–140 px
+- [ ] Brochures for the two Long Term programs (the official brochure covers the two integrated programmes)
+- [ ] The printed brochure QR opens www.bhargavajuniorcollege.com (home page). The site shows its own QR that opens `/docs/BJC-Brochure-2027-28.pdf` on www.bhargavajuniorcollege.com, which works once this site is live on that domain
+
+## Official brochure content (2027-28)
+
+Source: *Final Version 2027 v3.2 - 29 oct* (8 pages). The source PDF (65 MB) stays out of git at `docs/brochure-source.pdf`.
+
+- **Text:** `content/brochure/en.ts`, word for word (English is the source), with `te.ts` and `hi.ts` in exactly the same shape (a test checks it). Pages pick the language from the site's language switch.
+- **Photos:** originals in `assets/brochure-images/` (62 files, named by section); the site serves resized WebP from `public/images/brochure/` through `next/image` (lazy below the fold). Re-run `node scripts/brochure-images.mjs <folder>` after replacing photos; it also rewrites `content/brochure/images.json` (sizes) and the brochure QR code.
+- **PDF download:** `public/docs/BJC-Brochure-2027-28.pdf` (8.8 MB), made with `node scripts/compress-pdf.mjs docs/brochure-source.pdf public/docs/BJC-Brochure-2027-28.pdf` (re-encodes the photos to 1600 px JPEG; text and layout untouched; no Ghostscript needed). It is the program brochure for IIT-JEE and NEET (Downloads page, program pages, footer, contact page, WhatsApp "send brochure"; site paths are turned into full links for WhatsApp).
+- **Where it appears:** home hero, top strip and footer (cover, college code 58560, motto, quote, 3 addresses); /about (Chairman's message, Vision, Mission); /why-bhargava and the home "Why" cards (8 differentiators, Beyond Academics, The Bhargava Difference); /parents, the home FAQ and the knowledge base (6 parent questions); /faculty and the home preview (16 professors in 4 groups); /programs and the IIT-JEE and NEET pages (courses offered, EVOLVE; EVOLVE also on /admission-system); /campus (6 campus-life blocks, Our Campuses, full gallery); /hostel (Hostel Life, Mess, the two residential campuses); /contact (addresses, pin map, QR, closing banner). There is no separate sports page on the public site, so Sports & Recreation is on /campus.
+- **CMS:** the faculty, gallery, brochures and knowledge-base defaults now come from the brochure (no *Sample data* badge); fees, results, BSAT, testimonials and the other blocks keep theirs. The FAQs list the six brochure questions first.
+- **Chatbot / voice agent:** 17 knowledge-base articles (leadership, vision & mission, college code, the 8 differentiators, class size, the 6 parent questions, faculty, both courses, EVOLVE, campus life, the 3 campuses with addresses, contacts, the brochure). The RAG index rebuilds itself when content changes.
+- **Campus field:** the visit booking form asks for the campus (Girls Residential – Bairamalguda / Boys Residential – Kuntloor / Day Scholar – LB Nagar); the choice is saved on the lead (records collection `campus_preferences`, no migration needed), can be changed on the lead page, shows on the student record, and filters the management dashboard.
 
 ## Supabase
 
