@@ -1,6 +1,6 @@
 import 'server-only';
 import { reply as fallbackReply } from '../chat/faqBot';
-import { getContent } from '../cms';
+import { botContent } from '../kb/publicFeed';
 import { getConversationStore, handoffExisting, startBotConversation, visitorConversation } from '../chat/service';
 import type { Conversation } from '../chat/types';
 import type { Attribution } from '../validation';
@@ -95,7 +95,7 @@ export async function assistantTurn(p: { c?: string; t?: string; text: string; a
     if (!(e instanceof AssistantUnavailable)) console.error('[assistant] turn failed', (e as Error).message);
     // Fallback: the rule-based assistant for its known intents, then the shared BJC knowledge base (RAG) for
     // everything else — answers only from verified site content, or says honestly that it couldn't find it.
-    const content = await getContent();
+    const content = await botContent();
     let fb = fallbackReply(p.text, content);
     if (isGreeting(p.text)) fb = { intent: 'greeting', text: GREETING[detectLang(p.text)], links: [] } as unknown as typeof fb;
     // Action intents (greeting, book a visit, track, counsellor, "guarantee" questions) keep their scripted

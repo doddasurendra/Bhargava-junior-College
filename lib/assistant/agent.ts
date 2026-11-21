@@ -5,7 +5,7 @@ import { formatOpening, isOfficeOpen, nextOpening } from '../chat/hours';
 import { formatDate, todayIST } from '../dates';
 import { buildKnowledge } from './knowledge';
 import { buildTools, runTool, type ToolContext, type ToolEffects } from './tools';
-import { getContent } from '../cms';
+import { botContent } from '../kb/publicFeed';
 import type { Content } from '../cms/blocks';
 
 export const ASSISTANT_MODEL = 'claude-opus-5-5';
@@ -86,7 +86,8 @@ function mergeEffects(a: ToolEffects, b?: ToolEffects): ToolEffects {
 
 export async function runAssistant(history: Turn[], ctx: ToolContext, now = new Date()): Promise<AssistantResult> {
   const anthropic = getClient();
-  const prompt = promptFor(await getContent());
+  // CMS content + the Knowledge Hub's published public articles (one knowledge base for both agents)
+  const prompt = promptFor(await botContent());
   const open = isOfficeOpen(now);
   // Per-turn facts go in a mid-conversation system message after the latest user message, so the
   // cached system prompt and earlier history stay byte-identical.
