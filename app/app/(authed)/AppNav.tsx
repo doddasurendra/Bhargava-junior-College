@@ -17,8 +17,8 @@ const ICON: Record<string, string> = {
 type Kind = 'parent' | 'student' | 'applicant' | 'alumni' | null;
 
 const NAV: Record<string, { href: string; label: string; icon: string }[]> = {
-  student: [{ href: '/app', label: 'Home', icon: 'home' }, { href: '/app/study', label: 'Study', icon: 'study' }, { href: '/app/tests', label: 'Tests', icon: 'test' }, { href: '/app/doubts', label: 'Doubts', icon: 'chat' }, { href: '/app/more', label: 'More', icon: 'more' }],
-  parent: [{ href: '/app', label: 'Home', icon: 'home' }, { href: '/app/results', label: 'Progress', icon: 'chart' }, { href: '/app/fees', label: 'Fees', icon: 'fees' }, { href: '/app/messages', label: 'Teacher', icon: 'chat' }, { href: '/app/more', label: 'More', icon: 'more' }],
+  student: [{ href: '/app', label: 'Home', icon: 'home' }, { href: '/app/study', label: 'Study', icon: 'study' }, { href: '/app/tests', label: 'Tests', icon: 'test' }, { href: '/app/knowledge', label: 'Knowledge', icon: 'doc' }, { href: '/app/doubts', label: 'Doubts', icon: 'chat' }, { href: '/app/more', label: 'More', icon: 'more' }],
+  parent: [{ href: '/app', label: 'Home', icon: 'home' }, { href: '/app/results', label: 'Progress', icon: 'chart' }, { href: '/app/fees', label: 'Fees', icon: 'fees' }, { href: '/app/knowledge', label: 'Knowledge', icon: 'doc' }, { href: '/app/messages', label: 'Teacher', icon: 'chat' }, { href: '/app/more', label: 'More', icon: 'more' }],
   applicant: [{ href: '/app', label: 'Status', icon: 'home' }, { href: '/app/apply', label: 'Apply', icon: 'doc' }, { href: '/app/documents', label: 'Documents', icon: 'study' }, { href: '/app/more', label: 'More', icon: 'more' }],
   alumni: [{ href: '/app', label: 'Home', icon: 'home' }, { href: '/app/alumni', label: 'Alumni', icon: 'star' }, { href: '/app/more', label: 'More', icon: 'more' }],
 };
