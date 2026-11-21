@@ -13,7 +13,7 @@
     "seed:demo:reset": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON scripts/seed-demo.ts --clear && node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON scripts/seed-demo.ts",
     "seed:demo:clear": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON scripts/seed-demo.ts --clear",
     "staff:logins": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON scripts/staff-logins.ts",
-    "seed:supabase":"node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON scripts/seed-supabase.ts",
+    "seed:supabase": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON scripts/seed-supabase.ts",
     "seed:supabase:clear": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON scripts/seed-supabase.ts --clear"
   },
   "dependencies": {
@@ -26,6 +26,7 @@
     "react": "18.3.1",
     "react-dom": "18.3.1",
     "server-only": "^0.0.1",
+    "sharp": "^0.33.5",
     "zod": "^3.23.8"
   },
   "devDependencies": {

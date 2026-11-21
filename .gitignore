@@ -17,3 +17,6 @@ supabase/.branches/
 npm-debug.log*
 
 /.next-build/
+
+# official brochure source PDF (65 MB): the compressed copy in public/docs/ is committed instead
+docs/brochure-source.pdf
