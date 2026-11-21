@@ -117,6 +117,8 @@ async function main() {
   const out = path.join(ROOT, '.data', 'demo-supabase.json');
   if (existsSync(out)) rmSync(out);
   execFileSync(process.execPath, ['--disable-warning=MODULE_TYPELESS_PACKAGE_JSON', 'scripts/seed-demo.ts'], { env: { ...process.env, DEMO_OUT: out }, stdio: 'ignore' });
+// Knowledge Hub demo articles and document text (the document FILES stay local: downloads of seeded docs 404 on Supabase)
+execFileSync(process.execPath, ['--disable-warning=MODULE_TYPELESS_PACKAGE_JSON', 'scripts/seed-kb.ts'], { env: { ...process.env, DEMO_OUT: out }, stdio: 'ignore' });
   const db = JSON.parse(readFileSync(out, 'utf8'));
   rmSync(out);
 

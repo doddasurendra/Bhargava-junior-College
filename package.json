@@ -9,8 +9,9 @@
     "start:local": "node scripts/start-local.mjs",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
-    "seed:demo": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON scripts/seed-demo.ts",
-    "seed:demo:reset": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON scripts/seed-demo.ts --clear && node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON scripts/seed-demo.ts",
+    "seed:demo": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON scripts/seed-demo.ts && node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON scripts/seed-kb.ts",
+    "seed:demo:reset": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON scripts/seed-demo.ts --clear && node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON scripts/seed-demo.ts && node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON scripts/seed-kb.ts",
+    "seed:kb": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON scripts/seed-kb.ts",
     "seed:demo:clear": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON scripts/seed-demo.ts --clear",
     "staff:logins": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON scripts/staff-logins.ts",
     "seed:supabase": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON scripts/seed-supabase.ts",
@@ -27,6 +28,7 @@
     "react-dom": "18.3.1",
     "server-only": "^0.0.1",
     "sharp": "^0.33.5",
+    "unpdf": "^0.12.1",
     "zod": "^3.23.8"
   },
   "devDependencies": {

@@ -3,6 +3,7 @@
     { "path": "/api/cron/daily-report", "schedule": "30 13 * * *" },
     { "path": "/api/cron/whatsapp-reminders", "schedule": "30 2 * * *" },
     { "path": "/api/cron/weekly-report", "schedule": "30 12 * * 0" },
-    { "path": "/api/cron/fee-reminders", "schedule": "30 4 * * *" }
+    { "path": "/api/cron/fee-reminders", "schedule": "30 4 * * *" },
+    { "path": "/api/cron/kb", "schedule": "45 13 * * *" }
   ]
 }
