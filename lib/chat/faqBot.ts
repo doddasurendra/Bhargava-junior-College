@@ -80,7 +80,7 @@ export function answer(intent: Intent | 'handoff' | 'unknown', facts: BotFacts):
     case 'hostel':
       return {
         intent,
-        text: `${hostel.blocks}, with ${hostel.rooms.join(', ').toLowerCase()}. ${hostel.safety[2]}. ${hostel.food}`,
+        text: `Boys stay at the Boys Residential Campus in Kuntloor and girls at the Girls Residential Campus in Bairamalguda, both with 24×7 security and CCTV surveillance and nutritious, hygienic meals. ${hostel.blocks}, with ${hostel.rooms.join(', ').toLowerCase()}. ${hostel.safety[2]}. ${hostel.food}`,
         links: [{ label: 'Hostel details', href: '/hostel' }],
       };
     case 'visit':
@@ -94,7 +94,7 @@ export function answer(intent: Intent | 'handoff' | 'unknown', facts: BotFacts):
     case 'rank':
       return { intent, text: 'We never promise ranks or seats. What we can promise is small batches, daily practice papers, weekly tests and a mentor for every 20 students. A counsellor can explain the academic plan.', offerHandoff: true };
     case 'contact':
-      return { intent, text: `We are at ${fullAddress}. Call ${college.phones.map((p) => p.display).join(' or ')}. Office hours: ${college.hoursShort}.`, links: [{ label: 'Directions', href: '/contact' }] };
+      return { intent, text: `Central Administration Office: ${fullAddress}. Campuses: Girls Residential (Bairamalguda), Boys Residential (Kuntloor) and Day Scholar (LB Nagar). Call ${college.phones.map((p) => p.display).join(' or ')}. Office hours: ${college.hoursShort}.`, links: [{ label: 'Directions', href: '/contact' }] };
     case 'handoff':
       return { intent: 'handoff', text: 'I can connect you to an admission counsellor. Please share your name and mobile number.', offerHandoff: true };
     default:

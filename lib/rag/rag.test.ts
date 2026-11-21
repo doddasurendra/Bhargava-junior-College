@@ -16,10 +16,11 @@ describe('BJC knowledge base (RAG)', () => {
   });
 
   it('retrieves the right section for real questions, typos and Telugu/Hindi', () => {
-    expect(retrieve(c, 'What is the address of the college?').hits[0]?.section).toBe('Contact and location');
+    // the brochure's address article (all three addresses) or the Contact section: either way the real address
+    expect(retrieve(c, 'What is the address of the college?').hits[0]?.text).toMatch(/3-2-22/);
     expect(retrieve(c, 'hostel fees').hits.map((h) => h.section).join(' ')).toMatch(/Hostel|Fees/);
-    expect(retrieve(c, 'tell me about the scholarshp test').hits[0]?.section).toMatch(/BSAT/); // typo
-    expect(retrieve(c, 'కాలేజీ చిరునామా ఏమిటి?').hits[0]?.section).toBe('Contact and location');
+    expect(`${retrieve(c, 'tell me about the scholarshp test').hits[0]?.section} ${retrieve(c, 'tell me about the scholarshp test').hits[0]?.text}`).toMatch(/BSAT/); // typo: the BSAT section or the BSAT FAQ
+    expect(retrieve(c, 'కాలేజీ చిరునామా ఏమిటి?').hits[0]?.text).toMatch(/3-2-22/);
     expect(retrieve(c, 'आपके कॉलेज की फीस कितनी है?').hits.some((h) => /Fees/.test(h.section))).toBe(true);
     expect(retrieve(c, 'What is the vision of the college?').hits[0]?.text).toMatch(/Vision:/);
   });

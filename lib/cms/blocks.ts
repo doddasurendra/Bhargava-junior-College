@@ -2,6 +2,7 @@ import { z } from 'zod';
 import * as sample from '@/content/sample';
 import { programs } from '@/content/programs';
 import { college } from '@/content/college';
+import { brochureDefaults } from '@/content/brochure/cms';
 import type { Role } from '../crm/types';
 import type { Field } from './fields';
 
@@ -197,7 +198,7 @@ export const BLOCKS = {
     editors: [...CONTENT, 'principal'],
     schema: z.object({
       sample: flag,
-      items: z.array(z.object({ name: s(80), subject: s(40), years: z.coerce.number().int().min(0).max(60), qualification: os(120).default(null), photoUrl: url.default(null) })).max(100),
+      items: z.array(z.object({ name: s(80), subject: s(40), years: z.coerce.number().int().min(0).max(60), qualification: os(120).default(null), photoUrl: url.default(null), expertise: os(80).default(null) })).max(100),
       leadershipMessage: os(2000).default(null),
     }),
     fields: [
@@ -206,11 +207,13 @@ export const BLOCKS = {
         { key: 'subject', label: 'Subject', type: 'text' },
         { key: 'years', label: 'Years of experience', type: 'number' },
         { key: 'qualification', label: 'Qualification', type: 'text' },
+        { key: 'expertise', label: 'Expertise (e.g. Expert in Concept Clarity)', type: 'text' },
         { key: 'photoUrl', label: 'Photo link', type: 'url' },
       ] },
       { key: 'leadershipMessage', label: 'Message from the leadership (About page)', type: 'longtext' },
     ],
-    default: { sample: true, items: sample.faculty.items.map((f) => ({ ...f, qualification: null, photoUrl: null })), leadershipMessage: null },
+    // The 16 professors from the official 2027-28 brochure (page 4).
+    default: brochureDefaults.faculty,
   }),
 
   faqs: block({
@@ -223,7 +226,8 @@ export const BLOCKS = {
       { key: 'q', label: 'Question', type: 'text' },
       { key: 'a', label: 'Answer', type: 'longtext' },
     ] }],
-    default: sample.faqs,
+    // The six brochure questions (page 4, official) come first, then the earlier FAQs (some quote sample fees/BSAT).
+    default: { ...sample.faqs, items: [...brochureDefaults.parentFaqs, ...sample.faqs.items] },
   }),
 
   visitSlots: block({
@@ -351,7 +355,7 @@ export const BLOCKS = {
         { key: 'gated', label: 'Ask for name + mobile first', type: 'bool' },
       ] },
     ],
-    default: { ...sample.brochures, downloads: [] },
+    default: brochureDefaults.brochures,
   }),
 
   testimonials: block({
@@ -388,7 +392,8 @@ export const BLOCKS = {
         { key: 'imageUrl', label: 'Image link', type: 'url' },
       ] },
     ],
-    default: { sample: true, tourUrl: null, items: [] },
+    // Every photo from the official 2027-28 brochure, with its caption.
+    default: brochureDefaults.gallery,
   }),
 
   blog: block({
@@ -593,19 +598,21 @@ export const BLOCKS = {
     editors: CONTENT,
     schema: z.object({
       sample: flag,
-      items: z.array(z.object({ title: s(140), body: s(4000), category: z.enum(['admissions', 'fees', 'academics', 'hostel', 'transport', 'policies', 'other']), audience: z.enum(['public', 'staff']), published: flag })).max(300),
+      items: z.array(z.object({ title: s(140), body: s(4000), category: z.enum(['admissions', 'fees', 'academics', 'hostel', 'transport', 'policies', 'parents', 'campus', 'other']), audience: z.enum(['public', 'staff']), published: flag })).max(300),
     }),
     fields: [{ key: 'items', label: 'Articles', type: 'list', itemLabel: 'article', of: [
       { key: 'title', label: 'Title / question', type: 'text' },
       { key: 'body', label: 'Answer / article', type: 'longtext' },
-      { key: 'category', label: 'Category', type: 'select', options: ['admissions', 'fees', 'academics', 'hostel', 'transport', 'policies', 'other'].map((v) => ({ value: v, label: v[0].toUpperCase() + v.slice(1) })) },
+      { key: 'category', label: 'Category', type: 'select', options: ['admissions', 'fees', 'academics', 'hostel', 'transport', 'policies', 'parents', 'campus', 'other'].map((v) => ({ value: v, label: v[0].toUpperCase() + v.slice(1) })) },
       { key: 'audience', label: 'Who can see it', type: 'select', options: [{ value: 'public', label: 'Public (website chatbot)' }, { value: 'staff', label: 'Staff only' }] },
       { key: 'published', label: 'Published', type: 'bool' },
     ] }],
     // Starter articles use only facts already on the site; the college should review them and switch to real data.
+    // Official brochure articles first (they feed the chatbot and the voice agent), then the starter articles.
     default: {
-      sample: true,
+      sample: false,
       items: [
+        ...brochureDefaults.knowledge,
         { title: 'What documents are needed for admission?', body: 'The admission office verifies the documents on the admission checklist (shown on the Admissions page and in the parent app). The College ID is issued only after the application, documents, fee payment, receipt and student record are all completed.', category: 'admissions', audience: 'public', published: true },
         { title: 'How do I track my admission?', body: 'Open the Track your admission page and enter the mobile number you enquired with. A one-time code is sent to that number, then the timeline shows every step, who owns it and the date.', category: 'admissions', audience: 'public', published: true },
         { title: 'Office hours', body: `${college.hours.map((h) => `${h.days}: ${h.time}`).join('. ')}.`, category: 'other', audience: 'public', published: true },
@@ -651,11 +658,12 @@ export const BLOCKS = {
       sample: true,
       intervalSec: 7,
       slides: [
+        // Official brochure cover (page 1), word for word.
         {
-          eyebrow: `Admissions open · ${college.admissionsOpen} batch`,
-          title: 'Two years. One goal.',
-          highlight: 'Your IIT or medical seat.',
-          body: `IIT-JEE and NEET UG integrated with the TS Intermediate Board, on one campus in Saroornagar, Hyderabad. Faculty with ${college.facultyAvgExperience} of average experience, batches of up to ${college.maxBatchSize}, and fees you can see before you call.`,
+          eyebrow: 'Admission 2027-28 Open',
+          title: 'Two Years. One Dream.',
+          highlight: null,
+          body: 'The right choice today shapes your child’s tomorrow. JEE Main · JEE Advanced · NEET-UG.',
           primaryLabel: 'Enquire now', primaryHref: '#callback', secondaryLabel: 'Book a campus visit', secondaryHref: '/visit',
         },
         {

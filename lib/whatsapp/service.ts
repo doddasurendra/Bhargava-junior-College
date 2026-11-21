@@ -14,6 +14,7 @@ import { getTemplate, renderBody, validateParams, type TemplateKey } from './tem
 import type { MessageStore, OutboundMessage, OutboundStatus } from './types';
 import { keywordIntent, parseWebhook, verifySignature } from './webhook';
 import { showCodesOnScreen } from '../localTesting';
+import { siteUrl } from '../seo';
 
 // ---------------------------------------------------------------- configuration
 
@@ -164,7 +165,9 @@ const firstName = (name: string | null | undefined) => (name?.trim().split(/\s+/
 
 export async function enquiryAck(name: string, phone: string, source: string, program?: string | null) {
   const { brochures } = await getContent();
-  const url = program ? brochures.urls[program] : null;
+  const path = program ? brochures.urls[program] : null;
+  // A site path (/docs/...) becomes a full link: WhatsApp fetches the document from the public URL.
+  const url = path?.startsWith('/') ? `${siteUrl}${path}` : path;
   const p = program ? getProgram(program) : undefined;
   if (source === 'brochure' && url && p) {
     return sendTemplate({ template: 'brochure', to: phone, params: [firstName(name), p.name, college.phones[0].display], document: { link: url, filename: `${p.short} brochure.pdf` }, dedupeKey: `brochure:${phone}:${program}` });

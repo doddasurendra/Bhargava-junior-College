@@ -30,9 +30,11 @@ afterAll(() => {
 });
 
 describe('CMS blocks', () => {
-  it('every sample default passes its own schema and is marked sample', () => {
+  it('every default passes its own schema; only the official-brochure blocks are real data', () => {
     const c = defaultContent();
-    for (const k of BLOCK_KEYS) expect((c[k] as { sample: boolean }).sample).toBe(true);
+    // content/brochure (official 2027-28 brochure) replaced these sample defaults; everything else is still sample
+    const REAL = ['faculty', 'gallery', 'brochures', 'knowledgeBase'];
+    for (const k of BLOCK_KEYS) expect((c[k] as { sample: boolean }).sample, k).toBe(!REAL.includes(k));
     expect(c.fees.twoYear.tuition).toBe(135000);
     expect(c.bsat.slabs[0]).toMatchObject({ min: 90, pct: 60 });
   });

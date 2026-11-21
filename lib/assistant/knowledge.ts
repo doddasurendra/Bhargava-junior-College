@@ -18,8 +18,9 @@ export function buildKnowledge(c: Content): string {
   const sample = (s: boolean) => (s ? ' [SAMPLE DATA — the college has not yet confirmed this; say "currently listed" and suggest confirming with a counsellor]' : '');
   const lines: string[] = [];
   lines.push(`# ${college.name}`);
-  lines.push(`Run by ${college.society}. Motto: ${college.motto}. Single campus in ${college.address.locality}, ${college.address.city}.`);
-  lines.push(`Address: ${fullAddress}. Phones: ${college.phones.map((p) => p.display).join(', ')}. Email: ${college.email}.`);
+  lines.push(`Run by ${college.society}. ${college.recognition}. Motto: ${college.motto} ("${college.lifeMotto}"). Chairman & Co-founder: ${college.chairman.name}.`);
+  lines.push(`Three campuses: Girls Residential Campus (Bairamalguda), Boys Residential Campus (Kuntloor) and Day Scholar Campus (LB Nagar, Hyderabad). Central Administration Office: ${fullAddress}.`);
+  lines.push(`Phones: ${college.phones.map((p) => p.display).join(', ')}. Email: ${college.email}. Website: ${college.website}. Official brochure 2027-28: /docs/BJC-Brochure-2027-28.pdf.`);
   lines.push(`Office hours: ${college.hours.map((h) => `${h.days} ${h.time}`).join('; ')}.`);
   lines.push(`Leadership: ${college.leader.name}, ${college.leader.credentials}. Average faculty experience ${college.facultyAvgExperience}.`);
   lines.push(`Batches have at most ${college.maxBatchSize} students. One mentor for every ${college.mentorRatio} students, with a weekly one-to-one; monthly stress check-in and an on-campus counsellor.`);
@@ -58,7 +59,7 @@ export function buildKnowledge(c: Content): string {
   lines.push(`Totals: ${results.aggregates.map((a) => `${a.value} ${a.label}`).join('; ')}.`);
 
   lines.push(`\n## Faculty${sample(faculty.sample)}`);
-  lines.push(faculty.items.map((f) => `${f.name} (${f.subject}, ${f.years} years)`).join('; ') + '.');
+  lines.push(faculty.items.map((f) => `${f.name} (${f.subject}, ${f.qualification ? `${f.qualification}, ` : ''}${f.years}+ years${f.expertise ? `, ${f.expertise}` : ''})`).join('; ') + '.');
   
 
   if (testimonials.length) lines.push(`Parent testimonials from: ${testimonials.map((t) => (t.role ? `${t.name} (${t.role})` : t.name)).join('; ')}.`);

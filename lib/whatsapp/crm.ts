@@ -32,7 +32,9 @@ async function buildSend(lead: CrmLead, key: TemplateKey): Promise<{ req: Omit<S
       if (!p) return { unavailable: 'Set the lead’s program first.' };
       const url = (await getContent()).brochures.urls[p.slug];
       if (!url) return { unavailable: `No ${p.short} brochure PDF is configured yet.` };
-      return { req: { template: key, to: lead.phone, params: [name, p.name, college.phones[0].display], document: { link: url, filename: `${p.short} brochure.pdf` }, leadId: lead.id, requireConsent: true } };
+      // A site path (/docs/...) becomes a full link: WhatsApp fetches the document from the public URL.
+      const link = url.startsWith('/') ? `${siteUrl}${url}` : url;
+      return { req: { template: key, to: lead.phone, params: [name, p.name, college.phones[0].display], document: { link, filename: `${p.short} brochure.pdf` }, leadId: lead.id, requireConsent: true } };
     }
     case 'visit_confirmation': {
       const visits = (await getCrmRepo().getLeadHistory(lead.id)).visits.filter((v) => v.status === 'scheduled' && v.date >= todayIST()).sort((a, b) => a.date.localeCompare(b.date));
