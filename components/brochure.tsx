@@ -137,12 +137,20 @@ export function DifferentSection({ t, className = '' }: { t: BrochureText; class
   );
 }
 
-/** Home: the eight titles as compact cards linking to /why-bhargava. */
-export function DifferentCompact({ t }: { t: BrochureText }) {
+/** Home: the eight titles as compact cards linking to /why-bhargava. `first`: the opening screen of the home page. */
+export function DifferentCompact({ t, first = false }: { t: BrochureText; first?: boolean }) {
   const D = t.different;
   return (
-    <Block>
-      <Head eyebrow={D.eyebrow} title={D.title} intro={D.intro} />
+    <Block id="why-bhargava" className={first ? '!py-8 sm:!py-10 bg-surface' : ''}>
+      {first ? (
+        <header className="mb-6 max-w-3xl">
+          <Eyebrow>{D.eyebrow}</Eyebrow>
+          <h2 className="mt-2 font-display text-3xl leading-tight text-heading sm:text-4xl">{D.title}</h2>
+          <p className="mt-2 text-[15px] leading-6 text-muted">{D.intro}</p>
+        </header>
+      ) : (
+        <Head eyebrow={D.eyebrow} title={D.title} intro={D.intro} />
+      )}
       <ol className="grid grid-cols-2 gap-3 lg:grid-cols-4">
         {D.items.map((it, i) => (
           <li key={it.title}>
@@ -153,7 +161,11 @@ export function DifferentCompact({ t }: { t: BrochureText }) {
           </li>
         ))}
       </ol>
-      <p className="mt-6"><Link href="/why-bhargava" className="font-semibold text-maroon underline dark:text-gold">{D.seeAll} →</Link></p>
+      <div className="mt-6 flex flex-wrap items-center gap-3">
+        <Link href="/why-bhargava" className={first ? 'btn-primary' : 'font-semibold text-maroon underline dark:text-gold'}>{D.seeAll} →</Link>
+        {first && <Link href="#callback" className="btn-outline">{t.cover.eyebrow} · Get a callback</Link>}
+        {first && <p className="w-full text-sm font-semibold text-heading sm:w-auto">{D.differenceTitle}: <span className="font-normal text-muted">{D.difference}</span></p>}
+      </div>
     </Block>
   );
 }

@@ -31,6 +31,9 @@ export default async function HomePage() {
   const slides = lang === 'en' ? heroSlides.slides : heroSlides.slides.map((s, i) => (i === 0 && s.title === 'Two Years. One Dream.' ? { ...s, eyebrow: t.cover.eyebrow, title: t.cover.title, highlight: null, body: `${t.cover.sub} ${t.cover.exams}.` } : s));
   return (
     <>
+      {/* First screen: Why Bhargava (the brochure's eight differentiators) */}
+      <DifferentCompact t={t} first />
+
       {/* Hero */}
       <section className="relative overflow-hidden bg-navy text-white">
         <Image src={media.hero.building.src} alt="" aria-hidden fill priority sizes="100vw" className="object-cover opacity-25" />
@@ -163,8 +166,6 @@ export default async function HomePage() {
         </div>
       </section>
 
-      {/* Why: the brochure's eight differentiators */}
-      <DifferentCompact t={t} />
 
       {/* BSAT banner */}
       <section className="container-x">
