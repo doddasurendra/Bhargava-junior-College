@@ -1,8 +1,8 @@
-# never upload local data, secrets or large source files to Vercel
-.data/
+# never upload local data, secrets or large source files to Vercel (paths anchored to the project root)
+/.data/
 .env*
-docs/
-assets/
-.next/
-.next-build/
-node_modules/
+/docs/
+/assets/
+/.next/
+/.next-build/
+/node_modules/
