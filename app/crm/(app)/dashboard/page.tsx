@@ -4,6 +4,7 @@ import { TrendChart } from '@/components/crm/charts';
 import { BacklogTiles, FlaggedCard, FunnelCard, LossesCard, OwnersCard, QualityCard, SourcesCard } from '@/components/crm/dashboardSections';
 import { DailyParameters, QualityMix, SeatsVsTarget, SourceRoi, VisitAndChat } from '@/components/crm/dashboardExtras';
 import { programs } from '@/content/programs';
+import { CAMPUS_OPTIONS, isCampus } from '@/lib/campus';
 import { requireStaff } from '@/lib/crm/auth';
 import type { MetricsFilter, PeriodKey } from '@/lib/crm/metrics';
 import { dashboard } from '@/lib/crm/reports';
@@ -20,12 +21,13 @@ const one = (v: string | string[] | undefined) => (Array.isArray(v) ? v[0] : v) 
 export default async function DashboardPage({ searchParams }: { searchParams: SP }) {
   const user = await requireStaff('dashboard.view');
   const key = (KEYS.find((k) => k === one(searchParams.p)) ?? 'today') as PeriodKey;
-  const filter: MetricsFilter = { program: one(searchParams.program), source: one(searchParams.source), school: one(searchParams.school)?.slice(0, 120), ownerId: one(searchParams.owner) };
+  const campusParam = one(searchParams.campus);
+  const filter: MetricsFilter = { program: one(searchParams.program), source: one(searchParams.source), school: one(searchParams.school)?.slice(0, 120), ownerId: one(searchParams.owner), campus: isCampus(campusParam) ? campusParam : undefined };
   const { metrics: m, series, periods, season, options } = await dashboard(user, key, filter);
-  const filtered = Boolean(filter.program || filter.source || filter.school || filter.ownerId);
+  const filtered = Boolean(filter.program || filter.source || filter.school || filter.ownerId || filter.campus);
   const qs = (p: string) => {
     const s = new URLSearchParams({ p });
-    for (const [k, v] of Object.entries({ program: filter.program, source: filter.source, school: filter.school, owner: filter.ownerId })) if (v) s.set(k, v);
+    for (const [k, v] of Object.entries({ program: filter.program, source: filter.source, school: filter.school, owner: filter.ownerId, campus: filter.campus })) if (v) s.set(k, v);
     return `/crm/dashboard?${s}`;
   };
 
@@ -86,6 +88,12 @@ export default async function DashboardPage({ searchParams }: { searchParams: SP
           <option value="">All owners</option>
           {options.owners.map((o) => (
             <option key={o.id} value={o.id}>{o.name}</option>
+          ))}
+        </select>
+        <select name="campus" defaultValue={filter.campus ?? ''} className="input w-auto py-1.5 text-sm" aria-label="Campus">
+          <option value="">All campuses</option>
+          {CAMPUS_OPTIONS.map((c) => (
+            <option key={c.value} value={c.value}>{c.label}</option>
           ))}
         </select>
         <button className="btn-outline py-1.5">Apply</button>

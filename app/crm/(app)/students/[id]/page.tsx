@@ -15,6 +15,8 @@ import { homework, timetable } from '@/lib/records/collections';
 import { deliveryLabel, getMessageStore } from '@/lib/whatsapp/service';
 import { studentFile } from '@/lib/school/mentoring';
 import { busFor, certificatesFor } from '@/lib/school/operations';
+import { campusOfLead } from '@/lib/campus';
+import { campusLabel } from '@/content/brochure';
 
 export const metadata = { title: 'Student' };
 
@@ -30,6 +32,7 @@ export default async function StudentPage({ params }: { params: { id: string } }
   if (!s) notFound();
   const today = todayIST();
   const [batch, room, bus, certs, file, results, guardians, wa] = await Promise.all([batchOf(s.id), roomOf(s.id), busFor(s.id), certificatesFor(s.id), studentFile(user, s.id), studentResults(s.id), getAppStore().guardiansOf(s.id), getMessageStore().listForLead(s.leadId, 30)]);
+  const campus = campusLabel(await campusOfLead(s.leadId));
   const [regs, hw, mats, subjectsTaught] = batch
     ? await Promise.all([batchRegisters(batch.id, addDays(today, -180), today), homework.list(store(), { k1: batch.id }), batchMaterials(batch.id), timetable.list(store(), { k1: batch.id })])
     : [[], [], [], []];
@@ -46,6 +49,7 @@ export default async function StudentPage({ params }: { params: { id: string } }
         <div>
           <h1 className="font-display text-3xl text-heading">{s.fullName}</h1>
           <p className="text-sm text-muted"><span className="font-mono">{s.collegeId}</span> · {programShort(s.program)} · {batch?.data.name ?? 'no batch'} · {s.stay === 'hostel' ? `hostel${room ? ` room ${room.data.room}` : ''}` : `day scholar${bus ? ` · bus ${bus.data.busNo}` : ''}`}</p>
+          <p className="text-sm text-muted">Campus: <span className="font-semibold text-heading">{campus ?? 'not set'}</span>{can(user, 'lead.qualify') && <> · <Link href={`/crm/leads/${s.leadId}`} className="underline">change on the admission record</Link></>}</p>
           <p className="text-sm text-muted">Guardian: {s.guardianName} · <span className="font-mono">{phoneFor(user, s.guardianPhone)}</span></p>
         </div>
         <div className="flex gap-2">

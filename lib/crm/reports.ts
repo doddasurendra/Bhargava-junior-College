@@ -13,6 +13,7 @@ import { computeMetrics, dailySeries, filterData, periods, type Metrics, type Me
 import { can } from './permissions';
 import { getCrmRepo } from './repo';
 import { CrmError } from './service';
+import { isCampus, leadIdsForCampus } from '../campus';
 import type { Role, Staff } from './types';
 
 const istMidnight = (date: string) => new Date(`${date}T00:00:00+05:30`).toISOString();
@@ -30,7 +31,8 @@ async function load(now: Date) {
 export async function dashboard(user: Staff, key: PeriodKey, filter: MetricsFilter = {}, now = new Date()) {
   if (!can(user, 'dashboard.view')) throw new CrmError('Only management can see the dashboard.');
   const { data: all, seriesFrom, season, extras } = await load(now);
-  const data = filterData(all, filter);
+  const campusLeadIds = isCampus(filter.campus) ? await leadIdsForCampus(filter.campus) : undefined;
+  const data = filterData(all, { ...filter, campusLeadIds });
   const ps = periods(season.start, now);
   // filter options come from the unfiltered data so a filter can always be changed back
   const schools = [...new Set(all.leads.map((l) => l.school).filter((s): s is string => Boolean(s)))].sort().slice(0, 300);

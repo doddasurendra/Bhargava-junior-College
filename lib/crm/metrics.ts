@@ -23,6 +23,10 @@ export interface MetricsFilter {
   source?: string;
   school?: string;
   ownerId?: string;
+  /** campus key (girls_bairamalguda / boys_kuntloor / day_lb_nagar) */
+  campus?: string;
+  /** filled in by the dashboard from the campus choices: the leads that chose `campus` */
+  campusLeadIds?: Set<string>;
 }
 
 /** Marketing spend (content/marketing manager) and seat targets (CMS) for cost per lead and seats vs target. */
@@ -33,9 +37,10 @@ export interface MetricsExtras {
 
 /** Keeps only the leads matching the filter, and the calls, visits, audit and payments that belong to them. */
 export function filterData(data: MetricsData, f: MetricsFilter): MetricsData {
-  if (!f.program && !f.source && !f.school && !f.ownerId) return data;
+  if (!f.program && !f.source && !f.school && !f.ownerId && !f.campusLeadIds) return data;
   const leads = data.leads.filter(
     (l) =>
+      (!f.campusLeadIds || f.campusLeadIds.has(l.id)) &&
       (!f.program || l.program === f.program) &&
       (!f.source || l.firstSource === f.source || l.lastSource === f.source) &&
       (!f.school || (l.school ?? '').toLowerCase() === f.school.toLowerCase()) &&

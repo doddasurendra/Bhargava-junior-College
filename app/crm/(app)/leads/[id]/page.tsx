@@ -20,7 +20,9 @@ import { CrmError, family, leadDetail } from '@/lib/crm/service';
 import { CALL_OUTCOMES, LOST_REASONS, ROLE_LABELS, STATUS_LABELS } from '@/lib/crm/types';
 import { FamilyPanel } from '@/components/crm/FamilyPanel';
 import { QuickForm } from '@/components/crm/QuickForm';
-import { counsellingAction } from '@/app/crm/school-actions';
+import { campusAction, counsellingAction } from '@/app/crm/school-actions';
+import { campusOfLead, CAMPUS_OPTIONS } from '@/lib/campus';
+import { campusLabel } from '@/content/brochure';
 import { counsellingFor } from '@/lib/school/counselling';
 import { programs } from '@/content/programs';
 import { addDays, formatDate, formatDateTime, todayIST } from '@/lib/dates';
@@ -40,6 +42,7 @@ export default async function LeadPage({ params }: { params: { id: string } }) {
     throw e;
   }
   const { lead, history, staff, owner, follow } = d;
+  const campus = await campusOfLead(lead.id);
   const sessions = can(user, 'counselling.record') ? await counsellingFor(lead.id) : [];
   const verify = VERIFY_STATUSES.includes(lead.status) && can(user, 'verify.view') ? await verification(user, lead.id) : null;
   const wa = await whatsappForLead(user, lead.id);
@@ -94,6 +97,8 @@ export default async function LeadPage({ params }: { params: { id: string } }) {
             <span>·</span>
             <CategoryBadge category={lead.category} />
             <StatusBadge status={lead.status} />
+            <span>·</span>
+            <span title="Campus the family chose">{campusLabel(campus) ?? 'Campus not chosen'}</span>
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
@@ -129,6 +134,14 @@ export default async function LeadPage({ params }: { params: { id: string } }) {
               <p className="text-xs text-muted">{follow.ageDays} days since {lead.lastContactAt ? 'contact' : 'enquiry'}</p>
             </div>
           </div>
+          {can(user, 'lead.qualify') && (
+            <Panel title="Campus">
+              <QuickForm action={campusAction} submit="Save campus" reset={false} cols={2} fields={[
+                { name: 'leadId', type: 'hidden', value: lead.id },
+                { name: 'campus', label: 'Campus the family wants', type: 'select', defaultValue: campus ?? '', options: [{ value: '', label: 'Not chosen yet' }, ...CAMPUS_OPTIONS] },
+              ]} />
+            </Panel>
+          )}
 
           <Panel title="Details">
             <dl className="grid gap-x-6 gap-y-2 text-sm sm:grid-cols-2">

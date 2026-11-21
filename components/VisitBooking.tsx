@@ -8,6 +8,13 @@ import { Consent, Field, FormError, Honeypot, PhoneInput, Success } from './form
 
 type Slot = { slot: string; label: string; available: number };
 
+/** The three campuses from the official brochure (same keys as content/brochure CAMPUSES). */
+const CAMPUS_CHOICES = [
+  ['girls_bairamalguda', 'Girls Residential – Bairamalguda'],
+  ['boys_kuntloor', 'Boys Residential – Kuntloor'],
+  ['day_lb_nagar', 'Day Scholar – LB Nagar'],
+] as const;
+
 export function VisitBooking({ dates }: { dates: string[] }) {
   const [date, setDate] = useState(dates[0] ?? '');
   const [slots, setSlots] = useState<Slot[] | null>(null);
@@ -17,6 +24,7 @@ export function VisitBooking({ dates }: { dates: string[] }) {
   const [phone, setPhone] = useState('');
   const [program, setProgram] = useState('');
   const [familySize, setFamilySize] = useState(2);
+  const [campus, setCampus] = useState('');
   const [consent, setConsent] = useState(false);
   const [website, setWebsite] = useState('');
   const [sending, setSending] = useState(false);
@@ -48,7 +56,7 @@ export function VisitBooking({ dates }: { dates: string[] }) {
     if (!slot) return setError('Please choose a time slot.');
     setError(null);
     setSending(true);
-    const res = await postJson<{ when: string }>('/api/visits', { name, phone, program: program || undefined, date, slot, familySize, consent, website, attribution: getAttribution() });
+    const res = await postJson<{ when: string }>('/api/visits', { name, phone, program: program || undefined, campus: campus || undefined, date, slot, familySize, consent, website, attribution: getAttribution() });
     setSending(false);
     if (!res.ok) {
       setError(res.error ?? 'Something went wrong.');
@@ -129,6 +137,16 @@ export function VisitBooking({ dates }: { dates: string[] }) {
               {programs.map((p) => (
                 <option key={p.slug} value={p.slug}>
                   {p.name}
+                </option>
+              ))}
+            </select>
+          </Field>
+          <Field label="Campus">
+            <select className="input" name="campus" value={campus} onChange={(e) => setCampus(e.target.value)}>
+              <option value="">Not sure yet</option>
+              {CAMPUS_CHOICES.map(([v, l]) => (
+                <option key={v} value={v}>
+                  {l}
                 </option>
               ))}
             </select>

@@ -5,6 +5,8 @@ import { getStore, StoreError } from '@/lib/store';
 import { visitRequestSchema } from '@/lib/validation';
 import { slotLabel, slotsFor, validateVisit } from '@/lib/visits';
 import { getContent } from '@/lib/cms';
+import { setLeadCampus } from '@/lib/campus';
+import { getCrmRepo } from '@/lib/crm/repo';
 
 export const dynamic = 'force-dynamic';
 
@@ -29,7 +31,7 @@ export async function POST(req: Request) {
   const parsed = await parseBody(req, visitRequestSchema);
   if ('spam' in parsed) return ok();
   if ('error' in parsed) return fail(parsed.error);
-  const d = parsed.data;
+  const { campus, ...d } = parsed.data;
 
   const { visitSlots } = await getContent();
   const invalid = validateVisit(d.date, d.slot, visitSlots);
@@ -43,6 +45,14 @@ export async function POST(req: Request) {
     if (e instanceof StoreError) return fail('That slot is not available. Please pick another time.', 409);
     console.error('[visits] booking failed', (e as Error).message);
     return fail('Something went wrong. Please call us or try again.', 500);
+  }
+
+  // The family's campus choice goes on their lead (and later the student record). Never blocks the booking.
+  if (campus) {
+    await getCrmRepo()
+      .getVisit(visitId)
+      .then((v) => (v ? setLeadCampus(v.leadId, campus, { source: 'visit', by: null }) : undefined))
+      .catch((e) => console.error('[visits] campus not saved', (e as Error).message));
   }
 
   const when = `${formatDate(d.date)}, ${slotLabel(d.slot, visitSlots)}`;

@@ -34,6 +34,21 @@ export const aiQueryAudit = collection({
   k2: (d) => d.at,
 });
 
+// ---------------------------------------------------------------- campus (official brochure, page 7)
+
+/**
+ * Which of the three campuses a family wants (and, after admission, where the student studies). One record per
+ * lead, id = leadId; the student record uses its lead's. Kept here (not as a lead column) so it works the same
+ * on the local store and Supabase without a migration.
+ */
+export const CAMPUS_VALUES = ['girls_bairamalguda', 'boys_kuntloor', 'day_lb_nagar'] as const;
+export const campusPreferences = collection({
+  name: 'campus_preferences',
+  schema: z.object({ leadId: z.string().min(1).max(80), campus: z.enum(CAMPUS_VALUES), source: z.enum(['visit', 'crm']), setBy: z.string().max(80).nullable() }),
+  k1: (d) => d.campus,
+  k2: (d) => d.leadId,
+});
+
 // ---------------------------------------------------------------- academics (§9, §9A rows 3, 10–12, 15)
 
 const id = z.string().min(1).max(80);

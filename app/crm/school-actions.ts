@@ -9,6 +9,8 @@ import { SchoolError } from '@/lib/school/common';
 import * as M from '@/lib/school/mentoring';
 import * as O from '@/lib/school/operations';
 import { recordCounselling } from '@/lib/school/counselling';
+import { isCampus, setLeadCampus } from '@/lib/campus';
+import { leadDetail } from '@/lib/crm/service';
 import type { ActionState } from './actions';
 
 const s = (fd: FormData, k: string) => {
@@ -390,3 +392,16 @@ export const counsellingAction = async (_: ActionState, fd: FormData) =>
     });
     return 'Counselling recorded.';
   }, ['/crm/leads']);
+
+// ---------------------------------------------------------------- campus (official brochure: 3 campuses)
+/** Sets the family's campus on the lead (the student record shows its lead's campus). */
+export const campusAction = async (_: ActionState, fd: FormData) =>
+  run(async () => {
+    const user = await requireStaff('lead.qualify');
+    const leadId = req(fd, 'leadId', 'Lead');
+    await leadDetail(user, leadId); // throws if this user may not see the lead
+    const v = s(fd, 'campus');
+    if (v && !isCampus(v)) throw new SchoolError('Choose a campus from the list.');
+    await setLeadCampus(leadId, v && isCampus(v) ? v : null, { source: 'crm', by: user.id });
+    return v ? 'Campus saved.' : 'Campus cleared.';
+  }, ['/crm/leads', '/crm/students', '/crm/dashboard']);

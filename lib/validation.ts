@@ -77,6 +77,8 @@ export const visitRequestSchema = z.object({
   date: z.string(),
   slot: z.string().max(10),
   familySize: z.coerce.number().int().min(1, 'At least 1 person').max(8, 'Up to 8 people per visit'),
+  /** which campus the family is interested in (optional) */
+  campus: z.enum(['girls_bairamalguda', 'boys_kuntloor', 'day_lb_nagar']).optional(),
   consent: consentSchema,
   attribution: attributionSchema,
 });
