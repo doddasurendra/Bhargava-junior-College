@@ -23,3 +23,5 @@ docs/brochure-source.pdf
 
 .vercel
 .env*
+
+.claude/settings.local.json
