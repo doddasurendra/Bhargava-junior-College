@@ -157,6 +157,9 @@ describe('Open Book with real record-store operations (file store)', () => {
     expect(a.chapters[0].perYear.length).toBe(3);
     expect(a.repeated.length).toBeGreaterThan(0);
     expect(a.neverAsked).toContain('Waves');
+    const M = await import('./mocks');
+    const mid = await M.createMock({ kind: 'student', id: 's1', name: 'S' }, 's1', null, { examId: 'jee-main', subjects: ['Physics'], chapters: [], concepts: [], count: 10, difficulty: null, minutes: null, marks: null, negative: null, source: 'pattern' });
+    expect((await M.getMock(mid))?.questionIds.length).toBeGreaterThan(0);
     // a scanned paper is never filled with made-up text without OCR
     const scan = await P.uploadPaper({ kind: 'student', id: 's1', name: 'S' }, false, { name: 'scan.png', bytes: new Uint8Array([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, ...new Array(64).fill(0)]) }, { title: 'Photo', examId: 'jee-main', board: null, subject: 'Physics', topics: [], year: 2022, session: null, paperType: 'handwritten', difficulty: null, cls: 'na', licence: 'student_upload', answerKey: null });
     expect((await P.getPaper(scan))?.status).toBe('pending');
@@ -228,5 +231,14 @@ describe('Open Book with real record-store operations (file store)', () => {
     expect((await C.thread(id))?.answers.length).toBe(1);
     await expect(C.verify(staff('acc', 'accounts') as never, a.id)).rejects.toThrow(/permission/);
     expect((await C.similarThreads('range maximum 45 degrees', 'Physics'))[0]?.id).toBe(id);
+  });
+  it('learning path: build from mastery, daily plan, refresh', { timeout: 60_000 }, async () => {
+    const P = await import('./path');
+    const { addDays, todayIST } = await import('../dates');
+    const p = await P.buildPath('s1', { examId: 'jee-main', examDate: addDays(todayIST(), 120), minutesPerDay: 60 });
+    expect(p.items.length).toBeGreaterThan(100);
+    expect(p.items.filter((i) => i.status === 'in_progress').length).toBe(2);
+    const plan = await P.todayPlan('s1');
+    expect(plan?.tasks.length).toBeGreaterThan(0);
   });
 });

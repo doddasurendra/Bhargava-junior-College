@@ -235,7 +235,7 @@ export async function patternAnalysis(examId: string, subject: string | null) {
 export async function patternQuestionIds(examId: string, subject: string | null, count: number, excludeOwner: string | null) {
   const a = await patternAnalysis(examId, subject);
   need(a.basis.questions > 0, 'No approved past papers with extracted questions for this exam yet.');
-  const pool = (await obQuestions.list(store(), { k1: 'bank' })).concat(await obQuestions.list(store())).filter((r) => r.data.examId === examId && r.data.status === 'approved' && (!subject || r.data.subject === subject) && r.data.answer.length > 0 && r.data.ownerId !== excludeOwner);
+  const pool = (await obQuestions.list(store(), { k1: 'bank' })).concat(await obQuestions.list(store())).filter((r) => r.data.examId === examId && r.data.status === 'approved' && (!subject || r.data.subject === subject) && r.data.answer.length > 0 && (excludeOwner === null || r.data.ownerId !== excludeOwner));
   const seen = new Set<string>();
   const byChapter = new Map<string, string[]>();
   for (const r of pool) { if (seen.has(r.id)) continue; seen.add(r.id); byChapter.set(r.data.chapter, [...(byChapter.get(r.data.chapter) ?? []), r.id]); }
