@@ -20,11 +20,17 @@ async function otpLogin(page: Page, phone: string) {
   await page.locator('input[name=code]').fill(qa.otpCode);
   await page.locator('form').filter({ has: page.locator('input[name=code]') }).getByRole('button', { name: 'Sign in' }).click();
   await page.waitForURL((u) => !u.pathname.startsWith('/app/login'), { timeout: 60_000 });
+  await acceptConsent(page);
+}
+
+/** First sign-in of each identity (a phone, or a College ID) shows the one-time DPDP consent page. */
+async function acceptConsent(page: Page) {
   await page.waitForLoadState('networkidle'); // the app finishes its own redirect first
   if (new URL(page.url()).pathname.startsWith('/app/consent')) {
     await page.locator('input[name=agree]').check({ force: true });
     await page.getByRole('button', { name: /agree|continue|accept/i }).first().click();
     await page.waitForURL((u) => !u.pathname.startsWith('/app/consent'));
+    await page.waitForLoadState('networkidle');
   }
 }
 
@@ -101,6 +107,7 @@ test('student: OTP sign-in, sets a College ID password, then signs in with Colle
   await page.locator('input[name=password]').fill(pw);
   await page.locator('form').filter({ has: page.locator('input[name=collegeId]') }).getByRole('button').click();
   await page.waitForURL((u) => !u.pathname.startsWith('/app/login'), { timeout: 60_000 });
+  await acceptConsent(page);
   await expect(page.locator('body')).toContainText(qa.collegeId);
 });
 
