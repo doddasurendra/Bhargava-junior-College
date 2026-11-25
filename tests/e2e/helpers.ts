@@ -21,7 +21,7 @@ export const staffFor = (role: string) => {
 };
 
 /** Text that only appears when a page crashed or the server failed. */
-export const CRASH = /Application error|Internal Server Error|This page could not be found|Something went wrong|Unhandled Runtime Error/i;
+export const CRASH = /Application error|Internal Server Error|This page could not be found|This page isn.t here|Something went wrong|Unhandled Runtime Error/i;
 
 export async function staffLogin(page: Page, s: Pick<QaStaff, 'email' | 'password'>) {
   await page.goto('/crm/login');

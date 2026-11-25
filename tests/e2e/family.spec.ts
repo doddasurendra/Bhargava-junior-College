@@ -18,8 +18,9 @@ async function otpLogin(page: Page, phone: string) {
   await page.getByRole('button', { name: 'Send sign-in code' }).click();
   await expect(page.locator('input[name=code]'), 'OTP step (fails while test numbers are not configured on this deployment)').toBeVisible({ timeout: 30_000 });
   await page.locator('input[name=code]').fill(qa.otpCode);
-  await page.getByRole('button', { name: 'Sign in' }).click();
+  await page.locator('form').filter({ has: page.locator('input[name=code]') }).getByRole('button', { name: 'Sign in' }).click();
   await page.waitForURL((u) => !u.pathname.startsWith('/app/login'), { timeout: 60_000 });
+  await page.waitForLoadState('networkidle'); // the app finishes its own redirect first
   if (new URL(page.url()).pathname.startsWith('/app/consent')) {
     await page.locator('input[name=agree]').check({ force: true });
     await page.getByRole('button', { name: /agree|continue|accept/i }).first().click();
@@ -28,8 +29,9 @@ async function otpLogin(page: Page, phone: string) {
 }
 
 async function signOut(page: Page) {
-  await page.goto('/app/more');
+  await page.goto('/app');
   await page.getByRole('button', { name: /sign out|log out/i }).first().click();
+  await page.waitForURL((u) => !u.pathname.startsWith('/app') || u.pathname.startsWith('/app/login'));
   await page.goto('/app');
   await expect(page).toHaveURL(/\/app\/login/);
 }
@@ -52,7 +54,7 @@ test('wrong OTP is refused', async ({ page }) => {
   await page.getByRole('button', { name: 'Send sign-in code' }).click();
   await expect(page.locator('input[name=code]')).toBeVisible({ timeout: 30_000 });
   await page.locator('input[name=code]').fill(qa.otpCode === '482915' ? '482916' : '482915');
-  await page.getByRole('button', { name: 'Sign in' }).click();
+  await page.locator('form').filter({ has: page.locator('input[name=code]') }).getByRole('button', { name: 'Sign in' }).click();
   await expect(page.locator('body')).toContainText(/incorrect|invalid|wrong|expired/i);
 });
 
@@ -71,11 +73,10 @@ test('parent: OTP sign-in, sees only the linked child, attendance (absent + rema
   await expect(page.locator('body')).toContainText('78');
   await page.goto('/app/fees');
   await expect(page.locator('body')).toContainText('BJC/2027-28/00001');
-  await signOut(page);
-});
 
-test('parent cannot switch to a child that is not theirs (forged profile key)', async ({ page, context }) => {
-  await otpLogin(page, qa.numbers.parent);
+  // forged profile key for a child that is not theirs: ignored, still the linked child only
+  // (same session: the app allows 3 codes per number per 10 minutes)
+  const context = page.context();
   const origin = new URL(page.url()).origin;
   await context.addCookies([{ name: 'bjc_app_profile', value: 'p:00000000-0000-4000-8000-000000000000', url: origin }]);
   await page.goto('/app');
@@ -95,6 +96,7 @@ test('student: OTP sign-in, sets a College ID password, then signs in with Colle
   await expect(page.locator('body')).toContainText(/Password set/i);
   await signOut(page);
   await page.goto('/app/login');
+  await page.getByRole('button', { name: /Sign in with College ID/ }).click(); // the form is folded away
   await page.locator('input[name=collegeId]').fill(qa.collegeId);
   await page.locator('input[name=password]').fill(pw);
   await page.locator('form').filter({ has: page.locator('input[name=collegeId]') }).getByRole('button').click();
