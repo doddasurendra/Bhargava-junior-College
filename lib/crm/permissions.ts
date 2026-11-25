@@ -91,6 +91,11 @@ export const DEFAULT_RULES = {
   'wellbeing.helplines': ['super_admin', 'principal', 'student_counsellor'],
   'openbook.manage': [...ACADEMIC_HEADS, 'faculty'],
 
+  // ---- Open Book (AI digital library & exam preparation)
+  'ob.manage': [...ACADEMIC_HEADS, 'admin_office'],
+  'ob.teach': [...ACADEMIC_HEADS, ...TEACHERS],
+  'ob.moderate': [...ACADEMIC_HEADS, ...TEACHERS, 'student_counsellor'],
+
   // ---- hostel & transport (§9A.2 rows 13–14)
   'hostel.manage': ['super_admin', 'hostel_warden'],
   /** read-only hostel board for leadership (institution-wide visibility); no forms */
