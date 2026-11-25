@@ -2,6 +2,7 @@ import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { certificateAction, checkInAction, disciplineAction, mentorNoteAction } from '@/app/crm/school-actions';
 import { QuickForm } from '@/components/crm/QuickForm';
+import { studentPhoneAction } from '@/app/crm/guardian-actions';
 import { Empty, Panel, programShort } from '@/components/crm/ui';
 import { requireStaff } from '@/lib/crm/auth';
 import { phoneFor } from '@/lib/crm/mask';
@@ -77,7 +78,16 @@ export default async function StudentPage({ params }: { params: { id: string } }
             <dt className="text-muted">Class · section</dt><dd>{batch ? `${batch.data.name} · ${batch.data.section}` : 'Not allotted'}</dd>
             <dt className="text-muted">Student ID</dt><dd className="font-mono text-xs">{s.id}</dd>
             <dt className="text-muted">Admitted</dt><dd>{formatDate(s.createdAt.slice(0, 10))}</dd>
+            <dt className="text-muted">Student’s mobile</dt><dd className="font-mono text-xs">{s.loginPhone ? phoneFor(user, s.loginPhone) : 'not given'}</dd>
           </dl>
+          {can(user, 'guardians.manage') && (
+            <div className="mt-3 border-t border-line pt-3">
+              <QuickForm action={studentPhoneAction} submit="Save mobile" reset={false} fields={[
+                { name: 'studentId', type: 'hidden', value: s.id },
+                { name: 'phone', label: 'Student’s own mobile (app sign-in by OTP)', type: 'tel', placeholder: '10-digit mobile, blank to remove' },
+              ]} />
+            </div>
+          )}
         </Panel>
         <Panel title={`Parents (${guardians.length})`}>
           {guardians.length === 0 ? <Empty>No parent linked.</Empty> : (

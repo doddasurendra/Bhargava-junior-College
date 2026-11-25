@@ -1,5 +1,6 @@
 import { createHash, randomInt, timingSafeEqual } from 'node:crypto';
 import { getStore } from './store';
+import { testOtpCode } from './testOtp';
 
 const TTL_MS = 5 * 60 * 1000;
 const MAX_ATTEMPTS = 5;
@@ -15,7 +16,7 @@ function hash(phone: string, code: string): string {
 }
 
 export async function issueOtp(phone: string): Promise<string> {
-  const code = String(randomInt(100000, 1000000));
+  const code = testOtpCode(phone) ?? String(randomInt(100000, 1000000));
   await getStore().putOtp({ phone, codeHash: hash(phone, code), expiresAt: new Date(Date.now() + TTL_MS).toISOString(), attempts: 0, consumed: false });
   return code;
 }

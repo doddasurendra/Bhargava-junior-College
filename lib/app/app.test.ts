@@ -51,6 +51,22 @@ afterAll(() => {
 });
 
 describe('Student & Parent app', () => {
+  it('the admin office adds the student’s own mobile after admission, and the student can then sign in with it', async () => {
+    const { leadId } = await admit('+919888811001', 'Sanjana Rao', 'iit-jee', 'day');
+    const sid = (await repo.getVerification(leadId)).student!.id;
+    const own = '+919888811002';
+    expect((await app.resolveProfiles(own)).length).toBe(0);
+    const telecaller = { ...adminOffice, id: 'staff-priya', roles: ['telecaller' as const] };
+    await expect(admin.setStudentLoginPhone(telecaller, sid, own)).rejects.toThrow(/admin office/);
+    await expect(admin.setStudentLoginPhone(adminOffice, sid, '+919888811001')).rejects.toThrow(/parent/);
+    await expect(admin.setStudentLoginPhone(adminOffice, sid, '12345')).rejects.toThrow(/valid/);
+    await admin.setStudentLoginPhone(adminOffice, sid, '98888 11002');
+    expect((await app.resolveProfiles(own)).map((p) => p.kind)).toEqual(['student']);
+    expect((await repo.getLeadHistory(leadId)).audit.some((a) => a.action === 'student_phone_changed')).toBe(true);
+    await admin.setStudentLoginPhone(adminOffice, sid, '');
+    expect((await app.resolveProfiles(own)).length).toBe(0);
+  });
+
   it('app and CRM session tokens are not interchangeable', () => {
     const appToken = encodeSession('+919888800001', Date.now(), 'app');
     expect(decodeSession(appToken, Date.now(), 'app')).toBe('+919888800001');

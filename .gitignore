@@ -25,3 +25,7 @@ docs/brochure-source.pdf
 .env*
 
 .claude/settings.local.json
+
+# Playwright output
+/test-results/
+/playwright-report/

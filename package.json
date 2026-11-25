@@ -9,6 +9,8 @@
     "start:local": "node scripts/start-local.mjs",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
+    "test:e2e": "playwright test",
+    "qa:accounts": "node scripts/qa-accounts.mjs",
     "seed:demo": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON scripts/seed-demo.ts && node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON scripts/seed-kb.ts",
     "seed:demo:reset": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON scripts/seed-demo.ts --clear && node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON scripts/seed-demo.ts && node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON scripts/seed-kb.ts",
     "seed:kb": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON scripts/seed-kb.ts",
@@ -32,6 +34,7 @@
     "zod": "^3.23.8"
   },
   "devDependencies": {
+    "@playwright/test": "^1.65.1",
     "@types/node": "^20.16.11",
     "@types/nodemailer": "^6.4.17",
     "@types/qrcode": "^1.5.5",

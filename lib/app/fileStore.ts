@@ -28,6 +28,15 @@ export function createFileAppStore(): AppStore {
         if (g && s) pushAudit(db, s.leadId, { actorId: null, action: 'guardian_removed', field: 'app_access', oldValue: `${g.name} (${g.relation})`, newValue: null, reason: null });
       }),
 
+    setLoginPhone: (studentId, phone, actorId) =>
+      tx((db) => {
+        const s = db.students.find((x) => x.id === studentId);
+        if (!s) return;
+        const old = s.loginPhone ?? null;
+        s.loginPhone = phone;
+        pushAudit(db, s.leadId, { actorId, action: 'student_phone_changed', field: 'login_phone', oldValue: old, newValue: phone, reason: null });
+      }),
+
     applicationsByPhone: (phone) =>
       tx((db) => {
         const admitted = new Set(db.students.filter((s) => s.collegeId).map((s) => s.leadId));

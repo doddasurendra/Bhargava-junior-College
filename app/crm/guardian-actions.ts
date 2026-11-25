@@ -1,6 +1,6 @@
 'use server';
 import { revalidatePath } from 'next/cache';
-import { addGuardian, removeGuardian } from '@/lib/app/admin';
+import { addGuardian, removeGuardian, setStudentLoginPhone } from '@/lib/app/admin';
 import { requireStaff } from '@/lib/crm/auth';
 import { CrmError } from '@/lib/crm/service';
 import type { ActionState } from './actions';
@@ -21,6 +21,21 @@ export async function addGuardianAction(_: ActionState, fd: FormData): Promise<A
   const user = await requireStaff();
   const leadId = String(fd.get('leadId'));
   return run(leadId, () => addGuardian(user, leadId, { name: String(fd.get('name') ?? ''), phone: String(fd.get('phone') ?? ''), relation: String(fd.get('relation') ?? '') }), 'Guardian added; a welcome message was sent on WhatsApp.');
+}
+
+export async function studentPhoneAction(_: ActionState, fd: FormData): Promise<ActionState> {
+  const user = await requireStaff();
+  const studentId = String(fd.get('studentId') ?? '');
+  const phone = String(fd.get('phone') ?? '');
+  try {
+    await setStudentLoginPhone(user, studentId, phone);
+    revalidatePath(`/crm/students/${studentId}`);
+    return { ok: true, message: phone.trim() ? 'Saved. The student can now sign in to the app with this mobile.' : 'Removed.' };
+  } catch (e) {
+    if (e instanceof CrmError) return { error: e.message };
+    console.error('[crm] student phone action failed', e);
+    return { error: 'Something went wrong. Please try again.' };
+  }
 }
 
 export async function removeGuardianAction(_: ActionState, fd: FormData): Promise<ActionState> {

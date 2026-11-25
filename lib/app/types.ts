@@ -40,6 +40,8 @@ export interface AppStore {
   guardiansOf(studentId: string): Promise<Guardian[]>;
   addGuardian(g: Omit<Guardian, 'addedAt'>): Promise<'added' | 'exists'>;
   removeGuardian(studentId: string, phone: string): Promise<void>;
+  /** the student's own mobile for app sign-in (null removes it); audited on the admission record */
+  setLoginPhone(studentId: string, phone: string | null, actorId: string): Promise<void>;
   /** leads (applications) on this phone or student phone that have no College ID yet */
   applicationsByPhone(phone: string): Promise<{ leadId: string; name: string }[]>;
   /** false if (device, deviceEventId) was already recorded */

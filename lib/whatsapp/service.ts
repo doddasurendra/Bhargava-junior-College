@@ -14,6 +14,7 @@ import { getTemplate, renderBody, validateParams, type TemplateKey } from './tem
 import type { MessageStore, OutboundMessage, OutboundStatus } from './types';
 import { keywordIntent, parseWebhook, verifySignature } from './webhook';
 import { showCodesOnScreen } from '../localTesting';
+import { testOtpCode } from '../testOtp';
 import { siteUrl } from '../seo';
 
 // ---------------------------------------------------------------- configuration
@@ -186,6 +187,8 @@ export function bsatRegistered(name: string, phone: string, date: string, mode: 
 export class MessagingNotConfigured extends Error {}
 
 export async function sendOtpCode(phone: string, code: string) {
+  // developer test number (lib/testOtp.ts): the fixed QA code is never sent anywhere
+  if (testOtpCode(phone)) return console.info(`[otp] test number ${maskPhone(phone)}: not sent`);
   const m = mode();
   // local test run (npm run start:local): nothing can deliver it, the code is shown on screen instead
   if (m.kind === 'off' && showCodesOnScreen()) return;
