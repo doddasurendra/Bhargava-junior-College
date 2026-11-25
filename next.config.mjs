@@ -3,8 +3,9 @@ const securityHeaders = [
   { key: 'X-Content-Type-Options', value: 'nosniff' },
   { key: 'Referrer-Policy', value: 'strict-origin-when-cross-origin' },
   { key: 'X-Frame-Options', value: 'SAMEORIGIN' },
-  // microphone=(self): the AI Voice Agent may ask for the mic on this site only (still blocked for embeds).
-  { key: 'Permissions-Policy', value: 'camera=(), microphone=(self), geolocation=()' },
+  // microphone=(self): the AI Voice Agent and Open Book voice tutor may ask for the mic on this site only;
+  // camera=(self): the Open Book question scanner may use the camera on this site only (still blocked for embeds).
+  { key: 'Permissions-Policy', value: 'camera=(self), microphone=(self), geolocation=()' },
 ];
 
 const nextConfig = {

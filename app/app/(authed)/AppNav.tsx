@@ -17,7 +17,7 @@ const ICON: Record<string, string> = {
 type Kind = 'parent' | 'student' | 'applicant' | 'alumni' | null;
 
 const NAV: Record<string, { href: string; label: string; icon: string }[]> = {
-  student: [{ href: '/app', label: 'Home', icon: 'home' }, { href: '/app/study', label: 'Study', icon: 'study' }, { href: '/app/tests', label: 'Tests', icon: 'test' }, { href: '/app/knowledge', label: 'Knowledge', icon: 'doc' }, { href: '/app/doubts', label: 'Doubts', icon: 'chat' }, { href: '/app/more', label: 'More', icon: 'more' }],
+  student: [{ href: '/app', label: 'Home', icon: 'home' }, { href: '/app/openbook', label: 'Open Book', icon: 'study' }, { href: '/app/study', label: 'Study', icon: 'study' }, { href: '/app/tests', label: 'Tests', icon: 'test' }, { href: '/app/knowledge', label: 'Knowledge', icon: 'doc' }, { href: '/app/doubts', label: 'Doubts', icon: 'chat' }, { href: '/app/more', label: 'More', icon: 'more' }],
   parent: [{ href: '/app', label: 'Home', icon: 'home' }, { href: '/app/results', label: 'Progress', icon: 'chart' }, { href: '/app/fees', label: 'Fees', icon: 'fees' }, { href: '/app/knowledge', label: 'Knowledge', icon: 'doc' }, { href: '/app/messages', label: 'Teacher', icon: 'chat' }, { href: '/app/more', label: 'More', icon: 'more' }],
   applicant: [{ href: '/app', label: 'Status', icon: 'home' }, { href: '/app/apply', label: 'Apply', icon: 'doc' }, { href: '/app/documents', label: 'Documents', icon: 'study' }, { href: '/app/more', label: 'More', icon: 'more' }],
   alumni: [{ href: '/app', label: 'Home', icon: 'home' }, { href: '/app/alumni', label: 'Alumni', icon: 'star' }, { href: '/app/more', label: 'More', icon: 'more' }],
@@ -34,7 +34,7 @@ export function AppNav({ kind }: { kind: Kind }) {
           const active = i.href === '/app' ? path === '/app' : path.startsWith(i.href);
           return (
             <li key={i.href} className="flex-1">
-              <Link href={i.href} aria-current={active ? 'page' : undefined} className={`flex flex-col items-center gap-0.5 py-2 text-[11px] font-medium ${active ? 'text-maroon dark:text-gold' : 'text-ink/70'}`}>
+              <Link href={i.href} aria-current={active ? 'page' : undefined} className={`flex flex-col items-center gap-0.5 py-2 text-[10.5px] font-medium leading-tight ${active ? 'text-maroon dark:text-gold' : 'text-ink/70'}`}>
                 <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
                   <path d={ICON[i.icon]} />
                 </svg>
