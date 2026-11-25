@@ -7,6 +7,7 @@ import { DeleteSession } from '../assistant/DeleteSession';
 import { H1 } from '../ui';
 
 export const dynamic = 'force-dynamic';
+export const maxDuration = 60;
 const MODES = [{ id: 'tutor_explain', label: 'Explain a concept' }, { id: 'tutor_quiz', label: 'Quiz me' }, { id: 'tutor_socratic', label: 'Socratic (guide me)' }, { id: 'tutor_page', label: 'Discuss a page' }];
 
 export default async function TutorPage({ searchParams }: { searchParams: { s?: string } }) {

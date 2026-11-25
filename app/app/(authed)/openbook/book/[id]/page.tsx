@@ -8,6 +8,7 @@ import { FavouriteButton } from './Favourite';
 import { KindBadge } from '../../ui';
 
 export const dynamic = 'force-dynamic';
+export const maxDuration = 60;
 
 const LICENCE: Record<string, string> = { public_domain: 'Public domain', open_licence: 'Open licence', free_official: 'Free official resource', institution_owned: 'Owned by Bhargava Junior College', copyrighted: 'Copyrighted: details and the publisher’s links only' };
 

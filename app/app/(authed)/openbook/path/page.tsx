@@ -9,6 +9,7 @@ import { Diagnostic } from './Diagnostic';
 import { H1 } from '../ui';
 
 export const dynamic = 'force-dynamic';
+export const maxDuration = 60;
 
 export default async function PathPage({ searchParams }: { searchParams: { diag?: string } }) {
   const me = await obStudent();

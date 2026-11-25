@@ -5,6 +5,7 @@ import { RemoveButton } from '../notes/Remove';
 import { H1 } from '../ui';
 
 export const dynamic = 'force-dynamic';
+export const maxDuration = 60;
 
 export default async function BookmarksPage() {
   const me = await obStudent();

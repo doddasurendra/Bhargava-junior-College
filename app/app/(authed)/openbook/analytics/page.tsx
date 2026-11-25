@@ -4,6 +4,7 @@ import { obStudent } from '@/lib/openbook/session';
 import { H1 } from '../ui';
 
 export const dynamic = 'force-dynamic';
+export const maxDuration = 60;
 
 export default async function AnalyticsPage() {
   const me = await obStudent();

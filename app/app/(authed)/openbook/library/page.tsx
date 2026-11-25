@@ -5,6 +5,7 @@ import { CATEGORIES } from '@/lib/openbook/taxonomy';
 import { BookTile, ComingSoon, H1, Pager } from '../ui';
 
 export const dynamic = 'force-dynamic';
+export const maxDuration = 60;
 
 export default async function LibraryPage({ searchParams }: { searchParams: Record<string, string | undefined> }) {
   await obStudent();

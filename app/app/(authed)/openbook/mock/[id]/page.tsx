@@ -5,6 +5,7 @@ import { getQuestions } from '@/lib/openbook/questions';
 import { obStudent } from '@/lib/openbook/session';
 
 export const dynamic = 'force-dynamic';
+export const maxDuration = 60;
 
 /** [id] = the attempt id. Resumes where the student left off; submits automatically if time is already up. */
 export default async function MockAttemptPage({ params }: { params: { id: string } }) {

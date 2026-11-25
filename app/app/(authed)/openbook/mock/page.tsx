@@ -7,6 +7,7 @@ import { H1 } from '../ui';
 import { StartButton } from './StartButton';
 
 export const dynamic = 'force-dynamic';
+export const maxDuration = 60;
 
 export default async function MockPage() {
   const me = await obStudent();

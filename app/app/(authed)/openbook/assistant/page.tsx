@@ -7,6 +7,7 @@ import { DeleteSession } from './DeleteSession';
 import { H1 } from '../ui';
 
 export const dynamic = 'force-dynamic';
+export const maxDuration = 60;
 const TASKS = [
   { id: 'answer', label: 'Answer my question' }, { id: 'explain', label: 'Explain a concept' }, { id: 'summarize', label: 'Summarise a chapter' }, { id: 'notes', label: 'Study notes' },
   { id: 'revision', label: 'Revision notes' }, { id: 'mindmap', label: 'Mind map' }, { id: 'formulas', label: 'Key formulas' }, { id: 'page_questions', label: 'Practice questions' },

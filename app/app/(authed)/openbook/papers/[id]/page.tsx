@@ -6,6 +6,7 @@ import { obStudent } from '@/lib/openbook/session';
 import { EXAM_BY_ID } from '@/lib/openbook/taxonomy';
 
 export const dynamic = 'force-dynamic';
+export const maxDuration = 60;
 
 export default async function PaperPage({ params }: { params: { id: string } }) {
   const me = await obStudent();

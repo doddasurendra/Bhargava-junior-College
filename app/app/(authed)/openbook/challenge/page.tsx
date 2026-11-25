@@ -4,6 +4,7 @@ import { ChallengeSet } from './ChallengeSet';
 import { H1 } from '../ui';
 
 export const dynamic = 'force-dynamic';
+export const maxDuration = 60;
 
 export default async function ChallengePage({ searchParams }: { searchParams: { board?: Board; period?: Period; scope?: 'batch' | 'college' } }) {
   const me = await obStudent();

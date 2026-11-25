@@ -17,9 +17,10 @@ export async function importPracticeBank() {
   const have = new Set((await obQuestions.list(store(), { k1: 'bank' })).map((r) => r.data.fingerprint));
   const { fingerprint } = await import('./text');
   let added = 0;
-  for (const q of QUESTIONS) {
+  const todo = QUESTIONS.filter((q) => !have.has(fingerprint(q.stem + ' ' + q.options.join(' '))));
+  // parallel batches: ~620 writes would be too slow one by one on a serverless function
+  for (let i = 0; i < todo.length; i += 25) await Promise.all(todo.slice(i, i + 25).map(async (q) => {
     const fp = fingerprint(q.stem + ' ' + q.options.join(' '));
-    if (have.has(fp)) continue;
     const chapter = PRACTICE_CHAPTER_ALIAS[q.chapter] ?? q.chapter;
     const subjectChs = chs.filter((c) => c.subject === q.subject && c.name === chapter);
     const concept = subjectChs.length ? tagByKeywords(q.stem, subjectChs).concept : q.chapter;
@@ -32,6 +33,6 @@ export async function importPracticeBank() {
     });
     have.add(fp);
     added++;
-  }
+  }));
   return added;
 }

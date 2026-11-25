@@ -8,6 +8,7 @@ import { SimilarCheck } from './SimilarCheck';
 import { H1 } from '../ui';
 
 export const dynamic = 'force-dynamic';
+export const maxDuration = 60;
 const SUBJECTS = ['Physics', 'Chemistry', 'Mathematics', 'Biology'];
 
 export default async function CommunityPage({ searchParams }: { searchParams: { subject?: string; q?: string } }) {

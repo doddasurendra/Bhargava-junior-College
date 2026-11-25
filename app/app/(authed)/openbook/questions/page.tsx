@@ -4,6 +4,7 @@ import { obStudent } from '@/lib/openbook/session';
 import { H1, Pager } from '../ui';
 
 export const dynamic = 'force-dynamic';
+export const maxDuration = 60;
 
 export default async function MyQuestionsPage({ searchParams }: { searchParams: { subject?: string; page?: string } }) {
   const me = await obStudent();

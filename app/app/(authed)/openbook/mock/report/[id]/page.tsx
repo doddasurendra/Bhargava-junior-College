@@ -5,6 +5,7 @@ import { report } from '@/lib/openbook/mocks';
 import { obStudent } from '@/lib/openbook/session';
 
 export const dynamic = 'force-dynamic';
+export const maxDuration = 60;
 
 export default async function MockReportPage({ params }: { params: { id: string } }) {
   const me = await obStudent();

@@ -8,6 +8,7 @@ import { uploadPaperAction } from '../actions';
 import { H1 } from '../ui';
 
 export const dynamic = 'force-dynamic';
+export const maxDuration = 60;
 const STATUS: Record<string, string> = { done: 'questions extracted', ocr_needed: 'needs OCR', no_questions: 'no questions found', failed: 'extraction failed', pending: 'processing' };
 
 export default async function PapersPage({ searchParams }: { searchParams: Record<string, string | undefined> }) {

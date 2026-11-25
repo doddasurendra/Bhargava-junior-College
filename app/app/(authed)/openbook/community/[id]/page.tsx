@@ -7,6 +7,7 @@ import { answerAction } from '../../actions';
 import { PostActions } from './PostActions';
 
 export const dynamic = 'force-dynamic';
+export const maxDuration = 60;
 
 export default async function ThreadPage({ params }: { params: { id: string } }) {
   const me = await obStudent();

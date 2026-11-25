@@ -5,6 +5,7 @@ import { RemoveButton } from './Remove';
 import { H1 } from '../ui';
 
 export const dynamic = 'force-dynamic';
+export const maxDuration = 60;
 const BG: Record<string, string> = { yellow: '#fde68a66', green: '#bbf7d066', blue: '#bfdbfe66', pink: '#fbcfe866' };
 
 export default async function NotesPage({ searchParams }: { searchParams: { print?: string } }) {
