@@ -362,6 +362,7 @@ test('pending items: catalogue, formula sheet, diagram cards, offline review, Te
   const area = student.locator('img[alt=Diagram]').first();
   await area.waitFor();
   await expect.poll(async () => (await area.boundingBox())?.height ?? 0).toBeGreaterThan(50);
+  await area.scrollIntoViewIfNeeded();
   const bb = (await area.boundingBox())!;
   await student.mouse.move(bb.x + bb.width * 0.1, bb.y + bb.height * 0.1); await student.mouse.down();
   await student.mouse.move(bb.x + bb.width * 0.5, bb.y + bb.height * 0.4, { steps: 6 }); await student.mouse.up();
