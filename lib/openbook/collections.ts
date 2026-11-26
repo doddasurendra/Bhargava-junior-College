@@ -284,7 +284,7 @@ export const obProfiles = collection({
 export const obPosts = collection({
   name: 'ob_posts',
   schema: z.object({
-    threadId: z.string().max(80).nullable(), author: actor, nickname: z.string().max(40), title: z.string().max(200).default(''), body: z.string().trim().min(2).max(8000), imageKey: z.string().max(300).nullable().default(null),
+    threadId: z.string().max(80).nullable(), author: actor, nickname: z.string().max(60), title: z.string().max(200).default(''), body: z.string().trim().min(2).max(8000), imageKey: z.string().max(300).nullable().default(null),
     subject: z.string().max(80), chapter: opt(140), concept: opt(140), votes: z.array(z.string().max(80)).default([]), acceptedId: z.string().max(80).nullable().default(null),
     verifiedBy: z.string().max(120).nullable().default(null), ai: z.boolean().default(false), reports: z.array(z.object({ by: z.string().max(80), reason: z.string().max(200), at: z.string() })).default([]),
     hidden: z.boolean().default(false), hiddenReason: opt(200), duplicateOf: z.string().max(80).nullable().default(null),

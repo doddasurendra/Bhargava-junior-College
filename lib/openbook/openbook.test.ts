@@ -216,6 +216,7 @@ describe('Open Book with real record-store operations (file store)', () => {
     const C = await import('./community');
     await expect(C.createThread(student('s1'), { title: 'Call me please', body: 'my number 9876543210', subject: 'Physics', chapter: null, concept: null })).rejects.toThrow(/Phone numbers/);
     const { id } = await C.createThread(student('s1'), { title: 'Why is range maximum at 45 degrees?', body: 'I do not get the sin 2θ part.', subject: 'Physics', chapter: 'Motion in a Plane', concept: 'Projectile motion' });
+    await C.answer({ kind: 'staff', id: 't9', name: 'QA Academic Coordinator / Exam Cell' }, id, 'Staff answer with a long role name.');
     const a = await C.answer(student('s2'), id, 'Because sin 2θ is largest when 2θ = 90°.');
     await C.accept('s1', id, a.id);
     await expect(C.accept('s2', id, a.id)).rejects.toThrow(/Only the person/);

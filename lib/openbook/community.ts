@@ -34,7 +34,7 @@ async function guard(author: Actor, text: string) {
 }
 
 async function nicknameFor(a: Actor) {
-  if (a.kind !== 'student') return `${a.name} (staff)`;
+  if (a.kind !== 'student') return `${a.name.slice(0, 32)} (staff)`;
   return (await profileOf(a.id))?.nickname ?? (await saveProfile(a.id, {})).nickname;
 }
 

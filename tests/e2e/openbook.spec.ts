@@ -220,11 +220,12 @@ test('15 learning path: create, diagnostic, today\'s plan', async () => {
 
 test('16–17 reader AI actions (needs AI) and pattern analyzer across 3 papers + pattern test', async () => {
   await student.goto('/app/openbook/patterns?exam=jee-main&subject=Physics');
-  await expect(student.locator('body')).toContainText(/Data basis: [3-9] papers/);
+  const basis = (await student.locator('body').innerText()).match(/Data basis: (\d+) papers, (\d+) questions/);
+  expect(Number(basis?.[1] ?? 0)).toBeGreaterThanOrEqual(3);
   await expect(student.locator('body')).toContainText('Motion in a Plane');
   await student.getByRole('button', { name: 'Create pattern test' }).click();
   await student.waitForURL(/\/app\/openbook\/mock\/[^/]+$/, { timeout: 90_000 });
-  results['17 pattern analyzer'] = 'PASS (3 approved QA papers, chapter × year table, pattern test created)';
+  results['17 pattern analyzer'] = `PASS (; chapter × year table; pattern test created)`;
   results['16 reader AI actions'] = 'BLOCKED without ANTHROPIC_API_KEY (Explain/Translate/AI flashcards/questions show "not configured"); highlight + bookmark PASS';
 });
 
@@ -237,6 +238,7 @@ test('18 flashcards: cards from wrong answers, due, rate reschedules', async () 
   if (/\(0\)/.test(before)) { results['18 flashcards'] = 'PASS (no wrong answers yet to turn into cards)'; return; }
   await student.locator('button.card').first().click();
   await student.getByRole('button', { name: 'good' }).click();
+  await expect(student.getByText(/Card 2 of|Session done/)).toBeVisible({ timeout: 30_000 });
   await student.goto('/app/openbook/flashcards');
   const after = await student.getByText(/Due today \(\d+\)/).innerText();
   expect(Number(after.match(/\d+/)![0])).toBeLessThan(Number(before.match(/\d+/)![0]));
@@ -258,8 +260,7 @@ test('19 community: blocked phone, post, staff answer, accept, verify, report �
   const item = staff.locator('li').filter({ hasText: `QA ${RUN} Why is the range` }).first();
   await item.locator('textarea[name=body]').fill('Because sin 2θ is largest when 2θ = 90°, i.e. θ = 45°.');
   await item.getByRole('button', { name: 'Answer as staff' }).click();
-  await expect(item.getByText('Answer posted.')).toBeVisible({ timeout: 30_000 });
-  await staff.goto('/crm/openbook?tab=community');
+  await expect.poll(async () => { await staff.goto('/crm/openbook?tab=community'); return staff.locator('li').filter({ hasText: `QA ${RUN} Why is the range` }).first().innerText(); }, { timeout: 60_000, intervals: [3000] }).toContain('largest when 2θ = 90°');
   await staff.locator('li').filter({ hasText: `QA ${RUN} Why is the range` }).first().getByRole('button', { name: 'Mark teacher verified' }).click();
   await student.goto('/app/openbook/community');
   await student.getByText(`QA ${RUN} Why is the range maximum at 45 degrees?`).click();
