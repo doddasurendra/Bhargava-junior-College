@@ -343,14 +343,14 @@ test('25 phone width: no horizontal overflow at 390 px on the main Open Book scr
 
 test('cleanup: remove QA book and papers, hide QA community question', async () => {
   const clickAll = async (url: string, text: string | RegExp, label: RegExp) => {
-    for (let n = 0; n < 12; n++) {
+    for (let n = 0; n < 60; n++) {
       await staff.goto(url);
       const row = staff.locator('li').filter({ hasText: text }).filter({ has: staff.getByRole('button', { name: label }) }).first();
       if (!(await row.count())) return n;
       await row.getByRole('button', { name: label }).first().click();
       await staff.waitForTimeout(2500);
     }
-    return 12;
+    return 60;
   };
   // this run's items and any left by an earlier interrupted run (titles start with 'QA <5-char run id> ')
   const books = await clickAll('/crm/openbook?tab=books', /QA [a-z0-9]{5} Open Book test notes/, /^Remove$/);
