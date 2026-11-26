@@ -123,19 +123,30 @@ Final run: **15 of 15 tests passed in 5.9 minutes**. Results by spec item:
 
 QA data created by the test runs was removed or hidden (books removed, papers rejected, community posts hidden; nothing deleted).
 
-## Pending / not done (honest list)
+## Second round (26 Nov): the previously pending items, now built
+
+Commit `4153eff`. All of these were deployed and checked on production.
+
+| Item | What was built | Evidence |
+|---|---|---|
+| Offline flashcard review | The flashcards page saves the next 14 days of text cards on the phone and registers the offline service worker (`/kb-sw.js`, now covering `/app/openbook/flashcards`). `/app/cards-offline` reviews them with the same SM-2 rules (`lib/openbook/sm2.ts`, shared by server and phone) and queues ratings. `/api/openbook/cards/sync` applies them in order when the phone is back online, and only to the signed-in student's own cards. | Unit test; live E2E (cards saved message, offline page served) |
+| Image-occlusion (diagram-label) cards | Upload a diagram, drag boxes over the labels and type each answer. One card per box: the front hides every label and highlights the one asked; the back reveals it. The image is private (`k=card`, owner only). Copied shared decks keep working. | Unit test; live E2E (draw box → 1 card) |
+| Chapter formula sheets and revision notes, exported to PDF | `/app/openbook/revision`: key concepts, formulas taken from explanations and worked solutions (general formulas only, not numeric results), the student's formula and definition cards, weak concepts, the revision list, and optional AI revision notes. Print-ready view; "Save as PDF". | Unit test; live E2E (Maths chapter shows −b/a) |
+| Weekly winners posted to Notices, with admin rewards | Every Sunday (Vercel cron), or on demand from AI settings: top 3 per batch by challenge XP for the past 7 days, opted-out students excluded, posted to the existing Notices module for that batch with the admin-set reward text and optional bonus XP. Posts once per week per batch. | Unit test (notice text, reward, opt-out, once per week); live E2E (button) |
+| Voice-tutor weak points into the Learning Path | In tutor modes the AI also reports concepts the student struggled with. They are matched to the syllabus and the concept moves to "in progress" in the path, with the reason "Voice tutor (date): …", and the student is told. | Unit test (path update). The AI step needs `ANTHROPIC_API_KEY` |
+| Scanner auto-crop and deskew | `lib/openbook/imagefix.ts`: Otsu ink threshold, auto-crop to the ink, projection-profile deskew (±15°). The browser crops, straightens and enhances the photo before upload, and tells the student what it did. | Unit tests on synthetic tilted pages (+6° and −4° detected) |
+| Telugu and Hindi for full page text | Every Open Book student page heading and description, and the buttons and messages of the generator, question cards, quizzes, mock test screen and builder, flashcards and scanner, follow the student's language choice. | Live E2E (Telugu heading and button) |
+| Supabase Edge Function + pg_cron | `supabase/functions/openbook-link-check` is deployed. pg_cron job `openbook-link-check` runs Sundays 03:00 UTC through pg_net, with a secret kept in Supabase Vault (migration `20261126164609`). The function refuses calls without the secret, and keeps the app checker's verified "certificate chain incomplete" result for sites like NCERT that Deno can't verify. | Live: unauthenticated call → 401; the pg_cron-style call → HTTP 200 `{"checked":33}` and an audit entry |
+| Real library content | "Add the official NCERT and OpenStax catalogue": the 13 NCERT Class 11/12 Physics, Chemistry, Mathematics and Biology textbooks (official, linked to ncert.nic.in, not re-hosted) and 6 OpenStax CC BY textbooks (Physics, Chemistry, Biology, Calculus 1 and 2, Precalculus), tagged to exams, subjects and chapters. | Live E2E (NCERT Physics Part I opens, Official page link) |
+
+Unit tests after this round: **287 passed in 45 files**.
+
+## Still pending (honest list)
 
 1. **Add the API keys above.** Until then the AI features don't run, and the AI-dependent live tests (7–9, 16, 20, 22-OCR, 24) can't pass. Re-run the suite after adding them.
-2. Real content: the library currently has no real books stored in Open Book. QA test files were removed. The Google import was rate-limited, and the official sources are links. The college needs to upload its own or open-licence books, and approved official past papers, through the CRM.
-3. Not built:
-   - flashcard offline review
-   - image-occlusion (diagram-label) cards
-   - formula-sheet PDF export
-   - automatic posting of weekly winners to Notices, and admin-set rewards
-   - tutor weak points feeding the Learning Path
-   - auto-crop and deskew in the browser
-   - Telugu/Hindi for full page text (menus and labels only)
-   - Edge Function + pg_cron (a Vercel cron is used instead, like the rest of the project)
-4. pgvector semantic duplicate search is built and migrated but inactive until `VOYAGE_API_KEY` is set.
-5. Supabase Auth-level RLS per student doesn't apply: the app uses its own sessions and server-side checks, and all tables deny anonymous and authenticated access. This is the same model as the rest of BJC.
-6. `supabase functions deploy` and `npm run seed:demo` were not run: there are no Edge Functions, and demo seeding is for staging only.
+2. **Google Books import:** keyless requests are refused (HTTP 429) both from Vercel and from the developer's computer, so `GOOGLE_BOOKS_API_KEY` is required.
+3. **The college's own books and past papers:** the official NCERT/OpenStax catalogue is linked, but no book file is stored yet. The college should upload the books it owns (or open-licence PDFs) and the official past papers through the CRM.
+4. **Telugu/Hindi:** form field labels inside the upload forms, and the staff CRM screens, are still in English.
+5. pgvector semantic duplicate search is built and migrated but inactive until `VOYAGE_API_KEY` is set.
+6. Supabase Auth-level RLS per student doesn't apply: the app uses its own sessions and server-side checks, and all tables deny anonymous and authenticated access. This is the same model as the rest of BJC.
+7. `npm run seed:demo` was not run: it is for staging only.

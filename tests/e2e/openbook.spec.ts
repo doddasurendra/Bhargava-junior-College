@@ -357,10 +357,11 @@ test('pending items: catalogue, formula sheet, diagram cards, offline review, Te
   await expect(student.getByRole('button', { name: /Save as PDF/ })).toBeVisible();
   // diagram (image-occlusion) cards: upload, draw a box, label, save
   await student.goto('/app/openbook/flashcards');
-  const png = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAgAAAAICAIAAABLbSncAAAAEklEQVR4nGP4z8CAFWEXHbQSACj/P8Fu7N9hAAAAAElFTkSuQmCC', 'base64');
+  const png = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==', 'base64');
   await student.getByLabel('Diagram image').setInputFiles({ name: 'heart.png', mimeType: 'image/png', buffer: png });
   const area = student.locator('img[alt=Diagram]').first();
   await area.waitFor();
+  await expect.poll(async () => (await area.boundingBox())?.height ?? 0).toBeGreaterThan(50);
   const bb = (await area.boundingBox())!;
   await student.mouse.move(bb.x + bb.width * 0.1, bb.y + bb.height * 0.1); await student.mouse.down();
   await student.mouse.move(bb.x + bb.width * 0.5, bb.y + bb.height * 0.4, { steps: 6 }); await student.mouse.up();

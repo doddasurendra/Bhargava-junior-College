@@ -14,10 +14,12 @@ export function OcclusionMaker() {
   const [pending, start] = useTransition();
   const ref = useRef<HTMLDivElement>(null);
   const start0 = useRef<{ x: number; y: number } | null>(null);
+  // the box being drawn, also kept in a ref: a quick release can arrive before React re-renders the last move
+  const drawing = useRef<Box | null>(null);
   const pos = (e: React.PointerEvent) => { const b = ref.current!.getBoundingClientRect(); return { x: Math.min(1, Math.max(0, (e.clientX - b.left) / b.width)), y: Math.min(1, Math.max(0, (e.clientY - b.top) / b.height)) }; };
-  const down = (e: React.PointerEvent) => { (e.target as HTMLElement).setPointerCapture(e.pointerId); start0.current = pos(e); setDraft({ ...start0.current, w: 0, h: 0, label: '' }); };
-  const move = (e: React.PointerEvent) => { if (!start0.current) return; const p = pos(e), s = start0.current; setDraft({ x: Math.min(s.x, p.x), y: Math.min(s.y, p.y), w: Math.abs(p.x - s.x), h: Math.abs(p.y - s.y), label: '' }); };
-  const up = () => { if (draft && draft.w > 0.01 && draft.h > 0.01) setBoxes((b) => [...b, draft]); setDraft(null); start0.current = null; };
+  const down = (e: React.PointerEvent) => { (e.target as HTMLElement).setPointerCapture?.(e.pointerId); start0.current = pos(e); drawing.current = { ...start0.current, w: 0, h: 0, label: '' }; setDraft(drawing.current); };
+  const move = (e: React.PointerEvent) => { if (!start0.current) return; const p = pos(e), s = start0.current; drawing.current = { x: Math.min(s.x, p.x), y: Math.min(s.y, p.y), w: Math.abs(p.x - s.x), h: Math.abs(p.y - s.y), label: '' }; setDraft(drawing.current); };
+  const up = (e: React.PointerEvent) => { if (start0.current) move(e); const d = drawing.current; if (d && d.w > 0.01 && d.h > 0.01) setBoxes((b) => [...b, d]); drawing.current = null; setDraft(null); start0.current = null; };
   const save = () => start(async () => {
     const fd = new FormData();
     fd.set('image', img!.file); fd.set('deck', deck); fd.set('boxes', JSON.stringify(boxes));
