@@ -4,6 +4,7 @@ import { mocksFor } from '@/lib/openbook/mocks';
 import { pickerOptions } from '@/lib/openbook/options';
 import { obStudent } from '@/lib/openbook/session';
 import { H1 } from '../ui';
+import { page as pageText } from '@/lib/openbook/i18n';
 import { StartButton } from './StartButton';
 
 export const dynamic = 'force-dynamic';
@@ -11,11 +12,12 @@ export const maxDuration = 60;
 
 export default async function MockPage() {
   const me = await obStudent();
+  const pg = pageText(me.profile.lang, 'mock');
   const [mocks, o] = await Promise.all([mocksFor(me.studentId, me.batchId), pickerOptions()]);
   return (
     <div className="space-y-4">
-      <H1 sub="Timed papers in your exam’s pattern with instant evaluation and a detailed report.">AI Mock Tests</H1>
-      <MockBuilder exams={o.exams} chapters={o.chapters} initialExam={me.defaultExam} aiReady={o.aiReady} />
+      <H1 sub={pg.sub}>{pg.title}</H1>
+      <MockBuilder exams={o.exams} chapters={o.chapters} initialExam={me.defaultExam} aiReady={o.aiReady} lang={me.profile.lang} />
       <section className="space-y-2">
         <h2 className="text-sm font-semibold text-heading">My tests</h2>
         {mocks.length === 0 && <p className="card p-3 text-sm text-muted">No tests yet.</p>}

@@ -6,6 +6,7 @@ import { listPapers } from '@/lib/openbook/papers';
 import { obStudent } from '@/lib/openbook/session';
 import { uploadPaperAction } from '../actions';
 import { H1 } from '../ui';
+import { page as pageText } from '@/lib/openbook/i18n';
 
 export const dynamic = 'force-dynamic';
 export const maxDuration = 60;
@@ -13,6 +14,7 @@ const STATUS: Record<string, string> = { done: 'questions extracted', ocr_needed
 
 export default async function PapersPage({ searchParams }: { searchParams: Record<string, string | undefined> }) {
   const me = await obStudent();
+  const pg = pageText(me.profile.lang, 'papers');
   const [papers, mine, opts] = await Promise.all([
     listPapers({ examId: searchParams.exam, subject: searchParams.subject, year: searchParams.year ? Number(searchParams.year) : undefined, q: searchParams.q }),
     listPapers({ status: 'all', uploader: me.studentId }).then((x) => x.filter((p) => p.uploadedBy.id === me.studentId)),
@@ -22,7 +24,7 @@ export default async function PapersPage({ searchParams }: { searchParams: Recor
   const years = [...new Set(papers.map((p) => p.year))].sort((a, b) => b - a);
   return (
     <div className="space-y-4">
-      <H1 sub="Official papers, model papers and student uploads. Originals are kept unchanged.">Previous Year Papers</H1>
+      <H1 sub={pg.sub}>{pg.title}</H1>
       <form className="card grid gap-2 p-3 sm:grid-cols-2">
         <input name="q" defaultValue={searchParams.q} className="input sm:col-span-2" placeholder="Search title, topic, board, session" aria-label="Search papers" />
         <select name="exam" defaultValue={searchParams.exam ?? ''} className="input" aria-label="Examination"><option value="">All examinations</option>{exams.map((e) => <option key={e.id} value={e.id}>{e.name}</option>)}</select>

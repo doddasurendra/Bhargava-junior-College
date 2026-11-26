@@ -242,4 +242,61 @@ describe('Open Book with real record-store operations (file store)', () => {
     const plan = await P.todayPlan('s1');
     expect(plan?.tasks.length).toBeGreaterThan(0);
   });
+
+  it('pending items: diagram cards, offline cards, formula sheet, tutor → path, weekly winners, catalogue', { timeout: 120_000 }, async () => {
+    // diagram (image-occlusion) cards: one card per labelled box, all masks kept
+    const F = await import('./flashcards');
+    const png = new Uint8Array([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, ...new Array(64).fill(1)]);
+    const occ = await F.occlusionCards('s3', { deckName: 'Heart', subject: 'Biology', image: { bytes: png, mime: 'image/png' }, boxes: [{ x: 0.1, y: 0.1, w: 0.2, h: 0.1, label: 'Left atrium' }, { x: 0.5, y: 0.5, w: 0.2, h: 0.1, label: 'Aorta' }, { x: 0.7, y: 0.7, w: 0.1, h: 0.1, label: '' }] });
+    expect(occ.added).toBe(2);
+    const due = await F.dueCards('s3');
+    expect(due.every((c) => c.masks.length === 2 && c.imageKey)).toBe(true);
+    expect(due.map((c) => c.target).sort()).toEqual([0, 1]);
+    await expect(F.occlusionCards('s3', { deckName: 'x', subject: null, image: { bytes: png, mime: 'application/pdf' }, boxes: [] })).rejects.toThrow(/PNG or JPG/);
+    // offline review: image cards excluded; the same SM-2 runs on the phone
+    await F.addCard('s3', occ.deckId, { kind: 'qa', front: 'Q', back: 'A', source: 'manual' });
+    const off = await F.cardsForOffline('s3');
+    expect(off.length).toBe(1);
+    const { sm2 } = await import('./sm2');
+    expect(sm2(off[0], 'good', '2026-11-26').due).toBe('2026-11-27');
+    // formula sheet from worked solutions (general formulas only, not numeric results)
+    const R = await import('./revision');
+    expect(R.generalFormulas('Sum of roots = −b/a = −(−7)/1 = 7. Range R = u² sin 2θ / g')).toEqual(expect.arrayContaining(['Sum of roots = −b/a', 'Range R = u² sin 2θ / g']));
+    const sheet = await R.formulaSheet('s1', 'Mathematics', 'Complex Numbers and Quadratic Equations');
+    expect(sheet.formulas.some((f) => /b\/a/.test(f.text))).toBe(true);
+    // tutor weak point → learning path item in progress with the reason
+    const P = await import('./path');
+    const placed = await P.flagFromTutor('s1', [{ subject: 'Physics', chapter: 'Waves', concept: 'Doppler effect' }]);
+    expect(placed).toEqual(['Doppler effect']);
+    const item = (await P.pathOf('s1'))!.items.find((i) => i.concept === 'Doppler effect')!;
+    expect(item.status).toBe('in_progress');
+    expect(item.reason).toMatch(/Voice tutor/);
+    // weekly winners → Notices (batch audience), idempotent, bonus XP, opted-out excluded
+    const { allBatches } = await import('../school/common');
+    const { batches, notices } = await import('../records/collections');
+    const { getRecordStore } = await import('../records');
+    const b = await batches.put(getRecordStore(), { name: 'OB 1A', program: 'IIT-JEE', year: 1, section: 'A', capacity: 40, classTeacherId: null, studentIds: ['s1', 's2'], active: true });
+    const { obChallengeAttempts } = await import('./collections');
+    const { addDays, todayIST } = await import('../dates');
+    await obChallengeAttempts.put(getRecordStore(), { studentId: 's1', batchId: b.id, date: addDays(todayIST(), -2), subject: 'Physics', correct: 4, total: 5, xp: 50 });
+    await obChallengeAttempts.put(getRecordStore(), { studentId: 's2', batchId: b.id, date: addDays(todayIST(), -3), subject: 'Physics', correct: 5, total: 5, xp: 60 });
+    const Ch = await import('./challenge');
+    await Ch.saveProfile('s2', { optOut: true });
+    const { saveSettings } = await import('./core');
+    await saveSettings({ id: 'adm', fullName: 'Admin', email: null, phone: null, roles: ['super_admin'], active: true } as never, { weeklyReward: 'Certificate at assembly', weeklyBonusXp: 20 });
+    expect((await Ch.announceWeeklyWinners()).posted).toBeGreaterThanOrEqual(1);
+    const n = (await notices.list(getRecordStore(), { k1: `batch:${b.id}` }))[0];
+    expect(n.data.body).toContain('Certificate at assembly');
+    expect(n.data.body).toContain('50 XP');
+    expect(n.data.body).not.toContain('60 XP'); // opted out
+    expect((await Ch.announceWeeklyWinners()).posted).toBe(0); // once per week
+    expect((await allBatches()).length).toBeGreaterThan(0);
+    // official catalogue (link-only, idempotent)
+    const L = await import('./library');
+    expect(await L.seedCatalogue(null)).toBe(19);
+    expect(await L.seedCatalogue(null)).toBe(0);
+    const ncert = (await L.listBooks({ q: 'Physics Part I Class XI', kind: 'official' })).items[0];
+    expect(ncert.fileKey).toBeNull();
+    expect(ncert.officialUrl).toBe('https://ncert.nic.in/textbook.php');
+  });
 });

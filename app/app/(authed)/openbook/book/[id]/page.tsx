@@ -42,7 +42,7 @@ export default async function BookPage({ params, searchParams }: { params: { id:
       {b.fileKey ? (
         <Reader bookId={b.id} title={b.title} initialPage={start} examId={b.examIds[0] ?? me.defaultExam} notes={notes.map((n) => ({ id: n.id, page: n.page, text: n.text, color: n.color, note: n.note }))} canDownload={b.downloadAllowed} textReady={b.textStatus === 'extracted'} />
       ) : (
-        <p className="card p-4 text-sm">This book can’t be stored in Open Book because of its licence. {b.previewUrl ? 'Use the Google preview above, ' : ''}{b.officialUrl ? 'open the official page, ' : ''}or borrow a physical copy from the college library.</p>
+        <p className="card p-4 text-sm">{b.licence === 'free_official' || b.licence === 'open_licence' ? <>This book is free on its official website: use <b>Official page</b> above. Open Book links to it instead of keeping a copy. You can still bookmark it as a favourite and borrow a printed copy from the college library.</> : <>This book can’t be stored in Open Book because of its licence. {b.previewUrl ? 'Use the Google preview above, ' : ''}{b.officialUrl ? 'open the official page, ' : ''}or borrow a physical copy from the college library.</>}</p>
       )}
       <Link href="/app/openbook/library" className="block text-center text-xs underline">Back to the library</Link>
     </div>

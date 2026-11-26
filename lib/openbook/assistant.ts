@@ -35,8 +35,8 @@ export async function retrieve(question: string, opts: { bookId?: string | null;
   return out.sort((a, b) => b.score - a.score).slice(0, opts.k ?? 5);
 }
 
-const ansSchema = S.obj({ answer: S.str(), found: S.bool(), sources: S.arr(S.obj({ passage: S.int(), page: S.int() })) });
-const ansValidate = z.object({ answer: z.string(), found: z.boolean(), sources: z.array(z.object({ passage: z.number(), page: z.number() })) });
+const ansSchema = S.obj({ answer: S.str(), found: S.bool(), sources: S.arr(S.obj({ passage: S.int(), page: S.int() })), weakPoints: S.arr(S.str('tutor modes only: a concept the student clearly struggled with in this exchange (empty if none)')) });
+const ansValidate = z.object({ answer: z.string(), found: z.boolean(), sources: z.array(z.object({ passage: z.number(), page: z.number() })), weakPoints: z.array(z.string()).default([]) });
 
 export type Task = 'answer' | 'explain' | 'summarize' | 'notes' | 'revision' | 'mindmap' | 'simplify' | 'translate' | 'formulas' | 'page_questions' | 'tutor_explain' | 'tutor_quiz' | 'tutor_socratic' | 'tutor_page';
 const TASK: Record<Task, string> = {
@@ -97,9 +97,19 @@ Reply in ${LANG_NAME[i.lang]} (keep formulas and symbols). Plain text. Age-appro
     parts: [{ kind: 'text', text: `${passages.length ? passages.map((p, n) => `[${n + 1}] ${p.title}, page ${p.page}:\n${p.text.slice(0, 4000)}`).join('\n\n') : '(no passages found)'}\n\n${history.length ? `Conversation so far:\n${history.map((t) => `${t.role === 'user' ? 'Student' : 'Tutor'}: ${t.text.slice(0, 600)}`).join('\n')}\n\n` : ''}${i.selection ? `Selected passage:\n"""${i.selection.slice(0, 6000)}"""\n\n` : ''}Student: ${i.question || '(see the selected passage)'}` }],
     jsonSchema: ansSchema, validate: ansValidate, effort: i.task.startsWith('tutor') ? 'low' : 'medium', maxTokens: 8000,
   });
+  let pathNote = '';
+  const weakPoints = r.data.weakPoints ?? [];
+  if (i.task.startsWith('tutor') && weakPoints.length) {
+    const { classify } = await import('./scanner');
+    const { defaultExamFor, flagFromTutor } = await import('./path');
+    const exam = await defaultExamFor(i.studentId);
+    const tagged = await Promise.all(weakPoints.slice(0, 3).map((w) => classify(exam, w)));
+    const placed = await flagFromTutor(i.studentId, tagged).catch(() => []);
+    if (placed.length) pathNote = `\n\n(Added to your learning path for today: ${placed.join(', ')}.)`;
+  }
   const sources = r.data.sources.map((s) => passages[s.passage - 1]).filter(Boolean).map((p) => ({ label: `${p.title}, p. ${p.page}`, bookId: p.bookId, page: p.page }));
   const uniq = sources.filter((s, n) => sources.findIndex((x) => x.label === s.label) === n);
-  return { answer: r.data.answer, sources: uniq, mode: 'ai', found: r.data.found, sessionId: await log(i, r.data.answer, uniq) };
+  return { answer: r.data.answer + pathNote, sources: uniq, mode: 'ai', found: r.data.found, sessionId: await log(i, r.data.answer + pathNote, uniq) };
 }
 
 async function log(i: AskInput, answer: string, sources: Source[]) {

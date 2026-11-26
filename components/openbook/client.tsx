@@ -1,8 +1,10 @@
 'use client';
+import { ui, type ObLang } from '@/lib/openbook/i18n';
 import Link from 'next/link';
 import { useEffect, useMemo, useRef, useState, useTransition, type ReactNode } from 'react';
 import { useFormState, useFormStatus } from 'react-dom';
 import * as act from '@/app/app/(authed)/openbook/actions';
+import { OcclusionView } from './Occlusion';
 
 type R<T = unknown> = act.R<T>;
 export interface ExamOpt { id: string; name: string; subjects: string[]; types: { id: string; label: string }[]; classes: string[]; ready: boolean; note: string }
@@ -37,7 +39,7 @@ const letter = (i: number) => 'abcdefgh'[i] ?? String(i + 1);
 const typeLabel = (t: string) => t.replace(/_/g, ' ');
 
 /** Attempt → mark → reveal answer, full explanation, and "explain simpler / advanced". */
-export function QuestionCard({ q, n, lang = 'en' }: { q: QView; n: number; lang?: 'en' | 'te' | 'hi' }) {
+export function QuestionCard({ q, n, lang = 'en' }: { q: QView; n: number; lang?: ObLang }) {
   const [given, setGiven] = useState<string[]>([]);
   const [text, setText] = useState('');
   const [res, setRes] = useState<{ correct: boolean | null; score: number; feedback: string | null } | null>(null);
@@ -69,20 +71,20 @@ export function QuestionCard({ q, n, lang = 'en' }: { q: QView; n: number; lang?
           })}
         </ul>
       ) : (
-        <textarea value={text} onChange={(e) => setText(e.target.value)} disabled={!!res} rows={objective ? 1 : 5} placeholder={objective ? 'Your answer' : 'Write your answer'} className="input w-full" />
+        <textarea value={text} onChange={(e) => setText(e.target.value)} disabled={!!res} rows={objective ? 1 : 5} placeholder={ui(lang, 'yourAnswer')} className="input w-full" />
       )}
       <div className="flex flex-wrap gap-2">
-        {!res && q.answer.length === 0 && <span className="self-center text-xs text-muted">No answer key for this question yet.</span>}
-        {!res && q.answer.length > 0 && <button onClick={submit} disabled={pending || (q.options.length ? !given.length : !text.trim())} className="btn-primary px-4 py-1.5 text-sm disabled:opacity-50">{pending ? 'Checking…' : 'Check answer'}</button>}
-        <button onClick={() => setShow((v) => !v)} className="btn-outline px-3 py-1.5 text-sm">{show ? 'Hide answer' : 'Reveal answer'}</button>
-        {show && <><button onClick={() => explain('simpler')} disabled={pending} className="btn-outline px-3 py-1.5 text-sm">Explain simpler</button><button onClick={() => explain('advanced')} disabled={pending} className="btn-outline px-3 py-1.5 text-sm">Advanced</button></>}
+        {!res && q.answer.length === 0 && <span className="self-center text-xs text-muted">{ui(lang, 'noKey')}</span>}
+        {!res && q.answer.length > 0 && <button onClick={submit} disabled={pending || (q.options.length ? !given.length : !text.trim())} className="btn-primary px-4 py-1.5 text-sm disabled:opacity-50">{pending ? ui(lang, 'checking') : ui(lang, 'check')}</button>}
+        <button onClick={() => setShow((v) => !v)} className="btn-outline px-3 py-1.5 text-sm">{show ? ui(lang, 'hide') : ui(lang, 'reveal')}</button>
+        {show && <><button onClick={() => explain('simpler')} disabled={pending} className="btn-outline px-3 py-1.5 text-sm">{ui(lang, 'simpler')}</button><button onClick={() => explain('advanced')} disabled={pending} className="btn-outline px-3 py-1.5 text-sm">{ui(lang, 'advanced')}</button></>}
       </div>
-      {res && <p className={`text-sm font-semibold ${res.correct ? 'text-emerald-700' : res.correct === false ? 'text-red-700' : 'text-muted'}`}>{res.correct ? `Correct (+${res.score})` : res.correct === false ? `Not quite (${res.score})` : 'Answer recorded'}</p>}
+      {res && <p className={`text-sm font-semibold ${res.correct ? 'text-emerald-700' : res.correct === false ? 'text-red-700' : 'text-muted'}`}>{res.correct ? `${ui(lang, 'correct')} (+${res.score})` : res.correct === false ? `${ui(lang, 'notQuite')} (${res.score})` : 'Answer recorded'}</p>}
       {res?.feedback && <p className="whitespace-pre-line rounded-lg bg-bg p-2 text-sm">{res.feedback}</p>}
       {err && <p role="alert" className="text-sm text-red-700">{err}</p>}
       {show && (
         <div className="space-y-2 rounded-lg bg-bg p-3 text-sm">
-          <p><b>Answer:</b> {fmtAns || '—'}</p>
+          <p><b>{ui(lang, 'answer')}:</b> {fmtAns || '—'}</p>
           {q.explanation && <>
             <p className="whitespace-pre-line">{q.explanation.explanation}</p>
             {q.explanation.steps.length > 0 && <ol className="list-decimal space-y-1 pl-5">{q.explanation.steps.map((s, i) => <li key={i} className="whitespace-pre-line">{s}</li>)}</ol>}
@@ -130,7 +132,7 @@ export function TaxonomyPickers({ t, exams, conceptFree = true }: { t: ReturnTyp
 
 const DIFFS = [['beginner', 'Beginner'], ['easy', 'Easy'], ['medium', 'Medium'], ['hard', 'Hard'], ['very_hard', 'Very hard'], ['advanced', 'Advanced competitive']];
 
-export function Generator({ exams, chapters, initialExam, aiReady }: { exams: ExamOpt[]; chapters: ChapterOpt[]; initialExam: string; aiReady: boolean }) {
+export function Generator({ exams, chapters, initialExam, aiReady, lang = 'en' }: { exams: ExamOpt[]; chapters: ChapterOpt[]; initialExam: string; aiReady: boolean; lang?: ObLang }) {
   const t = useTaxonomy(exams, chapters, initialExam);
   const [types, setTypes] = useState<string[]>([t.exam.types[0]?.id ?? 'mcq_single']);
   const [difficulty, setDifficulty] = useState('medium');
@@ -152,13 +154,13 @@ export function Generator({ exams, chapters, initialExam, aiReady }: { exams: Ex
           <Field label="Number of questions"><div className="flex gap-1.5">{[5, 10, 20, 30, 50].map((c) => <button key={c} type="button" onClick={() => { setCount(c); setCustom(''); }} className={!custom && count === c ? 'chip-active chip' : 'chip'}>{c}</button>)}<input aria-label="Custom number" className="input w-20" inputMode="numeric" placeholder="Custom" value={custom} onChange={(e) => setCustom(e.target.value.replace(/\D/g, '').slice(0, 2))} /></div></Field>
         </div>
         {!aiReady && <p className="rounded-lg bg-amber-50 px-3 py-2 text-sm text-amber-900 dark:bg-amber-400/10 dark:text-amber-200">AI question generation is not switched on yet: the college needs to add the AI key on the server. Until then, practise with the question bank, past papers and the daily challenge.</p>}
-        <button onClick={go} disabled={pending || !t.concept.trim() || !types.length || !t.chapter} className="btn-primary w-full py-2.5 disabled:opacity-50">{pending ? `Generating ${n} questions and checking for duplicates…` : 'Generate questions'}</button>
+        <button onClick={go} disabled={pending || !t.concept.trim() || !types.length || !t.chapter} className="btn-primary w-full py-2.5 disabled:opacity-50">{pending ? `${n} · ${ui(lang, 'generating')}` : ui(lang, 'generate')}</button>
       </section>
       <Note r={out?.error ? out : null} />
       {out?.data && (
         <>
           <p className="rounded-lg bg-bg px-3 py-2 text-xs text-muted">{out.data.questions.length} new question{out.data.questions.length === 1 ? '' : 's'} · {out.data.rejected} rejected as duplicates and regenerated ({out.data.rounds} round{out.data.rounds > 1 ? 's' : ''}) · compared with {out.data.checkedAgainst} earlier questions on this concept · checks: {out.data.method}{out.data.shortfall > 0 ? ` · ${out.data.shortfall} could not be made unique; try a different difficulty or format` : ''}</p>
-          {out.data.questions.map((q, i) => <QuestionCard key={q.id} q={q} n={i + 1} />)}
+          {out.data.questions.map((q, i) => <QuestionCard key={q.id} q={q} n={i + 1} lang={lang} />)}
         </>
       )}
     </div>
@@ -166,7 +168,7 @@ export function Generator({ exams, chapters, initialExam, aiReady }: { exams: Ex
 }
 
 /** A fixed set of MCQ/numerical questions answered together (diagnostic, daily challenge). */
-export function QuizSet({ questions, onSubmit, submitLabel }: { questions: QView[]; onSubmit: (answers: Record<string, string>) => Promise<R<{ correct: number; total: number; xp?: number }>>; submitLabel: string }) {
+export function QuizSet({ questions, onSubmit, submitLabel, lang = 'en' }: { questions: QView[]; onSubmit: (answers: Record<string, string>) => Promise<R<{ correct: number; total: number; xp?: number }>>; submitLabel: string; lang?: ObLang }) {
   const [ans, setAns] = useState<Record<string, string>>({});
   const [res, setRes] = useState<R<{ correct: number; total: number; xp?: number }> | null>(null);
   const [pending, start] = useTransition();
@@ -177,26 +179,26 @@ export function QuizSet({ questions, onSubmit, submitLabel }: { questions: QView
         <div key={q.id} className="card p-3">
           <p className="whitespace-pre-line text-sm text-heading"><b>{n + 1}.</b> {q.stem}</p>
           {q.options.length ? <div className="mt-2 grid gap-1">{q.options.map((o, i) => <label key={i} className={`flex items-start gap-2 rounded-lg border px-2 py-1.5 text-sm ${ans[q.id] === String(i) ? 'border-navy dark:border-gold' : 'border-line'}`}><input type="radio" name={q.id} checked={ans[q.id] === String(i)} onChange={() => setAns((a) => ({ ...a, [q.id]: String(i) }))} />({letter(i)}) {o}</label>)}</div>
-            : <input className="input mt-2 w-full" placeholder="Answer" value={ans[q.id] ?? ''} onChange={(e) => setAns((a) => ({ ...a, [q.id]: e.target.value }))} />}
+            : <input className="input mt-2 w-full" placeholder={ui(lang, 'yourAnswer')} value={ans[q.id] ?? ''} onChange={(e) => setAns((a) => ({ ...a, [q.id]: e.target.value }))} />}
         </div>
       ))}
       <Note r={res} />
-      <button disabled={pending} onClick={() => start(async () => setRes(await onSubmit(ans)))} className="btn-primary w-full py-2.5 disabled:opacity-50">{pending ? 'Marking…' : submitLabel}</button>
+      <button disabled={pending} onClick={() => start(async () => setRes(await onSubmit(ans)))} className="btn-primary w-full py-2.5 disabled:opacity-50">{pending ? ui(lang, 'marking') : submitLabel}</button>
     </div>
   );
 }
 
-export function CardReview({ cards }: { cards: { id: string; front: string; back: string; kind: string }[] }) {
+export function CardReview({ cards, lang = 'en' }: { lang?: ObLang; cards: { id: string; front: string; back: string; kind: string; imageKey?: string | null; masks?: { x: number; y: number; w: number; h: number }[]; target?: number | null }[] }) {
   const [i, setI] = useState(0);
   const [flip, setFlip] = useState(false);
   const [pending, start] = useTransition();
   const c = cards[i];
-  if (!c) return <p className="card p-4 text-sm">Session done. Cards come back when they are due again.</p>;
+  if (!c) return <p className="card p-4 text-sm">{ui(lang, 'sessionDone')}</p>;
   const rate = (r: 'again' | 'hard' | 'good' | 'easy') => start(async () => { await act.rateCardAction(c.id, r); setFlip(false); setI((x) => x + 1); });
   return (
     <div className="space-y-3">
       <p className="text-xs text-muted">Card {i + 1} of {cards.length} · {c.kind}</p>
-      <button onClick={() => setFlip((f) => !f)} className="card block min-h-[160px] w-full whitespace-pre-line p-5 text-left text-[15px] text-heading">{flip ? c.back : c.front}<span className="mt-3 block text-[11px] text-muted">{flip ? 'Answer' : 'Tap to show the answer'}</span></button>
+      <button onClick={() => setFlip((f) => !f)} className="card block min-h-[160px] w-full whitespace-pre-line p-5 text-left text-[15px] text-heading">{c.imageKey && c.masks?.length ? <OcclusionView cardId={c.id} masks={c.masks} target={c.target ?? null} revealed={flip} /> : null}<span className="mt-2 block">{flip ? c.back : c.front}</span><span className="mt-3 block text-[11px] text-muted">{flip ? ui(lang, 'answer') : ui(lang, 'tapShow')}</span></button>
       {flip && <div className="grid grid-cols-4 gap-2">{(['again', 'hard', 'good', 'easy'] as const).map((r) => <button key={r} disabled={pending} onClick={() => rate(r)} className="btn-outline py-2 text-sm capitalize">{r}</button>)}</div>}
     </div>
   );
@@ -281,7 +283,7 @@ export function Chat({ mode, tasks, initialSession, initialTurns, voice = false 
 }
 
 /** Camera / photo → OCR → editable text with confidence → solve, similar, save, flashcard, community, doubt. */
-export function Scanner({ exams, defaultExam }: { exams: ExamOpt[]; defaultExam: string }) {
+export function Scanner({ exams, defaultExam, lang = 'en' }: { exams: ExamOpt[]; defaultExam: string; lang?: ObLang }) {
   const [examId, setExamId] = useState(defaultExam);
   const [preview, setPreview] = useState<string | null>(null);
   const [scan, setScan] = useState<{ imageKey: string; confidence: number | null; ocr: string; questions: { text: string; subject: string; chapter: string; concept: string; difficulty: string; latex: string }[] } | null>(null);
@@ -292,6 +294,7 @@ export function Scanner({ exams, defaultExam }: { exams: ExamOpt[]; defaultExam:
   const [solution, setSolution] = useState<QView | null>(null);
   const [similar, setSimilar] = useState<QView[]>([]);
   const [pending, start] = useTransition();
+  const [fixNote, setFixNote] = useState<string | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
   const exam = exams.find((e) => e.id === examId) ?? exams[0];
   const pick = (n: number, s = scan) => { const q = s?.questions[n]; setIdx(n); setText(q?.text ?? ''); setTag(q ? { subject: q.subject, chapter: q.chapter, concept: q.concept } : { subject: exam.subjects[0], chapter: '', concept: '' }); };
@@ -300,7 +303,10 @@ export function Scanner({ exams, defaultExam }: { exams: ExamOpt[]; defaultExam:
     setPreview(URL.createObjectURL(f));
     // auto-enhance: downscale large photos and boost contrast before upload (keeps the original on the phone)
     const fd = new FormData();
-    fd.set('image', await enhance(f));
+    const e = await enhance(f);
+    setFixNote(e.note);
+    if (e.file !== f) setPreview(URL.createObjectURL(e.file));
+    fd.set('image', e.file);
     fd.set('examId', examId);
     const r = await act.scanAction(fd);
     if (r.error) { setMsg(r); return; }
@@ -315,8 +321,9 @@ export function Scanner({ exams, defaultExam }: { exams: ExamOpt[]; defaultExam:
       <section className="card space-y-3 p-4">
         <Field label="Examination"><select className="input w-full" value={examId} onChange={(e) => setExamId(e.target.value)}>{exams.filter((e) => e.ready).map((e) => <option key={e.id} value={e.id}>{e.name}</option>)}</select></Field>
         <input ref={fileRef} type="file" accept="image/*,application/pdf" capture="environment" className="hidden" onChange={(e) => e.target.files?.[0] && upload(e.target.files[0])} />
-        <button onClick={() => fileRef.current?.click()} disabled={pending} className="btn-primary w-full py-3">{pending ? 'Reading the question…' : '📷 Scan with camera or choose a photo'}</button>
+        <button onClick={() => fileRef.current?.click()} disabled={pending} className="btn-primary w-full py-3">{pending ? '…' : ui(lang, 'scan')}</button>
         {preview && <img src={preview} alt="Your photo" className="max-h-60 w-full rounded-lg object-contain" />}
+        {fixNote && <p className="text-xs text-muted">{fixNote}</p>}
       </section>
       <Note r={msg} />
       {(scan || preview) && (
@@ -333,35 +340,60 @@ export function Scanner({ exams, defaultExam }: { exams: ExamOpt[]; defaultExam:
           </div>
           <button onClick={reclassify} disabled={pending || !text.trim()} className="text-xs underline">Identify subject, chapter and concept again from my text</button>
           <div className="grid grid-cols-2 gap-2">
-            <button disabled={pending || !text.trim()} onClick={() => start(async () => { const r = await act.solveAction(q()); if (r.error) setMsg(r); else setSolution(r.data as never); })} className="btn-primary py-2 text-sm">Solve step by step</button>
-            <button disabled={pending || !text.trim()} onClick={() => start(async () => { const r = await act.similarQuestionsAction(q()); if (r.error) setMsg(r); else setSimilar((r.data as { questions: QView[] }).questions); })} className="btn-outline py-2 text-sm">5 similar questions</button>
-            <button disabled={pending || !text.trim()} onClick={() => start(async () => setMsg(await act.saveScanAction(q())))} className="btn-outline py-2 text-sm">Save to my questions</button>
-            <button disabled={pending || !text.trim()} onClick={() => start(async () => setMsg(await act.scanCardAction(q(), solution?.explanation?.answer ?? '')))} className="btn-outline py-2 text-sm">Make a flashcard</button>
-            <button disabled={pending || !text.trim()} onClick={() => start(async () => setMsg(await act.scanPostAction(q())))} className="btn-outline py-2 text-sm">Post to community</button>
-            <button disabled={pending || !text.trim()} onClick={() => start(async () => setMsg(await act.scanDoubtAction(q())))} className="btn-outline py-2 text-sm">Send to a teacher</button>
+            <button disabled={pending || !text.trim()} onClick={() => start(async () => { const r = await act.solveAction(q()); if (r.error) setMsg(r); else setSolution(r.data as never); })} className="btn-primary py-2 text-sm">{ui(lang, 'solve')}</button>
+            <button disabled={pending || !text.trim()} onClick={() => start(async () => { const r = await act.similarQuestionsAction(q()); if (r.error) setMsg(r); else setSimilar((r.data as { questions: QView[] }).questions); })} className="btn-outline py-2 text-sm">{ui(lang, 'similar')}</button>
+            <button disabled={pending || !text.trim()} onClick={() => start(async () => setMsg(await act.saveScanAction(q())))} className="btn-outline py-2 text-sm">{ui(lang, 'saveMine')}</button>
+            <button disabled={pending || !text.trim()} onClick={() => start(async () => setMsg(await act.scanCardAction(q(), solution?.explanation?.answer ?? '')))} className="btn-outline py-2 text-sm">{ui(lang, 'makeCard')}</button>
+            <button disabled={pending || !text.trim()} onClick={() => start(async () => setMsg(await act.scanPostAction(q())))} className="btn-outline py-2 text-sm">{ui(lang, 'post')}</button>
+            <button disabled={pending || !text.trim()} onClick={() => start(async () => setMsg(await act.scanDoubtAction(q())))} className="btn-outline py-2 text-sm">{ui(lang, 'teacher')}</button>
           </div>
         </section>
       )}
-      {solution && <QuestionCard q={solution} n={1} />}
-      {similar.map((s, n) => <QuestionCard key={s.id} q={s} n={n + 1} />)}
+      {solution && <QuestionCard q={solution} n={1} lang={lang} />}
+      {similar.map((s, n) => <QuestionCard key={s.id} q={s} n={n + 1} lang={lang} />)}
     </div>
   );
 }
 
-/** Client-side auto-crop of empty borders is unreliable; we downscale to ≤1800 px and raise contrast (deskew is left to OCR). */
-async function enhance(f: File): Promise<File> {
-  if (!f.type.startsWith('image/')) return f;
+/**
+ * Photo clean-up before upload (§23): auto-crop to the ink, deskew (projection profile), contrast boost,
+ * downscale to ≤1800 px. The original photo stays on the phone; the cleaned copy is what gets stored and read.
+ */
+async function enhance(f: File): Promise<{ file: File; note: string | null }> {
+  if (!f.type.startsWith('image/')) return { file: f, note: null };
   try {
+    const { contentBox, skewAngle } = await import('@/lib/openbook/imagefix');
     const img = await createImageBitmap(f);
-    const scale = Math.min(1, 1800 / Math.max(img.width, img.height));
-    const c = document.createElement('canvas');
-    c.width = Math.round(img.width * scale); c.height = Math.round(img.height * scale);
+    // analyse a small grayscale copy
+    const k = Math.min(1, 700 / Math.max(img.width, img.height));
+    const sw = Math.max(1, Math.round(img.width * k)), sh = Math.max(1, Math.round(img.height * k));
+    const sc = document.createElement('canvas'); sc.width = sw; sc.height = sh;
+    const sx = sc.getContext('2d', { willReadFrequently: true })!;
+    sx.drawImage(img, 0, 0, sw, sh);
+    const rgba = sx.getImageData(0, 0, sw, sh).data;
+    const px = new Uint8Array(sw * sh);
+    for (let i = 0; i < px.length; i++) px[i] = Math.round(0.299 * rgba[i * 4] + 0.587 * rgba[i * 4 + 1] + 0.114 * rgba[i * 4 + 2]);
+    const g = { w: sw, h: sh, px };
+    const angle = skewAngle(g);
+    const box = contentBox(g) ?? { x: 0, y: 0, w: sw, h: sh };
+    const croppedArea = (box.w * box.h) / (sw * sh);
+    const useBox = croppedArea > 0.08 && croppedArea < 0.97 ? box : { x: 0, y: 0, w: sw, h: sh };
+    // render the crop from the full image, rotated by −angle, scaled to ≤1800 px
+    const src = { x: useBox.x / k, y: useBox.y / k, w: useBox.w / k, h: useBox.h / k };
+    const scale = Math.min(1, 1800 / Math.max(src.w, src.h));
+    const rad = (-angle * Math.PI) / 180;
+    const cw = src.w * scale, ch = src.h * scale;
+    const W = Math.round(Math.abs(cw * Math.cos(rad)) + Math.abs(ch * Math.sin(rad))), H = Math.round(Math.abs(cw * Math.sin(rad)) + Math.abs(ch * Math.cos(rad)));
+    const c = document.createElement('canvas'); c.width = W; c.height = H;
     const x = c.getContext('2d')!;
-    x.filter = 'contrast(1.25) brightness(1.05)';
-    x.drawImage(img, 0, 0, c.width, c.height);
+    x.fillStyle = '#fff'; x.fillRect(0, 0, W, H);
+    x.translate(W / 2, H / 2); x.rotate(rad);
+    x.filter = 'grayscale(0.2) contrast(1.3) brightness(1.06)';
+    x.drawImage(img, src.x, src.y, src.w, src.h, -cw / 2, -ch / 2, cw, ch);
     const blob = await new Promise<Blob | null>((r) => c.toBlob(r, 'image/jpeg', 0.9));
-    return blob ? new File([blob], 'scan.jpg', { type: 'image/jpeg' }) : f;
+    const notes = [useBox !== box || croppedArea >= 0.97 ? null : 'cropped to the question', Math.abs(angle) >= 0.5 ? `straightened by ${Math.abs(angle)}°` : null, 'contrast enhanced'].filter(Boolean);
+    return { file: blob ? new File([blob], 'scan.jpg', { type: 'image/jpeg' }) : f, note: `Photo ${notes.join(', ')}.` };
   } catch {
-    return f;
+    return { file: f, note: null };
   }
 }

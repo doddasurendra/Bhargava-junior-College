@@ -165,6 +165,16 @@ export async function manualCardAction(_: R, fd: FormData): Promise<R> {
     return F.addCard(me.studentId, deckId, { kind: (s(fd, 'kind') ?? 'qa') as 'qa', front: s(fd, 'front') ?? '', back: s(fd, 'back') ?? '', source: 'manual' });
   }, 'Card added.', ['/app/openbook/flashcards']);
 }
+export async function occlusionAction(_: R, fd: FormData): Promise<R> {
+  const me = await obStudent();
+  return run(async () => {
+    const img = await file(fd, 'image', me.studentId);
+    if (!img) throw new OpenBookError('Choose the diagram image.');
+    const boxes = z.array(z.object({ x: z.number(), y: z.number(), w: z.number(), h: z.number(), label: z.string().max(200) })).max(40).parse(JSON.parse(String(fd.get('boxes') ?? '[]')));
+    const r = await F.occlusionCards(me.studentId, { deckName: s(fd, 'deck') ?? 'Diagrams', subject: s(fd, 'subject'), image: { bytes: img.bytes, mime: img.mime }, boxes });
+    return r;
+  }, 'Diagram cards added.', ['/app/openbook/flashcards']);
+}
 export async function shareDeckAction(deckId: string) {
   const me = await obStudent();
   return run(async () => { if (!me.batchId) throw new OpenBookError('You are not in a batch yet.'); return F.shareDeck(me.studentId, deckId, me.batchId); }, 'Sent to your teacher for approval.', ['/app/openbook/flashcards']);

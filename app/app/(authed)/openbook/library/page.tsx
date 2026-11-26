@@ -3,12 +3,14 @@ import { pickerOptions } from '@/lib/openbook/options';
 import { obStudent } from '@/lib/openbook/session';
 import { CATEGORIES } from '@/lib/openbook/taxonomy';
 import { BookTile, ComingSoon, H1, Pager } from '../ui';
+import { page as pageText } from '@/lib/openbook/i18n';
 
 export const dynamic = 'force-dynamic';
 export const maxDuration = 60;
 
 export default async function LibraryPage({ searchParams }: { searchParams: Record<string, string | undefined> }) {
-  await obStudent();
+  const me = await obStudent();
+  const pg = pageText(me.profile.lang, 'library');
   const sp = searchParams;
   const page = Number(sp.page ?? 1) || 1;
   const [res, opts] = await Promise.all([listBooks({ q: sp.q, category: sp.category, examId: sp.exam, subject: sp.subject, cls: sp.cls, kind: sp.kind, page }), pickerOptions()]);
@@ -19,7 +21,7 @@ export default async function LibraryPage({ searchParams }: { searchParams: Reco
   const catReady = !cat || exams.some((e) => e.ready);
   return (
     <div className="space-y-4">
-      <H1 sub={cat?.blurb ?? 'Search by title, author, subject, publisher, exam or year.'}>{cat?.name ?? 'Digital Library'}</H1>
+      <H1 sub={cat?.blurb ?? pg.sub}>{cat?.name ?? pg.title}</H1>
       <form className="card grid gap-2 p-3 sm:grid-cols-2" action="/app/openbook/library">
         {sp.category && <input type="hidden" name="category" value={sp.category} />}
         <input name="q" defaultValue={sp.q} className="input sm:col-span-2" placeholder="Title, author, subject, publisher, ISBN" aria-label="Search books" />

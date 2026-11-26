@@ -74,7 +74,7 @@ export async function submitChallenge(studentId: string, subject: string, answer
 }
 
 export async function challengeStreak(studentId: string, today = todayIST()) {
-  const dates = new Set((await obChallengeAttempts.list(store(), { k1: studentId })).map((a) => a.data.date));
+  const dates = new Set((await obChallengeAttempts.list(store(), { k1: studentId })).filter((a) => a.data.subject !== WEEKLY_BONUS).map((a) => a.data.date));
   let d = dates.has(today) ? today : addDays(today, -1);
   let n = 0;
   while (dates.has(d)) { n++; d = addDays(d, -1); }
@@ -140,12 +140,42 @@ export async function housePoints(today = todayIST()) {
   return hs.map((h) => ({ name: h.data.name, color: h.data.color, points: chal.filter((c) => c.data.date >= from && h.data.studentIds.includes(c.data.studentId)).reduce((s, c) => s + c.data.xp, 0) })).sort((a, b) => b.points - a.points);
 }
 
-/** Weekly winners (top 3 by challenge XP per batch), for the Notices announcement. */
+/** Weekly winners: top 3 by challenge XP in the batch over the 7 days before `today` (opted-out students excluded). */
 export async function weeklyWinners(batchId: string, today = todayIST()) {
-  const from = addDays(today, -6);
-  const chal = (await obChallengeAttempts.list(store())).filter((c) => c.data.batchId === batchId && c.data.date >= from);
+  const from = addDays(today, -7), to = addDays(today, -1);
+  const chal = (await obChallengeAttempts.list(store())).filter((c) => c.data.batchId === batchId && c.data.date >= from && c.data.date <= to && c.data.subject !== WEEKLY_BONUS);
   const prof = new Map((await obProfiles.list(store())).map((p) => [p.data.studentId, p.data]));
   const m = new Map<string, number>();
   for (const c of chal) m.set(c.data.studentId, (m.get(c.data.studentId) ?? 0) + c.data.xp);
-  return [...m.entries()].filter(([sid]) => !prof.get(sid)?.optOut).sort((a, b) => b[1] - a[1]).slice(0, 3).map(([sid, xp]) => ({ name: prof.get(sid)?.nickname ?? 'Learner', xp }));
+  return [...m.entries()].filter(([sid]) => !prof.get(sid)?.optOut).sort((a, b) => b[1] - a[1]).slice(0, 3).map(([sid, xp]) => ({ studentId: sid, name: prof.get(sid)?.nickname ?? 'Learner', xp }));
+}
+
+export const WEEKLY_BONUS = 'Weekly winner bonus';
+
+/**
+ * Posts each batch's weekly winners to Notices (the existing notices module: students and parents of the batch
+ * see it) with the reward the admin set, and credits the optional bonus XP. Idempotent per batch and week.
+ */
+export async function announceWeeklyWinners(today = todayIST()) {
+  const { settings } = await import('./core');
+  const { notices } = await import('../records/collections');
+  const { allBatches } = await import('../school/common');
+  const s = await settings();
+  if (!s.announceWinners) return { posted: 0, skipped: 'switched off' };
+  const week = `${addDays(today, -7)} to ${addDays(today, -1)}`;
+  let posted = 0;
+  for (const b of await allBatches()) {
+    if (!b.data.active) continue;
+    const audience = `batch:${b.id}`;
+    const already = (await notices.list(store(), { k1: audience })).some((n) => n.data.title.includes(week));
+    if (already) continue;
+    const winners = await weeklyWinners(b.id, today);
+    if (!winners.length) continue;
+    const medals = ['🥇', '🥈', '🥉'];
+    const body = `Open Book Daily Challenge, ${week}, ${b.data.name}:\n${winners.map((w, i) => `${medals[i]} ${w.name}: ${w.xp} XP`).join('\n')}${s.weeklyReward ? `\n\nReward: ${s.weeklyReward}` : ''}${s.weeklyBonusXp ? `\nEach winner gets ${s.weeklyBonusXp} bonus XP.` : ''}\n\nNames are Open Book nicknames; students who opted out of leaderboards are never listed. Well done to everyone who practised every day!`;
+    await notices.put(store(), { title: `Weekly challenge winners (${week})`, body, audience, date: today, publishedBy: 'open-book', attachmentUrl: null });
+    if (s.weeklyBonusXp) for (const w of winners) await obChallengeAttempts.put(store(), { studentId: w.studentId, batchId: b.id, date: today, subject: WEEKLY_BONUS, correct: 0, total: 0, xp: s.weeklyBonusXp });
+    posted++;
+  }
+  return { posted };
 }

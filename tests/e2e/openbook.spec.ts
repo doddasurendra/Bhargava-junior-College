@@ -341,6 +341,56 @@ test('25 phone width: no horizontal overflow at 390 px on the main Open Book scr
   results['25 390px'] = 'PASS';
 });
 
+test('pending items: catalogue, formula sheet, diagram cards, offline review, Telugu/Hindi, weekly winners', async () => {
+  // official NCERT + OpenStax catalogue (link-only)
+  await staff.goto('/crm/openbook?tab=books');
+  await act(staff, 'Add the official NCERT and OpenStax catalogue');
+  await staff.waitForTimeout(4000);
+  await student.goto(`/app/openbook/library?q=${encodeURIComponent('Physics Part I Class XI')}`);
+  await student.getByText('Physics Part I – Textbook for Class XI').first().click();
+  await expect(student.getByRole('link', { name: 'Official page' })).toHaveAttribute('href', 'https://ncert.nic.in/textbook.php');
+  await expect(student.getByText(/free on its official website/)).toBeVisible();
+  // formula sheet for a chapter with worked solutions (from the practice bank)
+  await student.goto(`/app/openbook/revision?subject=Mathematics&chapter=${encodeURIComponent('Complex Numbers and Quadratic Equations')}`);
+  await expect(student.locator('article')).toContainText('Formulas');
+  await expect(student.locator('article')).toContainText(/b\/a/);
+  await expect(student.getByRole('button', { name: /Save as PDF/ })).toBeVisible();
+  // diagram (image-occlusion) cards: upload, draw a box, label, save
+  await student.goto('/app/openbook/flashcards');
+  const png = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAgAAAAICAIAAABLbSncAAAAEklEQVR4nGP4z8CAFWEXHbQSACj/P8Fu7N9hAAAAAElFTkSuQmCC', 'base64');
+  await student.getByLabel('Diagram image').setInputFiles({ name: 'heart.png', mimeType: 'image/png', buffer: png });
+  const area = student.locator('img[alt=Diagram]').first();
+  await area.waitFor();
+  const bb = (await area.boundingBox())!;
+  await student.mouse.move(bb.x + bb.width * 0.1, bb.y + bb.height * 0.1); await student.mouse.down();
+  await student.mouse.move(bb.x + bb.width * 0.5, bb.y + bb.height * 0.4, { steps: 6 }); await student.mouse.up();
+  await student.getByPlaceholder('What is under this box?').fill(`QA ${RUN} left atrium`);
+  await student.getByRole('button', { name: /Make 1 cards/ }).click();
+  await expect(student.getByText(/1 diagram cards added/)).toBeVisible({ timeout: 30_000 });
+  // offline review page is served and lists saved cards
+  await student.goto('/app/openbook/flashcards');
+  await expect(student.getByText(/cards saved on this phone for offline review/)).toBeVisible({ timeout: 30_000 });
+  await student.goto('/app/cards-offline');
+  await expect(student.locator('body')).toContainText(/Card 1 of|No cards due on this phone/);
+  // Telugu interface
+  await student.goto('/app/openbook');
+  await student.locator('select[name=lang]').selectOption('te');
+  await student.getByRole('button', { name: 'Save' }).click();
+  await expect(student.getByText('Saved.')).toBeVisible({ timeout: 30_000 });
+  await student.goto('/app/openbook/generate');
+  await expect(student.locator('h1')).toContainText('AI ప్రశ్నల జనరేటర్');
+  await expect(student.getByRole('button', { name: 'ప్రశ్నలు తయారు చేయండి' })).toBeVisible();
+  await student.goto('/app/openbook');
+  await student.locator('select[name=lang]').selectOption('en');
+  await student.getByRole('button', { name: 'Save' }).click();
+  await expect(student.getByText('Saved.')).toBeVisible({ timeout: 30_000 });
+  // weekly winners → Notices (manual trigger)
+  await staff.goto('/crm/openbook?tab=settings');
+  await act(staff, "Post last week's winners now");
+  await staff.waitForTimeout(4000);
+  results['pending items'] = 'PASS (NCERT/OpenStax catalogue, formula sheet, diagram cards, offline review page, Telugu UI, winners trigger)';
+});
+
 test('cleanup: remove QA book and papers, hide QA community question', async () => {
   const clickAll = async (url: string, text: string | RegExp, label: RegExp) => {
     for (let n = 0; n < 60; n++) {

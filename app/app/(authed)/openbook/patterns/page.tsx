@@ -3,12 +3,14 @@ import { pickerOptions } from '@/lib/openbook/options';
 import { obStudent } from '@/lib/openbook/session';
 import { PatternMock } from './PatternMock';
 import { H1 } from '../ui';
+import { page as pageText } from '@/lib/openbook/i18n';
 
 export const dynamic = 'force-dynamic';
 export const maxDuration = 60;
 
 export default async function PatternsPage({ searchParams }: { searchParams: { exam?: string; subject?: string } }) {
   const me = await obStudent();
+  const pg = pageText(me.profile.lang, 'patterns');
   const o = await pickerOptions();
   const examId = searchParams.exam ?? me.defaultExam;
   const exam = o.exams.find((e) => e.id === examId)!;
@@ -17,7 +19,7 @@ export default async function PatternsPage({ searchParams }: { searchParams: { e
   const max = Math.max(1, ...a.chapters.flatMap((c) => c.perYear));
   return (
     <div className="space-y-4">
-      <H1 sub={a.basis.note}>Pattern Analyzer</H1>
+      <H1 sub={a.basis.note}>{pg.title}</H1>
       <form className="card grid gap-2 p-3 sm:grid-cols-3">
         <select name="exam" defaultValue={examId} className="input" aria-label="Examination">{o.exams.filter((e) => e.ready).map((e) => <option key={e.id} value={e.id}>{e.name}</option>)}</select>
         <select name="subject" defaultValue={subject} className="input" aria-label="Subject">{exam.subjects.map((s) => <option key={s}>{s}</option>)}</select>

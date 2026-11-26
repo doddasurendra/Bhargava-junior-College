@@ -68,6 +68,10 @@ export async function removeBookAction(_: ActionState, fd: FormData) {
   const u = await requireStaff();
   return run(() => L.removeBook(u, s(fd, 'id')!, s(fd, 'reason') ?? 'Removed by an administrator'), 'Removed from the library.');
 }
+export async function seedCatalogueAction() {
+  const u = await requireStaff();
+  return run(async () => `Catalogue: ${await L.seedCatalogue(u)} books added (NCERT and OpenStax, link-only).`, 'Done.');
+}
 export async function seedSourcesAction() {
   const u = await requireStaff();
   return run(async () => `${await So.seedSources(u)} official sources added.`, 'Done.');
@@ -154,6 +158,11 @@ export async function approveDeckAction(_: ActionState, fd: FormData) {
   return run(() => F.approveDeck(u, s(fd, 'id')!, s(fd, 'decision') === 'approve'), 'Saved.');
 }
 
+export async function announceWinnersAction() {
+  const u = await requireStaff();
+  return run(async () => { if (!canManage(u)) throw new OpenBookError('You do not have permission to do this.'); const { announceWeeklyWinners } = await import('@/lib/openbook/challenge'); const r = await announceWeeklyWinners(); return `Weekly winners posted to Notices for ${r.posted} batch(es)${'skipped' in r ? ` (${r.skipped})` : ''}.`; }, 'Done.');
+}
+
 // ---------------------------------------------------------------- community moderation
 export async function moderateAction(_: ActionState, fd: FormData) {
   const u = await requireStaff();
@@ -175,5 +184,5 @@ export async function staffAnswerAction(_: ActionState, fd: FormData) {
 // ---------------------------------------------------------------- settings
 export async function settingsAction(_: ActionState, fd: FormData) {
   const u = await requireStaff();
-  return run(() => saveSettings(u, { model: s(fd, 'model'), dailyQuestions: Number(s(fd, 'dailyQuestions')), dailyAiCalls: Number(s(fd, 'dailyAiCalls')), dailyVoiceTurns: Number(s(fd, 'dailyVoiceTurns')), duplicateThreshold: Number(s(fd, 'duplicateThreshold')), aiEnabled: fd.get('aiEnabled') === 'on', communityEnabled: fd.get('communityEnabled') === 'on' }), 'Settings saved.');
+  return run(() => saveSettings(u, { model: s(fd, 'model'), dailyQuestions: Number(s(fd, 'dailyQuestions')), dailyAiCalls: Number(s(fd, 'dailyAiCalls')), dailyVoiceTurns: Number(s(fd, 'dailyVoiceTurns')), duplicateThreshold: Number(s(fd, 'duplicateThreshold')), aiEnabled: fd.get('aiEnabled') === 'on', communityEnabled: fd.get('communityEnabled') === 'on', announceWinners: fd.get('announceWinners') === 'on', weeklyReward: s(fd, 'weeklyReward'), weeklyBonusXp: Number(s(fd, 'weeklyBonusXp') ?? 0) }), 'Settings saved.');
 }

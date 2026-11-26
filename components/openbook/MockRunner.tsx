@@ -1,4 +1,5 @@
 'use client';
+import { ui, type ObLang } from '@/lib/openbook/i18n';
 import { useRouter } from 'next/navigation';
 import { useEffect, useRef, useState, useTransition } from 'react';
 import * as act from '@/app/app/(authed)/openbook/actions';
@@ -9,7 +10,7 @@ interface MQ { id: string; type: string; stem: string; options: string[]; subjec
  * Exam screen (§8): countdown timer, question palette (answered / marked for review / not visited), mark for
  * review, autosave every change (resume on any device), automatic submission at 0:00.
  */
-export function MockRunner({ attemptId, endsAt, questions, initialAnswers, initialReview, initialTime, marks, negative }: { attemptId: string; endsAt: string; questions: MQ[]; initialAnswers: Record<string, string[]>; initialReview: string[]; initialTime: Record<string, number>; marks: number; negative: number }) {
+export function MockRunner({ attemptId, endsAt, questions, initialAnswers, initialReview, initialTime, marks, negative, lang = 'en' }: { attemptId: string; endsAt: string; questions: MQ[]; initialAnswers: Record<string, string[]>; initialReview: string[]; initialTime: Record<string, number>; marks: number; negative: number; lang?: ObLang }) {
   const router = useRouter();
   const [i, setI] = useState(0);
   const [answers, setAnswers] = useState(initialAnswers);
@@ -57,8 +58,8 @@ export function MockRunner({ attemptId, endsAt, questions, initialAnswers, initi
     <div className="space-y-3">
       <div className="sticky top-[60px] z-20 flex items-center justify-between rounded-xl border border-line bg-surface px-3 py-2 text-sm">
         <span className={`font-mono text-lg font-semibold ${left < 300_000 ? 'text-red-700' : 'text-heading'}`}>{String(mm).padStart(2, '0')}:{String(ss).padStart(2, '0')}</span>
-        <span className="text-xs text-muted">{saving === 'saving' ? 'Saving…' : saving === 'offline' ? 'Not saved: check your connection' : 'All answers saved'}</span>
-        <button disabled={pending} onClick={() => { if (confirmSubmit(questions.length - questions.filter((x) => answered(x.id)).length)) submit(false); }} className="btn-primary px-3 py-1.5 text-sm">Submit</button>
+        <span className="text-xs text-muted">{saving === 'saving' ? ui(lang, 'saving') : saving === 'offline' ? 'Not saved: check your connection' : ui(lang, 'saved')}</span>
+        <button disabled={pending} onClick={() => { if (confirmSubmit(questions.length - questions.filter((x) => answered(x.id)).length)) submit(false); }} className="btn-primary px-3 py-1.5 text-sm">{ui(lang, 'submit')}</button>
       </div>
       <div className="flex flex-wrap gap-1">{questions.map((x, n) => <button key={x.id} onClick={() => go(n)} aria-label={`Question ${n + 1}`} className={`h-8 w-8 rounded text-xs font-semibold ${n === i ? 'ring-2 ring-navy dark:ring-gold' : ''} ${review.includes(x.id) ? 'bg-purple-600 text-white' : answered(x.id) ? 'bg-emerald-600 text-white' : visited.has(x.id) ? 'bg-red-100 text-red-800' : 'bg-bg text-muted'}`}>{n + 1}</button>)}</div>
       <p className="text-[11px] text-muted">Green answered · purple marked for review · red visited, not answered · +{marks}{negative ? ` / −${negative}` : ''} per question</p>
@@ -72,10 +73,10 @@ export function MockRunner({ attemptId, endsAt, questions, initialAnswers, initi
           })}</ul>
         ) : <textarea className="input w-full" rows={['numerical', 'one_word', 'fill_blank'].includes(q.type) ? 1 : 6} value={(answers[q.id] ?? [''])[0]} onChange={(e) => setAnswers({ ...answers, [q.id]: [e.target.value] })} onBlur={() => void save({ answers: { [q.id]: answers[q.id] ?? [''] } })} placeholder="Your answer" />}
         <div className="flex flex-wrap gap-2">
-          <button onClick={() => setAns([])} className="btn-outline px-3 py-1.5 text-sm">Clear</button>
-          <button onClick={toggleReview} className="btn-outline px-3 py-1.5 text-sm">{review.includes(q.id) ? 'Unmark review' : 'Mark for review'}</button>
-          <button disabled={i === 0} onClick={() => go(i - 1)} className="btn-outline px-3 py-1.5 text-sm">Previous</button>
-          <button disabled={i === questions.length - 1} onClick={() => go(i + 1)} className="btn-primary px-3 py-1.5 text-sm">Save & next</button>
+          <button onClick={() => setAns([])} className="btn-outline px-3 py-1.5 text-sm">{ui(lang, 'clear')}</button>
+          <button onClick={toggleReview} className="btn-outline px-3 py-1.5 text-sm">{review.includes(q.id) ? ui(lang, 'unmark') : ui(lang, 'markReview')}</button>
+          <button disabled={i === 0} onClick={() => go(i - 1)} className="btn-outline px-3 py-1.5 text-sm">{ui(lang, 'previous')}</button>
+          <button disabled={i === questions.length - 1} onClick={() => go(i + 1)} className="btn-primary px-3 py-1.5 text-sm">{ui(lang, 'saveNext')}</button>
         </div>
       </article>
     </div>

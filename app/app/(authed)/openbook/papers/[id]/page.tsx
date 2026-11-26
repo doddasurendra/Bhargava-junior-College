@@ -32,7 +32,7 @@ export default async function PaperPage({ params }: { params: { id: string } }) 
       {p.answerKey && <details className="card p-3 text-sm"><summary className="cursor-pointer font-semibold">Answer key</summary><p className="mt-2 whitespace-pre-line font-mono text-xs">{p.answerKey}</p></details>}
       <h2 className="text-sm font-semibold text-heading">Extracted questions ({qs.length})</h2>
       {qs.length === 0 && <p className="card p-3 text-sm text-muted">{p.extraction.status === 'ocr_needed' ? 'This paper is a scan or photo. Its questions will be read automatically once OCR is switched on; the original is stored safely.' : 'No questions could be extracted from this file.'}</p>}
-      {qs.map((q, i) => <QuestionCard key={q.id} n={i + 1} q={{ ...q, similarity: null }} />)}
+      {qs.map((q, i) => <QuestionCard key={q.id} n={i + 1} q={{ ...q, similarity: null }} lang={me.profile.lang} />)}
     </div>
   );
 }

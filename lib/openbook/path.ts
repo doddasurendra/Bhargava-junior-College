@@ -165,3 +165,21 @@ export async function pathSummary(studentId: string) {
   const done = p.items.filter((i) => i.status === 'done').length;
   return { exam: EXAMS.find((e) => e.id === p.examId)?.name ?? p.examId, examDate: p.examDate, progress: Math.round((done / Math.max(1, p.items.length)) * 100), done, total: p.items.length };
 }
+
+/**
+ * Weak points the voice tutor noticed (§21) go into the Learning Path: the concept is moved to "in progress"
+ * with the reason shown, so it comes back in today's plan. Returns the concepts it could place.
+ */
+export async function flagFromTutor(studentId: string, weak: { subject: string; chapter: string; concept: string }[], today = todayIST()) {
+  const p = await pathOf(studentId);
+  if (!p || !weak.length) return [];
+  const keys = new Map(weak.map((w) => [conceptKey(w.subject, w.chapter, w.concept), w]));
+  const placed: string[] = [];
+  const items = p.items.map((i) => {
+    if (!keys.has(i.conceptKey)) return i;
+    placed.push(i.concept);
+    return { ...i, status: 'in_progress' as const, target: today < i.target ? today : i.target, reason: `Voice tutor (${today}): you found ${i.concept} difficult, so it is back in today's plan.` };
+  });
+  if (placed.length) await obPaths.put(store(), { ...p, items }, p.id);
+  return placed;
+}

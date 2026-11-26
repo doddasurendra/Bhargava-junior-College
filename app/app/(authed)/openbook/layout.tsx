@@ -14,7 +14,7 @@ export default async function OpenBookLayout({ children }: { children: ReactNode
   return (
     <div className="space-y-4">
       {student && (
-        <nav aria-label="Open Book" className="-mx-4 overflow-x-auto border-b border-line px-4 pb-2">
+        <nav aria-label="Open Book" className="-mx-4 overflow-x-auto border-b border-line px-4 pb-2 print:hidden">
           <ul className="flex gap-1.5 whitespace-nowrap">
             {OB_MENU.map((m) => <li key={m.href}><Link href={m.href} className="chip text-xs">{t(lang, m.key)}</Link></li>)}
           </ul>

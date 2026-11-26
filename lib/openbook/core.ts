@@ -59,7 +59,7 @@ export async function audit(actor: Actor, action: string, target: string, note: 
 
 // ---------------------------------------------------------------- files (private storage, kb-files bucket, `openbook/` prefix)
 
-export async function putFile(kind: 'book' | 'paper' | 'scan' | 'post' | 'solution', bytes: Uint8Array, contentType: string) {
+export async function putFile(kind: 'book' | 'paper' | 'scan' | 'post' | 'solution' | 'card', bytes: Uint8Array, contentType: string) {
   const key = `openbook/${kind}/${randomUUID()}`;
   await putKbFile(key, bytes, contentType);
   return key;

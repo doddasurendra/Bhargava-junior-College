@@ -20,7 +20,7 @@ export default async function MockAttemptPage({ params }: { params: { id: string
   return (
     <div className="space-y-3">
       <h1 className="font-display text-xl text-heading">{m.title}</h1>
-      <MockRunner attemptId={a.id} endsAt={a.endsAt} marks={m.marks} negative={m.negative} initialAnswers={a.answers} initialReview={a.review} initialTime={a.time}
+      <MockRunner attemptId={a.id} endsAt={a.endsAt} marks={m.marks} negative={m.negative} initialAnswers={a.answers} initialReview={a.review} initialTime={a.time} lang={me.profile.lang}
         questions={qs.map((q) => ({ id: q.id, type: q.type, stem: q.stem, options: q.options, subject: q.subject }))} />
     </div>
   );

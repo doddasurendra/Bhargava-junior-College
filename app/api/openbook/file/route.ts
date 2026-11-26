@@ -1,5 +1,5 @@
 import { canTeach, readFile } from '@/lib/openbook/core';
-import { obBooks, obPapers, obPosts, obQuestions } from '@/lib/openbook/collections';
+import { obBooks, obCards, obPapers, obPosts, obQuestions } from '@/lib/openbook/collections';
 import { store } from '@/lib/openbook/core';
 import { whoIsAsking } from '@/lib/openbook/session';
 
@@ -12,6 +12,7 @@ export const dynamic = 'force-dynamic';
  *  solution: as paper
  *  scan:     the student who scanned it (or teaching staff)
  *  post:     community image, any signed-in student/staff
+ *  card:     a diagram flashcard's image, its owner only
  */
 export async function GET(req: Request) {
   const url = new URL(req.url);
@@ -40,6 +41,10 @@ export async function GET(req: Request) {
     const q = await obQuestions.get(store(), id);
     if (!q?.data.imageKey || (q.data.ownerId !== studentId && !(staff && canTeach(staff)))) return new Response('Not found', { status: 404 });
     key = q.data.imageKey; mime = 'image/jpeg'; name = 'scan.jpg';
+  } else if (kind === 'card') {
+    const c = await obCards.get(store(), id);
+    if (!c?.data.imageKey || c.data.studentId !== studentId) return new Response('Not found', { status: 404 });
+    key = c.data.imageKey; mime = 'image/jpeg'; name = 'diagram.jpg';
   } else if (kind === 'post') {
     const p = await obPosts.get(store(), id);
     if (!p?.data.imageKey || (p.data.hidden && !staff)) return new Response('Not found', { status: 404 });

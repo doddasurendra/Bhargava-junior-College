@@ -287,3 +287,62 @@ export async function recommendations(studentId: string, examIds: string[], limi
 
 export const canUploadBooks = (u: Staff) => canTeach(u);
 export const isManager = (u: Staff) => canManage(u);
+
+// ---------------------------------------------------------------- official catalogue (link-only)
+
+const NCERT = 'https://ncert.nic.in/textbook.php';
+const NCERT_BOOKS: [title: string, subject: string, cls: '11' | '12'][] = [
+  ['Physics Part I – Textbook for Class XI', 'Physics', '11'], ['Physics Part II – Textbook for Class XI', 'Physics', '11'],
+  ['Chemistry Part I – Textbook for Class XI', 'Chemistry', '11'], ['Chemistry Part II – Textbook for Class XI', 'Chemistry', '11'],
+  ['Mathematics – Textbook for Class XI', 'Mathematics', '11'], ['Biology – Textbook for Class XI', 'Biology', '11'],
+  ['Physics Part I – Textbook for Class XII', 'Physics', '12'], ['Physics Part II – Textbook for Class XII', 'Physics', '12'],
+  ['Chemistry Part I – Textbook for Class XII', 'Chemistry', '12'], ['Chemistry Part II – Textbook for Class XII', 'Chemistry', '12'],
+  ['Mathematics Part I – Textbook for Class XII', 'Mathematics', '12'], ['Mathematics Part II – Textbook for Class XII', 'Mathematics', '12'],
+  ['Biology – Textbook for Class XII', 'Biology', '12'],
+];
+const OPENSTAX: [title: string, subject: string, slugPath: string, exams: string[]][] = [
+  ['College Physics 2e', 'Physics', 'college-physics-2e', ['jee-main', 'neet-ug', 'inter1-mpc', 'inter2-mpc']],
+  ['Chemistry 2e', 'Chemistry', 'chemistry-2e', ['jee-main', 'neet-ug', 'inter1-mpc', 'inter2-mpc']],
+  ['Biology 2e', 'Biology', 'biology-2e', ['neet-ug', 'inter1-bipc', 'inter2-bipc']],
+  ['Calculus Volume 1', 'Mathematics', 'calculus-volume-1', ['jee-main', 'jee-advanced', 'inter2-mpc']],
+  ['Calculus Volume 2', 'Mathematics', 'calculus-volume-2', ['jee-advanced', 'inter2-mpc']],
+  ['Precalculus 2e', 'Mathematics', 'precalculus-2e', ['jee-main', 'inter1-mpc']],
+];
+
+/**
+ * Adds the official NCERT Class 11/12 science and mathematics textbooks and free OpenStax textbooks (CC BY 4.0)
+ * as link-only catalogue entries: students see the book and open it on the official site; nothing is
+ * re-hosted. Idempotent (matched by title + publisher).
+ */
+export async function seedCatalogue(u: Staff | null) {
+  if (u) need(canManage(u));
+  const { chapters } = await import('./core');
+  const chs = await chapters();
+  const have = new Set((await obBooks.list(store())).map((b) => `${b.data.title}|${b.data.publisher}`));
+  const by = { kind: 'system' as const, id: 'catalogue', name: 'Official catalogue' };
+  let added = 0;
+  for (const [title, subject, cls] of NCERT_BOOKS) {
+    if (have.has(`${title}|NCERT`)) continue;
+    const exams = subject === 'Biology' ? ['neet-ug', cls === '11' ? 'inter1-bipc' : 'inter2-bipc', 'eapcet-am', 'aiims'] : subject === 'Mathematics' ? ['jee-main', 'jee-advanced', cls === '11' ? 'inter1-mpc' : 'inter2-mpc', 'eapcet-e', 'upsc'] : ['jee-main', 'jee-advanced', 'neet-ug', cls === '11' ? 'inter1-mpc' : 'inter2-mpc', cls === '11' ? 'inter1-bipc' : 'inter2-bipc', 'eapcet-e', 'eapcet-am'];
+    await obBooks.put(store(), {
+      title, authors: ['NCERT'], publisher: 'NCERT', edition: 'Current rationalised edition', isbn: null, year: null, coverUrl: null,
+      description: `Official NCERT textbook, the core book for TS Intermediate ${cls === '11' ? '1st' : '2nd'} year, JEE and NEET. Free on the NCERT website (choose Class ${cls === '11' ? 'XI' : 'XII'} › ${subject}); linked, not re-hosted.`,
+      category: 'intermediate', examIds: exams, subjects: [subject], cls, chapters: chs.filter((c) => c.subject === subject && c.cls === cls).map((c) => c.name).slice(0, 60),
+      kind: 'official', licence: 'free_official', source: 'official', googleId: null, previewUrl: null, purchaseUrl: null, officialUrl: NCERT,
+      fileKey: null, downloadAllowed: false, status: 'approved', uploadedBy: by,
+    });
+    added++;
+  }
+  for (const [title, subject, path, exams] of OPENSTAX) {
+    if (have.has(`${title}|OpenStax (Rice University)`)) continue;
+    await obBooks.put(store(), {
+      title, authors: ['OpenStax'], publisher: 'OpenStax (Rice University)', edition: null, isbn: null, year: null, coverUrl: null,
+      description: 'Free, peer-reviewed open textbook (CC BY 4.0). Useful as a reference alongside NCERT; read it free on the OpenStax website.',
+      category: subject === 'Biology' ? 'medical' : 'engineering', examIds: exams, subjects: [subject], cls: 'both', chapters: [],
+      kind: 'reference', licence: 'open_licence', source: 'official', googleId: null, previewUrl: `https://openstax.org/details/books/${path}`, purchaseUrl: null, officialUrl: `https://openstax.org/details/books/${path}`,
+      fileKey: null, downloadAllowed: false, status: 'approved', uploadedBy: by,
+    });
+    added++;
+  }
+  return added;
+}

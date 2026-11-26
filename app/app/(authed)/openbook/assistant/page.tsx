@@ -5,6 +5,7 @@ import { aiConfigured } from '@/lib/openbook/llm';
 import { obStudent } from '@/lib/openbook/session';
 import { DeleteSession } from './DeleteSession';
 import { H1 } from '../ui';
+import { page as pageText } from '@/lib/openbook/i18n';
 
 export const dynamic = 'force-dynamic';
 export const maxDuration = 60;
@@ -15,11 +16,12 @@ const TASKS = [
 
 export default async function AssistantPage({ searchParams }: { searchParams: { s?: string } }) {
   const me = await obStudent();
+  const pg = pageText(me.profile.lang, 'assistant');
   const history = await sessionsOf(me.studentId, 'assistant');
   const open = searchParams.s ? await getSession(me.studentId, searchParams.s).catch(() => null) : null;
   return (
     <div className="space-y-4">
-      <H1 sub="Answers come from Open Book’s books with the book and page; it tells you when something isn’t in your sources.">AI Study Assistant</H1>
+      <H1 sub={pg.sub}>{pg.title}</H1>
       {!aiConfigured() && <p className="rounded-lg bg-amber-50 px-3 py-2 text-sm text-amber-900 dark:bg-amber-400/10 dark:text-amber-200">AI answers are not switched on yet. Until then you get the most relevant passages from the library, with their pages.</p>}
       <p className="text-xs text-muted">For flashcards use <Link className="underline" href="/app/openbook/flashcards">Flashcards</Link>; to explain a passage, select it in the <Link className="underline" href="/app/openbook/library">reader</Link>.</p>
       <Chat key={open?.id ?? 'new'} mode="assistant" tasks={TASKS} initialSession={open?.id ?? null} initialTurns={open?.turns ?? []} />

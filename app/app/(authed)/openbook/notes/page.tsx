@@ -3,6 +3,7 @@ import { getBook, notesOf } from '@/lib/openbook/library';
 import { obStudent } from '@/lib/openbook/session';
 import { RemoveButton } from './Remove';
 import { H1 } from '../ui';
+import { page as pageText } from '@/lib/openbook/i18n';
 
 export const dynamic = 'force-dynamic';
 export const maxDuration = 60;
@@ -10,13 +11,14 @@ const BG: Record<string, string> = { yellow: '#fde68a66', green: '#bbf7d066', bl
 
 export default async function NotesPage({ searchParams }: { searchParams: { print?: string } }) {
   const me = await obStudent();
+  const pg = pageText(me.profile.lang, 'notes');
   const notes = await notesOf(me.studentId);
   const titles = new Map<string, string>();
   for (const id of new Set(notes.map((n) => n.bookId))) titles.set(id, (await getBook(id))?.title ?? 'Book');
   const print = searchParams.print === '1';
   return (
     <div className="space-y-4">
-      <H1 sub="Private to you. Highlights, notes and your revision list from every book.">My Notes</H1>
+      <H1 sub={pg.sub}>{pg.title}</H1>
       {!print && <div className="flex gap-2 print:hidden"><a href="/api/openbook/notes" className="btn-outline px-3 py-1.5 text-sm">Export Markdown</a><Link href="/app/openbook/notes?print=1" className="btn-outline px-3 py-1.5 text-sm">Export PDF (print view)</Link></div>}
       {print && <p className="text-xs text-muted print:hidden">Use your browser’s Print → Save as PDF.</p>}
       {notes.length === 0 && <p className="card p-4 text-sm text-muted">No notes yet. Select text in the reader to highlight it or add a note.</p>}

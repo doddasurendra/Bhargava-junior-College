@@ -235,6 +235,8 @@ export const obCards = collection({
   schema: z.object({
     studentId: z.string().max(80), deckId: z.string().max(80), kind: z.enum(['qa', 'formula', 'definition', 'cloze', 'diagram']), front: z.string().trim().min(1).max(2000), back: z.string().trim().min(1).max(4000),
     imageKey: z.string().max(300).nullable().default(null), source: z.enum(['concept', 'chapter', 'passage', 'note', 'wrong_answer', 'manual', 'shared']), conceptKey: z.string().max(200).nullable().default(null),
+    /** image occlusion: every labelled box on the diagram (0–1 coordinates) and which one this card asks */
+    masks: z.array(z.object({ x: z.number().min(0).max(1), y: z.number().min(0).max(1), w: z.number().min(0).max(1), h: z.number().min(0).max(1) })).max(40).default([]), target: z.number().int().min(0).max(39).nullable().default(null),
     ef: z.number().min(1.3).max(3).default(2.5), interval: z.number().int().min(0).default(0), reps: z.number().int().min(0).default(0), lapses: z.number().int().min(0).default(0), due: isoDate,
   }),
   k1: (d) => d.studentId,
@@ -307,5 +309,6 @@ export const obSettings = collection({
   schema: z.object({
     model: z.string().max(60).default('claude-opus-5-5'), dailyQuestions: z.number().int().min(0).max(1000).default(60), dailyAiCalls: z.number().int().min(0).max(2000).default(80),
     dailyVoiceTurns: z.number().int().min(0).max(1000).default(40), duplicateThreshold: z.number().min(0.5).max(0.99).default(0.82), communityEnabled: z.boolean().default(true), aiEnabled: z.boolean().default(true),
+    announceWinners: z.boolean().default(true), weeklyReward: z.string().max(200).nullable().default(null), weeklyBonusXp: z.number().int().min(0).max(100).default(0),
   }),
 });

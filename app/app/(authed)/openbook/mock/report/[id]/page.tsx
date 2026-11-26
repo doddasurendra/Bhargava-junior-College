@@ -31,7 +31,7 @@ export default async function MockReportPage({ params }: { params: { id: string 
         <div key={q.id} className="space-y-1">
           <p className="text-xs text-muted">Q{i + 1}: {res?.correct ? '✅ correct' : res?.correct === false ? '❌ wrong' : '— not attempted'} · your answer: {given.length ? given.map((g) => (q.options.length && /^\d$/.test(g) ? `(${'abcd'[Number(g)]})` : g)).join(', ') : '—'} · {seconds}s · {res?.score ?? 0} marks</p>
           {res?.feedback && <p className="whitespace-pre-line rounded bg-bg p-2 text-xs">{res.feedback}</p>}
-          <QuestionCard q={{ ...q, similarity: null }} n={i + 1} />
+          <QuestionCard q={{ ...q, similarity: null }} n={i + 1} lang={me.profile.lang} />
         </div>
       ))}
     </div>

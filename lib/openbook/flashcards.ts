@@ -1,29 +1,15 @@
 import 'server-only';
 import { z } from 'zod';
 import type { Staff } from '../crm/types';
-import { addDays, todayIST } from '../dates';
+import { todayIST } from '../dates';
 import { obAttempts, obCards, obDecks } from './collections';
 import { audit, canTeach, need, staffActor, store, useQuota } from './core';
 import { AiNotConfigured, aiConfigured, callJson, S } from './llm';
 import { getQuestions } from './questions';
 
 /** Flashcards & revision (§19): SM-2 scheduling, decks, sharing with teacher approval. */
-export type Rating = 'again' | 'hard' | 'good' | 'easy';
-
-/** SM-2 (Anki-style buttons): returns the next ease, interval (days) and due date. */
-export function sm2(card: { ef: number; interval: number; reps: number; lapses: number }, rating: Rating, today: string) {
-  const qmap: Record<Rating, number> = { again: 1, hard: 3, good: 4, easy: 5 };
-  const q = qmap[rating];
-  let { ef, interval, reps, lapses } = card;
-  if (q < 3) {
-    reps = 0; lapses++; interval = 1;
-  } else {
-    reps++;
-    interval = reps === 1 ? 1 : reps === 2 ? (rating === 'easy' ? 4 : 3) : Math.round(interval * ef * (rating === 'hard' ? 0.8 : rating === 'easy' ? 1.3 : 1));
-  }
-  ef = Math.max(1.3, Math.min(3, ef + (0.1 - (5 - q) * (0.08 + (5 - q) * 0.02))));
-  return { ef: Math.round(ef * 100) / 100, interval, reps, lapses, due: addDays(today, Math.max(1, interval)) };
-}
+import { sm2, type Rating } from './sm2';
+export { sm2, type Rating };
 
 export async function decksOf(studentId: string, batchId: string | null) {
   const own = await obDecks.list(store(), { k1: studentId });
@@ -138,3 +124,30 @@ export async function copySharedDeck(studentId: string, deckId: string) {
   for (const c of src) await obCards.put(store(), { ...c.data, studentId, deckId: mine, source: 'shared', ef: 2.5, interval: 0, reps: 0, lapses: 0, due: todayIST() });
   return { deckId: mine, added: src.length };
 }
+
+/** Cards due in the next `days` days, for offline review on the phone (text cards only). */
+export async function cardsForOffline(studentId: string, days = 14) {
+  const until = new Date(Date.now() + days * 86_400_000).toISOString().slice(0, 10);
+  return (await obCards.list(store(), { k1: studentId })).filter((c) => c.data.due <= until && !c.data.imageKey).slice(0, 300).map((c) => ({ id: c.id, front: c.data.front, back: c.data.back, kind: c.data.kind, ef: c.data.ef, interval: c.data.interval, reps: c.data.reps, lapses: c.data.lapses, due: c.data.due }));
+}
+
+/**
+ * Image-occlusion (diagram label) cards: one card per labelled box. The front shows the diagram with every
+ * label hidden and the asked one highlighted; the back reveals it with the label text.
+ */
+export async function occlusionCards(studentId: string, input: { deckName: string; subject: string | null; image: { bytes: Uint8Array; mime: string }; boxes: { x: number; y: number; w: number; h: number; label: string }[] }) {
+  need(/^image\/(png|jpe?g|webp)$/.test(input.image.mime), 'Upload the diagram as a PNG or JPG image.');
+  need(input.image.bytes.length <= 5 * 1024 * 1024, 'Diagrams can be up to 5 MB.');
+  const boxes = input.boxes.filter((b) => b.label.trim() && b.w > 0.005 && b.h > 0.005).slice(0, 40);
+  need(boxes.length > 0, 'Draw at least one box over a label and type its answer.');
+  const { putFile } = await import('./core');
+  const imageKey = await putFile('card', input.image.bytes, input.image.mime);
+  const decks = await obDecks.list(store(), { k1: studentId });
+  const deckId = decks.find((d) => d.data.name === input.deckName)?.id ?? (await createDeck(studentId, 'student', input.deckName, input.subject, null));
+  const masks = boxes.map(({ x, y, w, h }) => ({ x: clamp(x), y: clamp(y), w: clamp(w), h: clamp(h) }));
+  for (let i = 0; i < boxes.length; i++) {
+    await obCards.put(store(), { studentId, deckId, kind: 'diagram', front: `Label ${i + 1} on the diagram: what is it?`, back: boxes[i].label.trim().slice(0, 4000), imageKey, source: 'manual', masks, target: i, due: todayIST() });
+  }
+  return { deckId, added: boxes.length };
+}
+const clamp = (n: number) => Math.max(0, Math.min(1, Math.round(n * 10000) / 10000));

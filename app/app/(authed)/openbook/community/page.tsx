@@ -6,6 +6,7 @@ import { obStudent } from '@/lib/openbook/session';
 import { postThreadAction } from '../actions';
 import { SimilarCheck } from './SimilarCheck';
 import { H1 } from '../ui';
+import { page as pageText } from '@/lib/openbook/i18n';
 
 export const dynamic = 'force-dynamic';
 export const maxDuration = 60;
@@ -13,10 +14,11 @@ const SUBJECTS = ['Physics', 'Chemistry', 'Mathematics', 'Biology'];
 
 export default async function CommunityPage({ searchParams }: { searchParams: { subject?: string; q?: string } }) {
   const me = await obStudent();
+  const pg = pageText(me.profile.lang, 'community');
   const threads = await listThreads({ subject: searchParams.subject, q: searchParams.q });
   return (
     <div className="space-y-4">
-      <H1 sub={`BJC students and teachers only. You appear as “${me.profile.nickname}”${badgesFor(me.profile.reputation).length ? ` · ${badgesFor(me.profile.reputation).join(', ')}` : ''} · ${me.profile.reputation} points.`}>Question Community</H1>
+      <H1 sub={`${pg.sub} You appear as “${me.profile.nickname}”${badgesFor(me.profile.reputation).length ? ` · ${badgesFor(me.profile.reputation).join(', ')}` : ''} · ${me.profile.reputation} points.`}>{pg.title}</H1>
       <p className="rounded-lg bg-bg px-3 py-2 text-xs text-muted">Be kind. No phone numbers, emails, links or social handles (they are blocked). No private messages. Report anything wrong; 3 reports hide a post until a teacher checks it. Don’t upload pages from copyrighted books.</p>
       <form className="flex gap-2"><input name="q" defaultValue={searchParams.q} className="input flex-1" placeholder="Search questions" aria-label="Search" /><select name="subject" defaultValue={searchParams.subject ?? ''} className="input w-auto" aria-label="Subject"><option value="">All</option>{SUBJECTS.map((s) => <option key={s}>{s}</option>)}</select><button className="btn-outline px-3">Go</button></form>
       <ul className="space-y-2">

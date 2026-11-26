@@ -1,11 +1,12 @@
 'use client';
+import { ui, type ObLang } from '@/lib/openbook/i18n';
 import { useRouter } from 'next/navigation';
 import { useMemo, useState, useTransition } from 'react';
 import * as act from '@/app/app/(authed)/openbook/actions';
 import { Field, Note, type ChapterOpt, type ExamOpt } from './client';
 
 /** AI Mock Test Generator form (§8): exam, subjects, chapters, concepts, size, difficulty, timing and marking. */
-export function MockBuilder({ exams, chapters, initialExam, aiReady }: { exams: ExamOpt[]; chapters: ChapterOpt[]; initialExam: string; aiReady: boolean }) {
+export function MockBuilder({ exams, chapters, initialExam, aiReady, lang = 'en' }: { exams: ExamOpt[]; chapters: ChapterOpt[]; initialExam: string; aiReady: boolean; lang?: ObLang }) {
   const router = useRouter();
   const [examId, setExamId] = useState(initialExam);
   const exam = exams.find((e) => e.id === examId) ?? exams[0];
@@ -58,7 +59,7 @@ export function MockBuilder({ exams, chapters, initialExam, aiReady }: { exams: 
         <Field label="Negative marks"><input className="input w-full" inputMode="decimal" placeholder="exam default" value={negative} onChange={(e) => setNegative(e.target.value.replace(/[^\d.]/g, ''))} /></Field>
       </div>
       <Note r={r?.error ? r : null} />
-      <button onClick={go} disabled={pending || !subjects.length || (source === 'ai' && !concepts.length)} className="btn-primary w-full py-2.5 disabled:opacity-50">{pending ? 'Building your test…' : 'Create and start the test'}</button>
+      <button onClick={go} disabled={pending || !subjects.length || (source === 'ai' && !concepts.length)} className="btn-primary w-full py-2.5 disabled:opacity-50">{pending ? ui(lang, 'building') : ui(lang, 'createStart')}</button>
     </section>
   );
 }

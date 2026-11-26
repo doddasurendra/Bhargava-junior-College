@@ -2,18 +2,20 @@ import { challengeFor, housePoints, leaderboard, type Board, type Period } from 
 import { obStudent } from '@/lib/openbook/session';
 import { ChallengeSet } from './ChallengeSet';
 import { H1 } from '../ui';
+import { page as pageText } from '@/lib/openbook/i18n';
 
 export const dynamic = 'force-dynamic';
 export const maxDuration = 60;
 
 export default async function ChallengePage({ searchParams }: { searchParams: { board?: Board; period?: Period; scope?: 'batch' | 'college' } }) {
   const me = await obStudent();
+  const pg = pageText(me.profile.lang, 'challenge');
   const board = searchParams.board ?? 'effort', period = searchParams.period ?? 'weekly', scope = searchParams.scope ?? 'batch';
   const [c, lb, houses] = await Promise.all([challengeFor(me.studentId).catch((e: Error) => ({ error: e.message }) as const), leaderboard(me.studentId, scope, board, period), housePoints()]);
   const q = (p: Record<string, string>) => '?' + new URLSearchParams({ board, period, scope, ...p }).toString();
   return (
     <div className="space-y-4">
-      <H1 sub="5 questions per subject, the same for your whole batch. Open 6 AM–11 PM.">Daily Challenge</H1>
+      <H1 sub={pg.sub}>{pg.title}</H1>
       {'error' in c ? <p className="card p-3 text-sm">{c.error}</p> : (
         <>
           <p className="text-sm">🔥 Streak: <b>{c.streak}</b> day{c.streak === 1 ? '' : 's'} · {c.date}{!c.open && ' · closed now (opens at 6 AM)'}</p>
@@ -22,7 +24,7 @@ export default async function ChallengePage({ searchParams }: { searchParams: { 
             return (
               <details key={subject} className="card p-3" open={!done && c.open}>
                 <summary className="cursor-pointer text-sm font-semibold text-heading">{subject} {done ? `· ✅ ${done.correct}/${done.total} · +${done.xp} XP` : `· ${qs.length} questions`}</summary>
-                {!done && c.open && qs.length > 0 && <div className="mt-3"><ChallengeSet subject={subject} questions={qs} /></div>}
+                {!done && c.open && qs.length > 0 && <div className="mt-3"><ChallengeSet subject={subject} questions={qs} lang={me.profile.lang} /></div>}
                 {!qs.length && <p className="mt-2 text-sm text-muted">No approved {subject} questions in the bank yet.</p>}
               </details>
             );
