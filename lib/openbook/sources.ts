@@ -1,6 +1,7 @@
 import 'server-only';
 import type { Staff } from '../crm/types';
 import { obSources } from './collections';
+import https from 'node:https';
 import { audit, canManage, need, staffActor, store } from './core';
 
 /**
@@ -14,13 +15,13 @@ export const SOURCE_SEED: Seed[] = [
   ['intermediate', null, 'NCERT textbooks (Class 11 & 12, chapter-wise PDFs)', 'https://ncert.nic.in/textbook.php', 'textbook', 'free_official', 'Free official e-books. Linked, not re-hosted (NCERT terms).'],
   ['intermediate', null, 'ePathshala (NCERT e-books and resources)', 'https://epathshala.nic.in/', 'textbook', 'free_official'],
   ['intermediate', null, 'DIKSHA (national digital education platform)', 'https://diksha.gov.in/', 'portal', 'free_official'],
-  ['intermediate', 'inter1-mpc', 'TSBIE – Telangana State Board of Intermediate Education', 'https://tsbie.cgg.gov.in/', 'syllabus', 'link_only', 'Syllabus, model papers, circulars. Telugu Akademi textbooks are bought, not re-hosted.'],
+  ['intermediate', 'inter1-mpc', 'TGBIE (formerly TSBIE) – Telangana Board of Intermediate Education', 'https://tgbie.cgg.gov.in/', 'syllabus', 'link_only', 'Syllabus, model papers, circulars. Renamed from TSBIE. Telugu Akademi textbooks are bought, not re-hosted.'],
   ['intermediate', 'inter1-bipc', 'BIEAP – Board of Intermediate Education, Andhra Pradesh', 'https://bie.ap.gov.in/', 'syllabus', 'link_only'],
   ['engineering', 'jee-main', 'NTA JEE Main (information bulletin, syllabus, papers, keys)', 'https://jeemain.nta.nic.in/', 'info_bulletin', 'link_only'],
   ['engineering', 'jee-advanced', 'JEE Advanced (syllabus, past papers and answer keys)', 'https://jeeadv.ac.in/', 'previous_papers', 'link_only'],
   ['engineering', 'bitsat', 'BITSAT (BITS admissions: syllabus, pattern, sample test)', 'https://www.bitsadmission.com/', 'syllabus', 'link_only'],
   ['engineering', 'viteee', 'VITEEE (syllabus, pattern, mock test)', 'https://viteee.vit.ac.in/', 'mock_test', 'link_only'],
-  ['engineering', 'eapcet-e', 'TS EAPCET (TGCHE)', 'https://eapcet.tsche.ac.in/', 'previous_papers', 'link_only', 'Verify the current TGCHE URL each year.'],
+  ['engineering', 'eapcet-e', 'TG EAPCET (TGCHE)', 'https://eapcet.tgche.ac.in/', 'previous_papers', 'link_only', 'Moved from eapcet.tsche.ac.in to the TGCHE domain; verify each year.'],
   ['engineering', 'eapcet-e', 'AP EAPCET (APSCHE)', 'https://cets.apsche.ap.gov.in/', 'previous_papers', 'link_only'],
   ['engineering', 'comedk', 'COMEDK UGET', 'https://www.comedk.org/', 'syllabus', 'link_only'],
   ['medical', 'neet-ug', 'NTA NEET UG (bulletin, syllabus, papers, keys)', 'https://neet.nta.nic.in/', 'info_bulletin', 'link_only'],
@@ -35,7 +36,7 @@ export const SOURCE_SEED: Seed[] = [
   ['higher', 'gre', 'GRE (ETS official practice)', 'https://www.ets.org/gre.html', 'mock_test', 'link_only', 'Official guides are copyrighted: links only.'],
   ['higher', 'upsc', 'UPSC (syllabus, notifications, previous papers)', 'https://upsc.gov.in/', 'previous_papers', 'link_only'],
   ['higher', 'appsc', 'APPSC', 'https://psc.ap.gov.in/', 'previous_papers', 'link_only'],
-  ['higher', 'tgpsc', 'TGPSC (formerly TSPSC, renamed 2024)', 'https://www.tspsc.gov.in/', 'previous_papers', 'link_only', 'Renamed TGPSC in 2024: confirm the current official URL.'],
+  ['higher', 'tgpsc', 'TGPSC (formerly TSPSC, renamed 2024)', 'https://www.tgpsc.gov.in/', 'previous_papers', 'link_only', 'Renamed TGPSC in 2024 (old tspsc.gov.in no longer resolves).'],
   ['higher', 'ssc', 'Staff Selection Commission', 'https://ssc.gov.in/', 'previous_papers', 'link_only'],
   ['higher', 'banking', 'IBPS', 'https://www.ibps.in/', 'portal', 'link_only'],
   ['higher', 'banking', 'SBI Careers', 'https://sbi.co.in/web/careers', 'portal', 'link_only'],
@@ -90,9 +91,14 @@ export async function checkUrl(url: string): Promise<{ status: 'ok' | 'moved' | 
     if (host(finalUrl) !== host(url)) return { status: 'moved', httpStatus: r.status, finalUrl, note: `Now redirects to ${host(finalUrl)}` };
     return { status: 'ok', httpStatus: r.status, finalUrl, note: null };
   } catch (e) {
-    const msg = (e as Error).name === 'AbortError' ? 'No response within 20 seconds' : (e as Error).message.slice(0, 120);
-    return { status: 'broken', httpStatus: null, finalUrl: null, note: msg };
-  } finally {
+    const code = String((e as { cause?: { code?: string } }).cause?.code ?? (e as Error).name);
+    // Some official sites serve an incomplete certificate chain: browsers repair it, strict server checks don't.
+    if (/CERT|SIGNATURE|ISSUER|SELF_SIGNED|ALTNAME/i.test(code)) {
+      const st = await statusIgnoringCert(url);
+      if (st && st < 400) return { status: 'ok', httpStatus: st, finalUrl: url, note: `Opens (HTTP ${st}); the site's certificate chain is incomplete (${code}), browsers still open it.` };
+    }
+    const msg = code === 'AbortError' ? 'No response within 20 seconds (the site may block cloud servers: open it in a browser to confirm)' : code === 'ENOTFOUND' ? 'Domain does not exist any more (ENOTFOUND): find the new official address' : `Could not connect (${code}); the site may block cloud servers: open it in a browser to confirm`;
+    return { status: 'broken', httpStatus: null, finalUrl: null, note: msg };  } finally {
     clearTimeout(t);
   }
 }
@@ -110,4 +116,13 @@ export async function checkSources(u: Staff | null) {
     }));
   }
   return { checked: rows.length, problems };
+}
+
+/** Status code only (no content is trusted or used), for sites with a broken certificate chain. */
+function statusIgnoringCert(url: string): Promise<number | null> {
+  return new Promise((res) => {
+    const r = https.get(url, { rejectUnauthorized: false, timeout: 20_000, headers: { 'User-Agent': 'Mozilla/5.0 (compatible; BJC-OpenBook-LinkChecker/1.0)' } }, (x) => { res(x.statusCode ?? null); x.resume(); });
+    r.on('error', () => res(null));
+    r.on('timeout', () => { r.destroy(); res(null); });
+  });
 }

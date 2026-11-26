@@ -225,7 +225,7 @@ test('16–17 reader AI actions (needs AI) and pattern analyzer across 3 papers 
   await expect(student.locator('body')).toContainText('Motion in a Plane');
   await student.getByRole('button', { name: 'Create pattern test' }).click();
   await student.waitForURL(/\/app\/openbook\/mock\/[^/]+$/, { timeout: 90_000 });
-  results['17 pattern analyzer'] = `PASS (; chapter × year table; pattern test created)`;
+  results['17 pattern analyzer'] = `PASS (${basis?.[0]}; chapter × year table; pattern test created)`;
   results['16 reader AI actions'] = 'BLOCKED without ANTHROPIC_API_KEY (Explain/Translate/AI flashcards/questions show "not configured"); highlight + bookmark PASS';
 });
 
@@ -265,6 +265,7 @@ test('19 community: blocked phone, post, staff answer, accept, verify, report �
   await student.goto('/app/openbook/community');
   await student.getByText(`QA ${RUN} Why is the range maximum at 45 degrees?`).click();
   await student.getByRole('button', { name: 'Accept this answer' }).click();
+  await expect(student.getByText('Accepted.')).toBeVisible({ timeout: 30_000 });
   await student.reload();
   await expect(student.getByText('✔ accepted')).toBeVisible();
   await expect(student.getByText(/teacher verified/)).toBeVisible();
@@ -272,6 +273,7 @@ test('19 community: blocked phone, post, staff answer, accept, verify, report �
   await student.locator('article').nth(1).getByRole('button', { name: 'Report' }).click();
   await student.getByLabel('Reason').fill('QA test report');
   await student.locator('article').nth(1).getByRole('button', { name: 'Report' }).click();
+  await expect(student.getByText(/A moderator will check it/)).toBeVisible({ timeout: 30_000 });
   await staff.goto('/crm/openbook?tab=community');
   await expect(staff.locator('body')).toContainText('QA test report');
   const anon = await (await browser.newContext()).newPage();
