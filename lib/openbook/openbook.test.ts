@@ -227,9 +227,9 @@ describe('Open Book with real record-store operations (file store)', () => {
     expect(t?.thread.nickname).toMatch(/^Learner\d{4}$/);
     for (const r of ['r1', 'r2']) expect((await C.report(r, a.id, 'spam')).hidden).toBe(false);
     expect((await C.report('r3', a.id, 'spam')).hidden).toBe(true);
-    expect((await C.thread(id))?.answers.length).toBe(0);
+    expect((await C.thread(id))?.answers.length).toBe(1); // only the staff answer left visible
     await C.moderate(staff('t1', 'faculty') as never, a.id, 'restore', null);
-    expect((await C.thread(id))?.answers.length).toBe(1);
+    expect((await C.thread(id))?.answers.length).toBe(2);
     await expect(C.verify(staff('acc', 'accounts') as never, a.id)).rejects.toThrow(/permission/);
     expect((await C.similarThreads('range maximum 45 degrees', 'Physics'))[0]?.id).toBe(id);
   });
