@@ -177,6 +177,16 @@ export const TEMPLATES = [
     manual: false,
   },
   {
+    key: 'student_account_created',
+    name: 'bjc_student_account_created',
+    category: 'utility',
+    language: 'en',
+    description: 'Tells the parent a student app account was created for their child (safety check without email).',
+    body: 'A student account was created for {{1}} ({{2}}) in the Bhargava Junior College app. If this wasn’t your child, block it in the parent app or call the admin office at {{3}}.',
+    params: ['Student name', 'College ID', 'College phone'],
+    manual: false,
+  },
+  {
     key: 'fee_reminder',
     name: 'bjc_fee_reminder',
     category: 'utility',

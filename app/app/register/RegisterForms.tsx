@@ -1,7 +1,7 @@
 'use client';
 import Link from 'next/link';
 import { useFormState, useFormStatus } from 'react-dom';
-import { parentRegisterAction, studentRegisterAction, type RegState } from './actions';
+import { parentRegisterAction, type RegState } from './actions';
 
 function Submit({ children }: { children: React.ReactNode }) {
   const { pending } = useFormStatus();
@@ -50,35 +50,6 @@ const Done = ({ s }: { s: RegState }) => (
     <Link href="/app/login" className="btn-primary block w-full py-3 text-center">Go to sign in</Link>
   </div>
 );
-
-export function StudentRegisterForm() {
-  const [s, action] = useFormState<RegState, FormData>(studentRegisterAction, { step: 'details' });
-  const at = { details: 0, code: 1, account: 2, done: 3 }[s.step];
-  return (
-    <>
-      <Steps at={at} labels={['Details', 'Mobile', 'Account', 'Email']} />
-      {s.step === 'done' ? <Done s={s} /> : s.step === 'code' ? <CodeStep s={s} action={action} /> : s.step === 'account' ? (
-        <form action={action} className="space-y-4">
-          <p className="rounded-lg bg-emerald-50 px-3 py-2 text-sm text-emerald-800 dark:bg-emerald-400/10 dark:text-emerald-200">Mobile verified. Now choose your sign-in email and password.</p>
-          <Field label="Email" hint="We send a link to confirm it. You can sign in with this email or your College ID."><input name="email" type="email" required maxLength={254} autoComplete="email" className="input" /></Field>
-          <Field label="Password" hint="At least 8 characters."><input name="password" type="password" required minLength={8} maxLength={200} autoComplete="new-password" className="input" /></Field>
-          <Field label="Confirm password"><input name="confirm" type="password" required minLength={8} maxLength={200} autoComplete="new-password" className="input" /></Field>
-          <Err s={s} />
-          <Submit>Create account</Submit>
-          <Restart action={action} />
-        </form>
-      ) : (
-        <form action={action} className="space-y-4">
-          <Field label="College ID / admission number"><input name="collegeId" required maxLength={40} placeholder="BJC-2027-JEE-0001" className="input font-mono uppercase" autoComplete="username" /></Field>
-          <Field label="Date of birth"><input name="dob" type="date" required className="input" /></Field>
-          <Field label="Mobile number" hint="Your own number given at admission, or a parent’s number. The code goes to that number on WhatsApp."><input name="phone" type="tel" inputMode="numeric" required maxLength={14} placeholder="98xxxxxxxx" className="input" autoComplete="tel" /></Field>
-          <Err s={s} />
-          <Submit>Send verification code</Submit>
-        </form>
-      )}
-    </>
-  );
-}
 
 export function ParentRegisterForm() {
   const [s, action] = useFormState<RegState, FormData>(parentRegisterAction, { step: 'details' });

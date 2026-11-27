@@ -63,30 +63,6 @@ async function verifyStep(prev: RegState, fd: FormData, phone: string, onOk: () 
 
 const codeLimit = (phone: string) => rateLimit(`reg-code-ip:${ip()}`, 10, 3600_000) && rateLimit(`reg-code:${phone}`, 3, 10 * 60_000);
 
-export async function studentRegisterAction(prev: RegState, fd: FormData): Promise<RegState> {
-  if (str(fd, 'restart')) {
-    clear();
-    return { step: 'details' };
-  }
-  return guard(prev, async () => {
-    const p = getPending();
-    if (prev.step === 'details') {
-      const phone = str(fd, 'phone');
-      if (!codeLimit(phone)) return { ...prev, error: 'Too many codes requested. Please wait a few minutes.' };
-      const r = await R.startStudentRegistration({ collegeId: str(fd, 'collegeId'), dob: str(fd, 'dob'), phone });
-      setPending({ k: 'student', sid: r.studentId, phone: r.phone, who: r.who, v: false });
-      return { step: 'code', devCode: r.devCode, to: r.who === 'parent' ? `your parent’s WhatsApp (${r.phone.slice(0, 3)} ******${r.phone.slice(-4)}). Ask them for the code` : `your WhatsApp (${r.phone.slice(0, 3)} ******${r.phone.slice(-4)})` };
-    }
-    if (p?.k !== 'student') return { step: 'details', error: 'Your registration timed out. Start again.' };
-    if (prev.step === 'code') return verifyStep(prev, fd, p.phone, () => setPending({ ...p, v: true }));
-    if (!p.v) return { step: 'details', error: 'Verify the mobile number first.' };
-    const r = await R.finishStudentRegistration(p.sid, p.phone, { email: str(fd, 'email'), password: str(fd, 'password'), confirm: str(fd, 'confirm') });
-    clear();
-    if ('reset' in r && r.reset) return { step: 'done', message: 'Password changed. Sign in with your College ID (or email) and the new password.' };
-    return { step: 'done', message: r.emailed ? 'Almost done. We emailed you a confirmation link. Open it, then sign in with your College ID or email and your password.' : 'Almost done. Confirm your email with the link we sent (in this local setup there is no mailer, so the link is in the server console). Then sign in with your College ID or email and your password.' };
-  });
-}
-
 export async function parentRegisterAction(prev: RegState, fd: FormData): Promise<RegState> {
   if (str(fd, 'restart')) {
     clear();

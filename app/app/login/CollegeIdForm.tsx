@@ -20,8 +20,8 @@ export function CollegeIdForm() {
       </label>
       <Submit className="btn-primary w-full py-3">Sign in</Submit>
       <p className="flex justify-between text-xs">
-        <Link href="/app/register/student" className="underline">First time? Create your login</Link>
-        <Link href="/app/register/student" className="underline">Forgot password?</Link>
+        <Link href="/app/register/student" className="underline">New student? Sign up</Link>
+        <Link href="/app/forgot-password" className="underline">Forgot password?</Link>
       </p>
     </ActionForm>
   );

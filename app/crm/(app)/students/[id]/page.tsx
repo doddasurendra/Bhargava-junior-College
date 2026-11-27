@@ -2,7 +2,9 @@ import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { certificateAction, checkInAction, disciplineAction, mentorNoteAction } from '@/app/crm/school-actions';
 import { QuickForm } from '@/components/crm/QuickForm';
-import { studentPhoneAction } from '@/app/crm/guardian-actions';
+import { studentAccountResetAction, studentAccountStatusAction, studentPhoneAction } from '@/app/crm/guardian-actions';
+import { ActionButton } from '@/components/crm/QuickForm';
+import { accountSummary } from '@/lib/app/studentAccount';
 import { Empty, Panel, programShort } from '@/components/crm/ui';
 import { requireStaff } from '@/lib/crm/auth';
 import { phoneFor } from '@/lib/crm/mask';
@@ -34,6 +36,7 @@ export default async function StudentPage({ params }: { params: { id: string } }
   const today = todayIST();
   const [batch, room, bus, certs, file, results, guardians, wa] = await Promise.all([batchOf(s.id), roomOf(s.id), busFor(s.id), certificatesFor(s.id), studentFile(user, s.id), studentResults(s.id), getAppStore().guardiansOf(s.id), getMessageStore().listForLead(s.leadId, 30)]);
   const campus = campusLabel(await campusOfLead(s.leadId));
+  const acct = await accountSummary(s.id);
   const [regs, hw, mats, subjectsTaught] = batch
     ? await Promise.all([batchRegisters(batch.id, addDays(today, -180), today), homework.list(store(), { k1: batch.id }), batchMaterials(batch.id), timetable.list(store(), { k1: batch.id })])
     : [[], [], [], []];
@@ -84,12 +87,27 @@ export default async function StudentPage({ params }: { params: { id: string } }
             <div className="mt-3 border-t border-line pt-3">
               <QuickForm action={studentPhoneAction} submit="Save mobile" reset={false} fields={[
                 { name: 'studentId', type: 'hidden', value: s.id },
-                { name: 'phone', label: 'Student’s own mobile (app sign-in by OTP)', type: 'tel', placeholder: '10-digit mobile, blank to remove' },
+                { name: 'phone', label: 'Student’s own mobile (college record only)', type: 'tel', placeholder: '10-digit mobile, blank to remove' },
               ]} />
             </div>
           )}
         </Panel>
-        <Panel title={`Parents (${guardians.length})`}>
+        <Panel title="Student account">
+          {!acct.exists ? <Empty>No student account yet. The student signs up in the app with name, College ID, date of birth and a password.</Empty> : (
+            <div className="space-y-2 text-sm">
+              <p>Status: <b data-testid="student-account-status">{acct.status === 'active' ? 'Active' : acct.status === 'blocked' ? 'Blocked by a parent' : 'Disabled by the admin office'}</b>{acct.createdAt && <> · created {formatDate(acct.createdAt.slice(0, 10))}</>}{acct.statusAt && acct.status !== 'active' && <> · {acct.statusBy}, {formatDateTime(acct.statusAt)}</>}</p>
+              <p className="text-xs text-muted">Sign-in: College ID + password. No email or mobile on the account.{acct.resetPending ? ` A reset code from the ${acct.resetBy === 'office' ? 'admin office' : 'parent'} is waiting to be used.` : ''}</p>
+              {can(user, 'guardians.manage') && (
+                <div className="flex flex-wrap gap-2 border-t border-line pt-2">
+                  {acct.status === 'active'
+                    ? <ActionButton action={studentAccountStatusAction} label="Disable account" hidden={{ studentId: s.id, status: 'disabled' }} />
+                    : <ActionButton action={studentAccountStatusAction} label="Enable account" hidden={{ studentId: s.id, status: 'active' }} />}
+                  {acct.status === 'active' && <QuickForm action={studentAccountResetAction} submit="Reset password (one-time code)" reset={false} fields={[{ name: 'studentId', type: 'hidden', value: s.id }]} />}
+                </div>
+              )}
+            </div>
+          )}
+        </Panel>        <Panel title={`Parents (${guardians.length})`}>
           {guardians.length === 0 ? <Empty>No parent linked.</Empty> : (
             <ul className="space-y-1 text-sm">{guardians.map((g) => <li key={g.phone} className="flex justify-between gap-2"><span>{g.name} <span className="text-xs capitalize text-muted">{g.relation}</span></span><span className="font-mono text-xs">{phoneFor(user, g.phone)}</span></li>)}</ul>
           )}

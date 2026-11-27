@@ -513,7 +513,20 @@ export const studentCredentials = collection({
   schema: z.object({
     collegeId: z.string(),
     studentId: id,
-    passwordHash: z.string(),
+    /** local development only; in production the password is held by Supabase Auth (authUserId) and this is '' */
+    passwordHash: z.string().default(''),
+    /** Supabase Auth user (internal login id <college-id>@students.bjc.internal, never shown or emailed) */
+    authUserId: z.string().nullable().default(null),
+    /** active · blocked (by a parent) · disabled (by the admin office) */
+    status: z.enum(['active', 'blocked', 'disabled']).default('active'),
+    statusBy: z.string().max(120).nullable().default(null),
+    statusAt: z.string().nullable().default(null),
+    createdAt: z.string().nullable().default(null),
+    /** one-time password-reset code from a parent (30 min) or the admin office (24 h); hash only */
+    resetCodeHash: z.string().nullable().default(null),
+    resetCodeExp: z.string().nullable().default(null),
+    resetCodeBy: z.enum(['parent', 'office']).nullable().default(null),
+    resetFailed: z.number().int().min(0).default(0),
     failed: z.number().int().min(0),
     lockedUntil: z.string().nullable(),
     /** self-registration: sign-in email (also accepted instead of the College ID) and its verification */
@@ -523,10 +536,25 @@ export const studentCredentials = collection({
     emailTokenExp: z.string().nullable().default(null),
     /** the mobile that received the registration code (the student's own, or a parent's) */
     verifiedPhone: z.string().nullable().default(null),
-    source: z.enum(['app', 'self']).default('app'),
+    source: z.enum(['app', 'self', 'signup']).default('app'),
   }),
   k1: (d) => d.collegeId,
   k2: (d) => d.studentId,
+});
+
+/** Every student sign-up / sign-in / reset attempt (login audit, and the source of the persistent rate limits). */
+export const studentAuthAudit = collection({
+  name: 'student_auth_audit',
+  schema: z.object({
+    at: z.string(),
+    action: z.enum(['signup', 'login', 'reset', 'block', 'disable', 'enable', 'reset_code']),
+    outcome: z.string().max(40),
+    collegeId: z.string().max(40).nullable(),
+    ip: z.string().max(64).nullable(),
+    actor: z.string().max(120).nullable().default(null),
+  }),
+  k1: (d) => d.collegeId,
+  k2: (d) => d.ip,
 });
 
 /**

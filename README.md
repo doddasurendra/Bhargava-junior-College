@@ -161,14 +161,20 @@ Each sign-off happens once (a second attempt is refused) and is written to the a
 
 The app is an **installable web app (PWA)** on the same backend. Families open `/app` and choose "Add to Home screen" on Android or iOS. Store-listed native apps can wrap it later (e.g. Capacitor) without a second backend.
 
-- **Sign-in:** mobile number plus a 6-digit code on WhatsApp. Sessions last 30 days, in an httpOnly cookie whose audience (`app`) can never pass as a CRM session. Codes are sent only to registered numbers, but the screen says the same thing either way, so it can't be used to discover who is enrolled.
-- **Who sees what:** computed fresh on every request from the phone number.
+- **Sign-in (parents, guardians, applicant families):** mobile number plus a 6-digit code on WhatsApp. Sessions last 30 days, in an httpOnly cookie whose audience (`app`) can never pass as a CRM session. Codes are sent only to registered numbers, but the screen says the same thing either way, so it can't be used to discover who is enrolled.
+- **Students** never sign in with a phone number. They sign up at `/app/register/student` with **student name, College ID, date of birth and a password** (no email, no mobile), matched against the college record; one account per College ID. Then they sign in with **College ID + password**.
+  - In production the account is a Supabase Auth user with an internal login id `<college-id>@students.bjc.internal` (never shown, never emailed, created confirmed) and `app_metadata.role = student`; it has no staff role, so RLS gives it no database access. Code: `lib/app/studentAccount.ts`.
+  - Safety without email: linked parents get `bjc_student_account_created` on WhatsApp and a notice in the parent app, and can **block** the account (`/app/student-account`). The admin office can **disable / enable / reset** it (CRM → Students → Student account).
+  - Forgot password (`/app/forgot-password`): a one-time 6-digit code from a parent (30 min) or the admin office (24 h), plus the College ID.
+  - Every sign-up, sign-in and reset attempt is in `student_auth_audit`, which also backs the rate limits (sign-up: 5 per IP per hour, 5 per College ID per day).
+  - **TODO:** an email or mobile can be added to student sign-up later, for self-service password reset. Today mobile and email stay in the college record only (staff-entered).
+- **Who sees what:** computed fresh on every request from the phone number (or, for students, the College ID).
 
   | Profile | Who |
   |---|---|
   | **Parent** | Each student the number is a guardian of |
-  | **Student** | The student's own number, if their lead had a student phone |
-  | **Applicant** | An enquiry or application without a College ID yet |
+  | **Student** | Signed in with College ID + password |
+  | **Applicant** | An enquiry or application without a College ID yet, by the family's number |
 
   So an **applicant becomes a parent automatically when the College ID is issued**, and removing a guardian takes effect immediately. A number with several profiles (two children, or a child plus a sibling's application) gets a switcher at the top.
 - **Guardians:** issuing the College ID grants the primary guardian access in the same transaction and sends `bjc_app_welcome` on WhatsApp. The admin office can **add more guardians** (several per student) or remove them from the lead page; the last one can't be removed.

@@ -9,6 +9,7 @@ import { checkSession, enforceDeviceLimit, listSessions, revokeSession, startSes
 import { getCrmRepo } from '../crm/repo';
 import { decodeToken, encodeToken } from '../crm/session';
 import { getRecordStore } from '../records';
+import { changeOwnPassword, verifyStudentLogin } from './studentAccount';
 import { alumni, consents, studentCredentials } from '../records/collections';
 import { formatDateTime } from '../dates';
 import { issueOtp, verifyOtp } from '../otp';
@@ -149,38 +150,25 @@ const LOCK_MS = 15 * 60_000;
  * lockout after 5 failures. A self-registered account signs in only once its email is verified — and that is
  * said only after the right password, so it reveals nothing to someone guessing.
  */
-export async function loginWithCollegeId(idRaw: string, password: string): Promise<'ok' | 'invalid' | 'locked' | 'unverified'> {
-  // College ID / registration number: case and spaces don't matter ("bjc 2027 jee 0001" works)
-  const id = idRaw.includes('@') ? idRaw.trim() : idRaw.trim().toUpperCase().replace(/\s+/g, '-').replace(/-+/g, '-');
-  const store = getRecordStore();
-  const cred = id.includes('@')
-    ? (await studentCredentials.list(store)).find((c) => c.data.email === id.toLowerCase())
-    : (await studentCredentials.list(store, { k1: id.toUpperCase() }))[0];
-  if (!cred) return 'invalid';
-  if (cred.data.lockedUntil && new Date(cred.data.lockedUntil) > new Date()) return 'locked';
-  if (!checkPassword(password, cred.data.passwordHash)) {
-    const failed = cred.data.failed + 1;
-    await studentCredentials.put(store, { ...cred.data, failed, lockedUntil: failed >= MAX_FAILS ? new Date(Date.now() + LOCK_MS).toISOString() : null }, cred.id);
-    return failed >= MAX_FAILS ? 'locked' : 'invalid';
-  }
-  if (cred.data.source === 'self' && !cred.data.emailVerifiedAt) return 'unverified';
-  await studentCredentials.put(store, { ...cred.data, failed: 0, lockedUntil: null }, cred.id);
-  await startAppSession(`cid:${cred.data.collegeId}`);
+export async function loginWithCollegeId(idRaw: string, password: string): Promise<'ok' | 'invalid' | 'locked' | 'unverified' | 'blocked'> {
+  const ip = headers().get('x-forwarded-for')?.split(',')[0]?.trim() || null;
+  const r = await verifyStudentLogin(idRaw, password, ip);
+  if (!r.ok) return r.reason;
+  await startAppSession(`cid:${r.collegeId}`);
   return 'ok';
 }
 
-/** A student signed in with OTP sets (or changes) the password for College ID sign-in. */
+/** Starts the app session for a student right after sign-up (the account was just created from a matched record). */
+export async function startStudentSession(collegeId: string) {
+  await startAppSession(`cid:${collegeId}`);
+}
+
+/** A signed-in student changes their own password. */
 export async function setStudentPassword(u: AppUser, password: string): Promise<string | null> {
   const p = u.active;
   if (p?.kind !== 'student') return 'Only students set a College ID password.';
-  if (password.length < 8 || password.length > 200) return 'Use 8 to 200 characters.';
-  if (/^(.)\1+$/.test(password) || password.toLowerCase().includes(p.collegeId.toLowerCase())) return 'That password is too easy to guess.';
-  const store = getRecordStore();
-  const prev = (await studentCredentials.list(store, { k1: p.collegeId }))[0];
-  await studentCredentials.put(store, { ...(prev?.data ?? {}), collegeId: p.collegeId, studentId: p.studentId, passwordHash: hashPassword(password), failed: 0, lockedUntil: null }, prev?.id);
-  return null;
+  return changeOwnPassword(p.collegeId, p.studentId, password);
 }
-
 // ---------------------------------------------------------------- DPDP consent at first login (§9A.4)
 
 export const CONSENT_VERSION = '2026-11';

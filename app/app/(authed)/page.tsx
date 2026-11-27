@@ -1,3 +1,6 @@
+import { accountSummary } from '@/lib/app/studentAccount';
+import { st as signupText } from '@/lib/app/signupText';
+import { getLang } from '@/lib/i18n-server';
 import Link from 'next/link';
 import { Crest } from '@/components/ui';
 import { college } from '@/content/college';
@@ -35,7 +38,7 @@ function Timeline({ steps }: { steps: Awaited<ReturnType<typeof profileData>>['t
   );
 }
 
-export default async function AppHome() {
+export default async function AppHome({ searchParams }: { searchParams?: { welcome?: string } }) {
   const { visitSlots } = await getContent();
   const u = await requireAppUser();
   const p = u.active;
@@ -97,8 +100,20 @@ export default async function AppHome() {
   }
 
   const s = d.student!;
+  const account = p.kind === 'parent' ? await accountSummary(s.id) : null;
+  const lang = getLang();
+  // a student account created in the last 14 days: the in-app notice to the parent (the WhatsApp message is the other half)
+  const recentAccount = account?.exists && account.status === 'active' && account.createdAt && Date.now() - new Date(account.createdAt).getTime() < 14 * 86_400_000;
   return (
     <div className="space-y-4">
+      {p.kind === 'student' && searchParams?.welcome === '1' && <p role="status" className="rounded-lg bg-emerald-50 px-3 py-2 text-sm font-medium text-emerald-800 dark:bg-emerald-400/10 dark:text-emerald-200">{signupText(lang, 'created')}</p>}
+      {recentAccount && (
+        <section className="card border-l-4 border-gold p-4 text-sm">
+          <p className="font-semibold text-heading">A student account was created for {s.fullName} ({s.collegeId}) on {formatDate(account!.createdAt!.slice(0, 10), { day: 'numeric', month: 'short' })}.</p>
+          <p className="mt-1 text-muted">If this wasn’t your child, block it now or call the admin office at {college.phones[0].display}.</p>
+          <Link href="/app/student-account" className="mt-2 inline-block font-semibold text-maroon underline dark:text-gold">Manage student account →</Link>
+        </section>
+      )}
       {/* Digital College ID */}
       <section className="overflow-hidden rounded-2xl bg-navy text-white shadow-lg">
         <div className="flex items-center gap-3 border-b border-white/10 px-4 py-3">
