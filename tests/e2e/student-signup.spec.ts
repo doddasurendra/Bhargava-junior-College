@@ -109,6 +109,17 @@ test('correct details create the account (no email) and sign the student in; sig
 });
 
 test('QA student: older password still signs in (moved into Supabase Auth); parent sees the account; parent reset code works; old password stops working', async ({ browser }) => {
+  // start from an active account (an interrupted earlier run may have left it blocked)
+  {
+    const c = await browser.newContext();
+    const o = await c.newPage();
+    await staffLogin(o, staffFor('admin_office'));
+    await o.goto('/crm/students');
+    await o.getByRole('link', { name: new RegExp(qa.studentName) }).first().click();
+    const st = o.getByTestId('student-account-status');
+    if ((await st.innerText()) !== 'Active') { await o.getByRole('button', { name: 'Enable account' }).click(); await expect(st).toHaveText('Active', { timeout: 30_000 }); }
+    await c.close();
+  }
   const s = await phone(browser);
   await studentIdLogin(s, qa.collegeId, PW);
   await s.context().close();

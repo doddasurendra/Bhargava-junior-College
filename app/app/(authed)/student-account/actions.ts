@@ -10,8 +10,7 @@ export async function blockStudentAccountAction(_: AcctState, fd: FormData): Pro
   const { u, p } = await requireParent();
   if (fd.get('confirm') !== 'on') return { error: 'Tick the box to confirm.' };
   try {
-    await parentBlock(u.phone, p.studentId);
-    revalidatePath('/app/student-account');
+    await parentBlock(u.phone, p.studentId); // no revalidate: keep the confirmation on screen (the page shows Blocked on reload)
     return { message: 'The student account is blocked and signed out everywhere. It shows as blocked on the admin office’s student page; call them to unblock it.' };
   } catch (e) {
     return { error: e instanceof StudentAccountError ? e.message : 'Something went wrong. Please try again.' };
