@@ -10,7 +10,7 @@ import { deserialise, translate, type CompiledDict } from '@/lib/crm-i18n/transl
  * links and code are never touched. Mark an element `data-no-translate` to leave it in English.
  */
 const ATTRS = ['placeholder', 'title', 'aria-label', 'alt'] as const;
-const SKIP = new Set(['SCRIPT', 'STYLE', 'CODE', 'PRE', 'TEXTAREA', 'KBD', 'SAMP', 'NOSCRIPT', 'svg']);
+const SKIP = new Set(['SCRIPT', 'STYLE', 'CODE', 'PRE', 'TEXTAREA', 'KBD', 'SAMP', 'NOSCRIPT']);
 
 export function CrmTranslator({ lang }: { lang: 'en' | 'te' | 'hi' }) {
   useEffect(() => {

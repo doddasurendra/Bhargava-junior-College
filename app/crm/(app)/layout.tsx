@@ -3,6 +3,7 @@ import type { ReactNode } from 'react';
 import { logoutAction } from '@/app/crm/actions';
 import { LangSwitch, ThemeToggle } from '@/components/HeaderControls';
 import { getLang } from '@/lib/i18n-server';
+import { dictFor, translate } from '@/lib/crm-i18n';
 import { RoleSwitcher } from '@/components/crm/RoleSwitcher';
 import { Crest } from '@/components/ui';
 import { OPERATING_PRINCIPLE } from '@/content/admissionSystem';
@@ -126,7 +127,7 @@ export default async function CrmShell({ children }: { children: ReactNode }) {
             <form action={logoutAction} className="lg:hidden">
               <button className="text-xs underline">Sign out</button>
             </form>
-            <LangSwitch current={getLang()} label="Language of the staff screens" tone="light" />
+            <LangSwitch current={getLang()} label={getLang() === 'en' ? 'Language of the staff screens' : translate(dictFor(getLang() as 'te'), 'Language of the staff screens') ?? 'Language'} tone="light" />
             <ThemeToggle />
           </div>
         </div>

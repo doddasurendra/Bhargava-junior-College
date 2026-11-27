@@ -11,6 +11,7 @@ export function LangSwitch({ current, label, tone = 'dark' }: { current: Lang; l
       <span className="sr-only">{label}</span>
       <select
         value={current}
+        name="crm-lang"
         aria-label={label}
         onChange={(e) => {
           document.cookie = `${LANG_COOKIE}=${e.target.value}; path=/; max-age=31536000; samesite=lax`;
