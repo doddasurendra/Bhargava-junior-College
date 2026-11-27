@@ -223,7 +223,8 @@ export async function profileData(profile: Profile) {
   return {
     lead,
     student,
-    payments: verification.payments.filter((x) => x.status !== 'rejected'),
+    // Students never receive fee data; parents/guardians and applicant families do.
+    payments: canSeeFees(p) ? verification.payments.filter((x) => x.status !== 'rejected') : [],
     timeline: lead ? buildTimeline(lead.stage, events) : [],
     counsellor: owner ? owner.fullName.split(' ')[0] : null,
     upcomingVisit,
@@ -232,10 +233,19 @@ export async function profileData(profile: Profile) {
   };
 }
 
+/**
+ * College rule: students see no fee information (amounts, dues, receipts, payments). Fees are shown to
+ * parents/guardians of their own children and to the applicant family before admission, and to staff with
+ * fee permission in the CRM.
+ */
+export const canSeeFees = (p: Profile | null | undefined) => !!p && (p.kind === 'parent' || p.kind === 'applicant');
+export const FEES_PARENT_ONLY = 'Fee details are shared with your parent or guardian. Please ask them or contact the accounts office.';
+
 export async function canSeePayment(u: AppUser, paymentId: string) {
   const payment = await getCrmRepo().getPayment(paymentId);
   if (!payment?.receiptNo) return null;
-  return u.profiles.some((p) => leadOf(p) === payment.leadId) ? payment : null;
+  // only the signed-in parent/applicant profile for that admission (never a student profile)
+  return u.profiles.some((p) => canSeeFees(p) && leadOf(p) === payment.leadId) ? payment : null;
 }
 
 // ---------------------------------------------------------------- hostel movements (biometric)

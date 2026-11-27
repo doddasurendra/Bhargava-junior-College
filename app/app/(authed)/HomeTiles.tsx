@@ -7,7 +7,7 @@ import { batchOf } from '@/lib/school/common';
 import { attendanceSummary } from '@/lib/school/logic';
 import { sharedNotes } from '@/lib/school/mentoring';
 
-/** Live summary on the app home: today, attendance, latest result, mentor note, dues, notices. */
+/** Live summary on the app home: today, attendance, latest result, mentor note, dues (parents only), notices. */
 export async function HomeTiles({ studentId, parent }: { studentId: string; parent: boolean }) {
   const today = todayIST();
   const b = await batchOf(studentId);
@@ -16,7 +16,7 @@ export async function HomeTiles({ studentId, parent }: { studentId: string; pare
     b ? batchRegisters(b.id, addDays(today, -30), today) : Promise.resolve([]),
     studentResults(studentId),
     parent ? sharedNotes(studentId) : Promise.resolve([]),
-    duesForStudent(studentId),
+    parent ? duesForStudent(studentId) : Promise.resolve(null), // fees: parents only
     noticesFor(parent ? 'parents' : 'students', b?.id ?? null),
   ]);
   const att = attendanceSummary(regs, studentId);

@@ -64,6 +64,8 @@ export async function sendFeeReminders(user: Staff | null, today = todayIST()) {
     const soon = new Date(`${next.due}T00:00:00Z`).getTime() - new Date(`${today}T00:00:00Z`).getTime() <= 3 * 86_400_000;
     if (!soon) continue;
     for (const g of await getAppStore().guardiansOf(s.id)) {
+      // fee reminders go to parents/guardians only: never to a number that is the student's own app login
+      if ((await getAppStore().studentsByLoginPhone(g.phone)).some((x) => x.id === s.id)) { out.skipped++; continue; }
       const r = await sendTemplate({ template: 'fee_reminder', to: g.phone, params: [formatINR(next.outstanding), s.fullName, formatDate(next.due)], leadId: s.leadId, dedupeKey: `fee:${sch.id}:${next.due}:${today}:${g.phone}` }).catch(() => null);
       if (!r || r.status === 'failed') out.failed++;
       else if (r.simulated || (r.status === 'skipped' && /not configured/i.test(r.reason ?? ''))) out.notDelivered++;

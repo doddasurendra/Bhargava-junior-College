@@ -5,7 +5,7 @@ import { z } from 'zod';
 import { rateLimit } from '@/lib/api';
 import { joinAlumni, referFamily, rescheduleVisit, saveApplication, uploadDocument, recordGatewayPayment } from '@/lib/app/flows';
 import { requireApplicant, requireEnrolled, requireParent, requireStudent } from '@/lib/app/portal';
-import { loginWithCollegeId, recordConsent, requireAppUser, revokeAppSession, setStudentPassword } from '@/lib/app/service';
+import { FEES_PARENT_ONLY, loginWithCollegeId, recordConsent, requireAppUser, revokeAppSession, setStudentPassword } from '@/lib/app/service';
 import { askDoubt, startAttempt, submitAttempt } from '@/lib/school/academics';
 import { submitHomework } from '@/lib/school/backoffice';
 import { batchOf, SchoolError } from '@/lib/school/common';
@@ -166,6 +166,7 @@ export const messageTeacherAction = async (_: AppState, fd: FormData): Promise<A
 /** Starts a Razorpay checkout for the next instalment (or a chosen amount up to what is due). */
 export async function startPaymentAction(_: unknown, fd: FormData): Promise<{ error?: string; order?: { id: string; amount: number; key: string; name: string; leadId: string } }> {
   const { p } = await requireEnrolled();
+  if (p.kind !== 'parent') return { error: FEES_PARENT_ONLY };
   if (!paymentsConfigured()) return { error: 'Online payment is not switched on yet. Please pay at the college office.' };
   const d = await duesForStudent(p.studentId);
   const next = d?.rows.find((r) => r.outstanding > 0);
@@ -176,6 +177,7 @@ export async function startPaymentAction(_: unknown, fd: FormData): Promise<{ er
 
 export async function confirmPaymentAction(fd: FormData) {
   const { p } = await requireEnrolled();
+  if (p.kind !== 'parent') redirect('/app');
   const orderId = String(fd.get('orderId') ?? '');
   const paymentId = String(fd.get('paymentId') ?? '');
   const signature = String(fd.get('signature') ?? '');

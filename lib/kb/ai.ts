@@ -8,6 +8,7 @@ import { getRecordStore } from '../records';
 import { tests } from '../records/collections';
 import { studentResults } from '../school/academics';
 import { duesForStudent } from '../school/accounts';
+import { feesParentOnly, isPersonalFeeQuestion } from '../app/feeGuard';
 import { batchOf } from '../school/common';
 import { studentSignals } from '../school/mentoring';
 import { ask as staffAsk, canUseAssistant } from '../staffAssistant/service';
@@ -96,6 +97,8 @@ const MY = /\b(my|mine|me|i)\b|నా |నాకు|నా\s|బిడ్డ|అ
 
 async function familyLive(v: Extract<Viewer, { kind: 'student' | 'parent' }>, q: string, lang: Lang): Promise<{ text: string; rows: { label: string; value: string }[] } | null> {
   const studentId = v.kind === 'student' ? v.studentId : v.studentIds[0];
+  // students get no fee information, not even their own: polite redirect to the parent / accounts office
+  if (v.kind === 'student' && isPersonalFeeQuestion(q)) return { text: feesParentOnly(lang), rows: [] };
   if (!studentId || !MY.test(q)) return null;
   const t = (en: string, te: string, hi: string) => (lang === 'te' ? te : lang === 'hi' ? hi : en);
   if (FAM.nextTest.test(q)) {
@@ -110,6 +113,7 @@ async function familyLive(v: Extract<Viewer, { kind: 'student' | 'parent' }>, q:
     return { text: p === null ? t('Attendance hasn’t been marked in the last 30 days.', 'గత 30 రోజుల్లో హాజరు నమోదు కాలేదు.', 'पिछले 30 दिनों में उपस्थिति दर्ज नहीं हुई।') : t(`Attendance in the last 30 days: ${p}% (${s.attendance.absent} absent, ${s.attendance.late} late).`, `గత 30 రోజుల హాజరు: ${p}% (${s.attendance.absent} గైర్హాజరు, ${s.attendance.late} ఆలస్యం).`, `पिछले 30 दिनों की उपस्थिति: ${p}% (${s.attendance.absent} अनुपस्थित, ${s.attendance.late} देर से)।`), rows: s.attendance.absentDates.slice(-5).map((d) => ({ label: t('Absent', 'గైర్హాజరు', 'अनुपस्थित'), value: d })) };
   }
   if (FAM.fees.test(q)) {
+    if (v.kind !== 'parent') return { text: feesParentOnly(lang), rows: [] };
     const d = await duesForStudent(studentId);
     if (!d) return { text: t('No fee schedule is set up yet.', 'ఇంకా ఫీజు షెడ్యూల్ లేదు.', 'अभी कोई फ़ीस शेड्यूल नहीं है।'), rows: [] };
     return { text: t(`Outstanding: ₹${d.outstanding.toLocaleString('en-IN')}; overdue: ₹${d.overdue.toLocaleString('en-IN')}.`, `బాకీ: ₹${d.outstanding.toLocaleString('en-IN')}; గడువు దాటినది: ₹${d.overdue.toLocaleString('en-IN')}.`, `बकाया: ₹${d.outstanding.toLocaleString('en-IN')}; अतिदेय: ₹${d.overdue.toLocaleString('en-IN')}।`), rows: [] };

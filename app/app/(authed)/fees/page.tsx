@@ -1,7 +1,7 @@
 import Link from 'next/link';
 import { redirect } from 'next/navigation';
 import { PAYMENT_MODES } from '@/content/sample';
-import { profileData, requireAppUser } from '@/lib/app/service';
+import { canSeeFees, profileData, requireAppUser } from '@/lib/app/service';
 import { formatDate } from '@/lib/dates';
 import { formatINR } from '@/lib/fees';
 import { duesForStudent } from '@/lib/school/accounts';
@@ -11,8 +11,9 @@ export const metadata = { title: 'Fees' };
 
 export default async function AppFees({ searchParams }: { searchParams: { paid?: string } }) {
   const u = await requireAppUser();
-  if (!u.active || u.active.kind === 'alumni') redirect('/app');
-  const enrolled = u.active.kind === 'parent' || u.active.kind === 'student';
+  // students (and alumni) never see fees: back to the home page
+  if (!u.active || !canSeeFees(u.active)) redirect('/app');
+  const enrolled = u.active.kind === 'parent';
   const dues = enrolled ? await duesForStudent((u.active as { studentId: string }).studentId) : null;
   const next = dues?.rows.find((r) => r.outstanding > 0) ?? null;
   const d = await profileData(u.active);

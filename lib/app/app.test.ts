@@ -129,4 +129,30 @@ describe('Student & Parent app', () => {
     const stranger = await app.resolveProfiles('+919888800010');
     expect(await app.canSeePayment({ phone: '+919888800010', profiles: stranger, active: stranger[0], sid: 'test' }, pid)).toBeNull();
   });
+
+  it('students see no fee information: no payments in their data, no receipts; parents keep everything', async () => {
+    const parent = '+919888800040', own = '+919888800041';
+    await admit(parent, 'Meghana', 'neet', 'day', own);
+    const pp = await app.resolveProfiles(parent);
+    const sp = await app.resolveProfiles(own);
+    expect(pp.map((p) => p.kind)).toEqual(['parent']);
+    expect(sp.map((p) => p.kind)).toEqual(['student']);
+    expect(app.canSeeFees(pp[0])).toBe(true);
+    expect(app.canSeeFees(sp[0])).toBe(false);
+    const parentData = await app.profileData(pp[0]);
+    const studentData = await app.profileData(sp[0]);
+    expect(parentData.payments.length).toBe(1);
+    expect(studentData.payments).toEqual([]);
+    const pid = parentData.payments[0].id;
+    expect(await app.canSeePayment({ phone: parent, profiles: pp, active: pp[0], sid: 't' }, pid)).toMatchObject({ id: pid });
+    expect(await app.canSeePayment({ phone: own, profiles: sp, active: sp[0], sid: 't' }, pid)).toBeNull();
+  });
+
+  it('fee questions from students get the polite redirect; public fee questions are not personal', async () => {
+    const { isPersonalFeeQuestion, feesParentOnly } = await import('./feeGuard');
+    for (const q of ['how much fee is due?', 'What is my fee balance', 'show my receipts', 'నా ఫీజు ఎంత బాకీ ఉంది?', 'मेरी फीस कितनी बाकी है?', 'Have I paid the second instalment?']) expect(isPersonalFeeQuestion(q), q).toBe(true);
+    for (const q of ['What is the fee for the JEE program?', 'fee structure for hostel', 'Explain Newton’s second law']) expect(isPersonalFeeQuestion(q), q).toBe(false);
+    expect(feesParentOnly('en')).toBe('Fee details are shared with your parent or guardian. Please ask them or contact the accounts office.');
+    expect(feesParentOnly('te')).toMatch(/[ఀ-౿]/);
+  });
 });

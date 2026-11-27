@@ -104,6 +104,8 @@ export async function dispatch(input: { ruleId: string | null; trigger: string; 
 
 export async function saveRule(user: Staff, input: { name: string; trigger: Trigger; audience: string; channels: Channel[]; templateEn: string; templateTe?: string | null; templateHi?: string | null; schedule: string; active: boolean }, id?: string) {
   if (!can(user, 'notify.manage') || user.viewedBy) throw new KbError('Your role can’t manage notification rules.');
+  // College rule: fee messages go to parents/guardians only, never to students.
+  if (input.trigger === 'fee_due' && input.audience !== 'parents') throw new KbError('Fee reminders can only go to parents and guardians.');
   const rec = await notifyRules.put(st(), { name: input.name, trigger: input.trigger, audience: input.audience, channels: input.channels, template: { en: input.templateEn, te: input.templateTe || null, hi: input.templateHi || null }, schedule: input.schedule, active: input.active, createdBy: user.id }, id);
   await audit(user, id ? 'edit' : 'create', 'rule', rec.id, input.name);
   return rec;

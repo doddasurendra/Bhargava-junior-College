@@ -1,3 +1,4 @@
+import { feesParentOnly, isPersonalFeeQuestion } from '../app/feeGuard';
 import 'server-only';
 import { z } from 'zod';
 import { screenText } from '../studentLife/wellbeing';
@@ -77,8 +78,10 @@ async function inLiveExam(studentId: string) {
 export async function ask(i: AskInput): Promise<{ answer: string; sources: Source[]; mode: 'ai' | 'extract' | 'safety'; found: boolean; sessionId: string }> {
   need(i.question.trim() || i.selection?.trim(), 'Type a question or select some text.');
   const text = [i.question, i.selection].filter(Boolean).join(' ');
+  // students get no fee information from any assistant (college rule)
+  if (isPersonalFeeQuestion(i.question)) { const msg = feesParentOnly(i.lang ?? 'en'); return { answer: msg, sources: [], mode: 'extract', found: true, sessionId: await log(i, msg, []) }; }
   const safety = await screenText('chat', `openbook:${i.studentId}:${Date.now()}`, i.studentId, text).catch(() => null);
-  if (safety) { const msg = [safety.message, ...safety.helplines.map((h) => `: `)].join('\n'); return { answer: msg, sources: [], mode: 'safety', found: true, sessionId: await log(i, msg, []) }; }
+  if (safety) { const msg = [safety.message, ...safety.helplines.map((h) => `${h.name}: ${h.number}${h.hours ? ` (${h.hours})` : ''}`)].join('\n'); return { answer: msg, sources: [], mode: 'safety', found: true, sessionId: await log(i, msg, []) }; }
   if (i.task.startsWith('tutor') && (await inLiveExam(i.studentId))) throw new OpenBookError('You have a mock test running. The tutor is paused until you submit it.');
   const passages = await passagesFor(i);
   if (!aiConfigured()) {
