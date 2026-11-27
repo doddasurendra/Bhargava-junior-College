@@ -10,7 +10,7 @@ import { batchPerformance, monitoring } from '@/lib/openbook/analytics';
 import { listThreads, moderationQueue, thread } from '@/lib/openbook/community';
 import { canManage, canTeach, settings } from '@/lib/openbook/core';
 import { pendingDecks } from '@/lib/openbook/flashcards';
-import { listBooks } from '@/lib/openbook/library';
+import { getBook, listBooks } from '@/lib/openbook/library';
 import { aiConfigured } from '@/lib/openbook/llm';
 import { listPapers, paperQuestions } from '@/lib/openbook/papers';
 import { pathOf } from '@/lib/openbook/path';
@@ -83,7 +83,7 @@ export default async function OpenBookAdmin({ searchParams }: { searchParams: { 
     const status = (['approved', 'pending', 'rejected'].includes(f.status ?? '') ? f.status : 'all') as 'all';
     const pg = Math.max(1, Number(f.pg) || 1);
     const [pending, all] = await Promise.all([listBooks({ status: 'pending', size: 60 }), listBooks({ status, size: 30, page: pg, q: f.q || undefined, category: f.category || undefined, language: f.language || undefined, docType: f.docType || undefined, academicYear: f.academicYear || undefined })]);
-    const editing = f.edit ? all.items.find((b) => b.id === f.edit) : undefined;
+    const editing = f.edit ? await getBook(f.edit) : null; // by id, so it stays open when an edit moves it out of the current filter
     const qs = (o: Record<string, string | number | undefined>) => `/crm/openbook?${new URLSearchParams(Object.entries({ tab: 'books', q: f.q, category: f.category, language: f.language, docType: f.docType, academicYear: f.academicYear, status: f.status, ...o }).filter(([, v]) => v !== undefined && v !== '') as [string, string][]).toString()}`;
     return (
       <>

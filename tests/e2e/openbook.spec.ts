@@ -63,18 +63,18 @@ test('setup (staff): practice bank import, official sources + link check, Google
   await act(staff, 'Check every link now');
   results.linkCheck = await status(staff);
   await staff.goto('/crm/openbook?tab=books');
-  const g = staff.locator('form').filter({ has: staff.locator('input[name=query]') });
-  await g.locator('input[name=query]').fill('NCERT Physics Class 11');
-  await g.locator('select[name=category]').selectOption('intermediate');
-  await g.locator('input[name=subjects]').fill('Physics');
-  await g.locator('input[name=examIds][value=inter1-mpc]').check();
-  await g.locator('input[name=examIds][value=jee-main]').check();
-  await g.getByRole('button', { name: /Search Google Books/ }).click();
-  const gb = await status(g);
-  // Google throttles keyless requests from shared cloud IPs: record it honestly, it needs GOOGLE_BOOKS_API_KEY
-  results.googleBooks = /rate limit/i.test(gb) ? `BLOCKED: ${gb}` : gb;
-  expect(gb).toMatch(/Google Books: \d+ found|rate limit/);
-});
+  // Google Books search (title/author/subject/ISBN) → add to library. Without GOOGLE_BOOKS_API_KEY Google throttles keyless requests: recorded honestly.
+  await staff.getByLabel('Search by').selectOption('title');
+  await staff.getByLabel('Search Google Books').fill('Concepts of Physics');
+  await staff.getByRole('button', { name: 'Search', exact: true }).click();
+  const out = staff.getByText(/results from Google Books|Google Books (refused|rejected|returned|daily quota)/).first();
+  await expect(out).toBeVisible({ timeout: 60_000 });
+  const gb = await out.innerText();
+  if (/results from Google Books/.test(gb)) {
+    const add = staff.getByRole('button', { name: 'Add to library' }).first();
+    if (await add.count()) { await add.click(); await expect(staff.getByText(/Added to the library|already in the library/).first()).toBeVisible({ timeout: 30_000 }); }
+    results.googleBooks = `PASS: ${gb}`;
+  } else results.googleBooks = `BLOCKED (needs GOOGLE_BOOKS_API_KEY): ${gb}`;});
 
 test('staff: upload a QA test book (institution-owned PDF) and 3 past papers', async () => {
   await staff.goto('/crm/openbook?tab=books');
