@@ -231,3 +231,40 @@ export function MixBars({ rows, segments }: { rows: ({ key: string; total: numbe
     </figure>
   );
 }
+
+// ---------------------------------------------------------------- donut (part-to-whole, ≤ 6 slices)
+
+export function Donut({ slices, label }: { slices: { label: string; value: number; color: string }[]; label: string }) {
+  const total = slices.reduce((s, x) => s + x.value, 0);
+  const R = 52, C = 2 * Math.PI * R;
+  let off = 0;
+  return (
+    <figure className="flex flex-wrap items-center gap-5">
+      <svg viewBox="0 0 140 140" className="h-36 w-36 shrink-0" role="img" aria-label={`${label}: ${slices.map((s) => `${s.label} ${s.value}`).join(', ')}`}>
+        <circle cx="70" cy="70" r={R} fill="none" stroke="var(--viz-grid)" strokeWidth="18" />
+        {total > 0 && slices.map((s) => {
+          const len = (s.value / total) * C;
+          const el = s.value ? (
+            <circle key={s.label} cx="70" cy="70" r={R} fill="none" stroke={s.color} strokeWidth="18" strokeDasharray={`${Math.max(0, len - 2)} ${C}`} strokeDashoffset={-off} transform="rotate(-90 70 70)">
+              <title>{`${s.label}: ${s.value} (${Math.round((s.value / total) * 100)}%)`}</title>
+            </circle>
+          ) : null;
+          off += len;
+          return el;
+        })}
+        <text x="70" y="66" textAnchor="middle" className="fill-heading" style={{ fontSize: 20, fontWeight: 600 }}>{total.toLocaleString('en-IN')}</text>
+        <text x="70" y="84" textAnchor="middle" className="fill-muted" style={{ fontSize: 10 }}>{label}</text>
+      </svg>
+      <ul className="space-y-1 text-sm">
+        {slices.map((s) => (
+          <li key={s.label} className="flex items-center gap-2">
+            <span aria-hidden className="h-2.5 w-2.5 rounded-sm" style={{ background: s.color }} />
+            <span className="text-ink/85">{s.label}</span>
+            <span className="ml-auto pl-3 font-semibold tabular-nums text-heading">{s.value.toLocaleString('en-IN')}</span>
+            <span className="w-10 text-right text-xs tabular-nums text-muted">{total ? `${Math.round((s.value / total) * 100)}%` : '–'}</span>
+          </li>
+        ))}
+      </ul>
+    </figure>
+  );
+}

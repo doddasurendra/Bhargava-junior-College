@@ -99,7 +99,7 @@ export default async function TestPage({ params }: { params: { id: string } }) {
               { name: 'o3', label: 'Option D', type: 'text', required: true },
               { name: 'answer', label: 'Correct option', type: 'select', options: ['A', 'B', 'C', 'D'].map((l, i) => ({ value: String(i), label: l })) },
               { name: 'subject', label: 'Subject', type: 'select', options: t.data.subjects.map((x) => ({ value: x, label: x })) },
-              { name: 'chapter', label: 'Chapter', type: 'text', required: true },
+              { name: 'chapter', label: 'Chapter', type: 'text', required: true }, { name: 'topic', label: 'Topic (optional, for topic-wise analysis)', type: 'text' },
               { name: 'marks', label: 'Marks', type: 'number', defaultValue: '4', min: 0, max: 10 },
               { name: 'negative', label: 'Negative', type: 'number', defaultValue: '1', min: 0, max: 5, step: 0.25 },
             ]} />

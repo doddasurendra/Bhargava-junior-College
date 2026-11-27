@@ -104,6 +104,8 @@ export const D7: readonly Row[] = [
   ['Health and control for database, RLS, storage, pgvector, functions, cron jobs, realtime, auth, queues and integrations. Super Admin / Developer only.', 'డేటాబేస్, RLS, స్టోరేజ్, pgvector, ఫంక్షన్‌లు, క్రాన్ జాబ్‌లు, రియల్‌టైమ్, ఆథ్, క్యూలు మరియు ఇంటిగ్రేషన్‌ల ఆరోగ్యం మరియు నియంత్రణ. సూపర్ అడ్మిన్ / డెవలపర్ మాత్రమే.', 'डेटाबेस, RLS, स्टोरेज, pgvector, फ़ंक्शन, क्रॉन जॉब, रियलटाइम, ऑथ, कतारें और एकीकरण की स्थिति और नियंत्रण। केवल सुपर एडमिन / डेवलपर।'],
   ['Usage, search quality, AI quality, content health, contributors, performance and alerts, with exports.', 'వినియోగం, శోధన నాణ్యత, AI నాణ్యత, కంటెంట్ ఆరోగ్యం, సహకారులు, పనితీరు మరియు హెచ్చరికలు, ఎగుమతులతో.', 'उपयोग, खोज गुणवत्ता, AI गुणवत्ता, सामग्री की स्थिति, योगदानकर्ता, प्रदर्शन और चेतावनियाँ, निर्यात सहित।'],
   ['Supabase integration', 'Supabase ఇంటిగ్రేషన్', 'Supabase एकीकरण'],
+  ['📊 Analytics', '📊 విశ్లేషణలు', '📊 विश्लेषण'],
+  ['Analytics', 'విశ్లేషణలు', 'विश्लेषण'],
   // common chapter names (Inter / JEE / NEET)
   ['Laws of Motion', 'చలన నియమాలు', 'गति के नियम'], ['Laws of motion', 'చలన నియమాలు', 'गति के नियम'],
   ['Work, Energy and Power', 'పని, శక్తి మరియు సామర్థ్యం', 'कार्य, ऊर्जा और शक्ति'], ['Work, energy and power', 'పని, శక్తి మరియు సామర్థ్యం', 'कार्य, ऊर्जा और शक्ति'],

@@ -1,6 +1,7 @@
 'use client';
 import { useState } from 'react';
 import { markAttendanceAction, sendAttendanceToParentsAction, sendMarksToParentsAction } from '@/app/crm/school-actions';
+import { markSubjectAttendanceAction } from '@/app/crm/analytics-actions';
 import { ActionForm, Submit } from './forms';
 
 const MARKS = [
@@ -11,15 +12,16 @@ const MARKS = [
 ] as const;
 
 /** One tap per student; everyone starts Present so a normal day is a single Save. */
-export function AttendanceForm({ batchId, date, today, students, existing, existingRemarks = {} }: { batchId: string; date: string; today: string; students: { id: string; name: string; collegeId?: string | null }[]; existing: Record<string, string>; existingRemarks?: Record<string, string> }) {
+export function AttendanceForm({ batchId, date, today, students, existing, existingRemarks = {}, subject = null, needsReason = false }: { batchId: string; date: string; today: string; students: { id: string; name: string; collegeId?: string | null }[]; existing: Record<string, string>; existingRemarks?: Record<string, string>; subject?: string | null; needsReason?: boolean }) {
   const [marks, setMarks] = useState<Record<string, string>>(() => Object.fromEntries(students.map((s) => [s.id, existing[s.id] ?? 'present'])));
   const [q, setQ] = useState('');
   const absent = Object.values(marks).filter((m) => m === 'absent').length;
   const shown = q.trim() ? students.filter((s) => `${s.name} ${s.collegeId ?? ''}`.toLowerCase().includes(q.trim().toLowerCase())) : students;
   return (
-    <ActionForm action={markAttendanceAction} reset={false}>
+    <ActionForm action={subject ? markSubjectAttendanceAction : markAttendanceAction} reset={false}>
       <input type="hidden" name="batchId" value={batchId} />
       <input type="hidden" name="date" value={date} />
+      {subject && <input type="hidden" name="subject" value={subject} />}
       <div className="flex flex-wrap items-center gap-2 text-xs">
         <input type="search" value={q} onChange={(e) => setQ(e.target.value)} placeholder="Find a student" aria-label="Find a student" className="input w-48 py-1 text-xs" />
         <button type="button" className="btn-outline py-1 text-xs" onClick={() => setMarks(Object.fromEntries(students.map((s) => [s.id, 'present'])))}>All present</button>
@@ -52,7 +54,8 @@ export function AttendanceForm({ batchId, date, today, students, existing, exist
         ))}
       </ul>
       <div className="flex flex-wrap items-center justify-between gap-3 pt-2">
-        <span className="text-sm text-muted">{absent} absent: their parents get the automatic absence alert once for this date.{date !== today ? ' Changes to a saved register are recorded as corrections.' : ''}</span>
+        <span className="text-sm text-muted">{subject ? `${absent} absent in ${subject}.` : `${absent} absent: their parents get the automatic absence alert once for this date.`}{date !== today ? ' Changes to a saved register are recorded as corrections.' : ''}</span>
+        {needsReason && <label className="block w-full text-xs"><span className="label">Reason for the correction (this register is older than 7 days, so an academic head approves it)</span><input name="reason" required minLength={3} maxLength={300} className="input w-full" /></label>}
         <Submit className="btn-primary py-2">Save attendance</Submit>
       </div>
     </ActionForm>

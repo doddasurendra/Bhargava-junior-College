@@ -79,7 +79,7 @@ export const CORRECTION_DAYS = 7;
  * changed mark is kept in `corrections` with who and when). Absent students' parents get the same-day
  * absence alert once. Returns counts of what actually happened to those alerts.
  */
-export async function markAttendance(user: Staff, batchId: string, date: string, marks: Record<string, string>, remarks: Record<string, string> = {}) {
+export async function markAttendance(user: Staff, batchId: string, date: string, marks: Record<string, string>, remarks: Record<string, string> = {}, reason = '') {
   need(user, can(user, 'attendance.mark'));
   await requireTeaches(user, batchId);
   const today = todayIST();
@@ -99,7 +99,10 @@ export async function markAttendance(user: Staff, batchId: string, date: string,
   const existing = (await attendance.list(store(), { k1: batchId, k2: date }))[0];
   const changes = existing ? Object.entries(clean).filter(([sid, m]) => existing.data.marks[sid] !== m).map(([sid, m]) => ({ studentId: sid, from: existing.data.marks[sid] ?? 'none', to: m })) : [];
   if (existing && changes.length && date < addDays(today, -CORRECTION_DAYS) && !can(user, 'academics.manage')) {
-    throw new SchoolError(`Registers older than ${CORRECTION_DAYS} days are corrected by the academic coordinator.`);
+    // older registers: the change becomes a correction request that an academic head approves (lib/school/attendanceTools)
+    const { requestCorrection } = await import('./attendanceTools');
+    await requestCorrection(user, { kind: 'day', batchId, date, subject: null, changes: changes.map((c) => ({ ...c, to: c.to })), reason });
+    return { absent: Object.values(existing.data.marks).filter((m) => m === 'absent').length, corrected: null, requested: changes.length, alerts: { sent: 0, simulated: 0, failed: 0, skipped: 0 } };
   }
   const corrections = [...(existing?.data.corrections ?? []), ...(changes.length ? [{ at: new Date().toISOString(), by: user.id, changes }] : [])].slice(-100);
   const already = new Set(existing?.data.notifiedAbsent ?? []);
@@ -125,7 +128,7 @@ export async function markAttendance(user: Staff, batchId: string, date: string,
     }
     if (notified.length !== already.size) await attendance.put(store(), { ...rec.data, notifiedAbsent: notified }, rec.id);
   }
-  return { absent: Object.values(clean).filter((m) => m === 'absent').length, corrected: existing ? changes.length : null, alerts };
+  return { absent: Object.values(clean).filter((m) => m === 'absent').length, corrected: existing ? changes.length : null, requested: 0, alerts };
 }
 
 export type ParentSendResult = { student: string; to: string; result: 'sent' | 'simulated' | 'failed' | 'skipped'; reason: string | null };
@@ -234,12 +237,12 @@ export async function batchMaterials(batchId: string) {
 
 // ---------------------------------------------------------------- tests, marks, results
 
-const questionInput = z.object({ subject: z.string().trim().min(1).max(40), chapter: z.string().trim().min(1).max(80), text: z.string().trim().min(3).max(2000), options: z.array(z.string().trim().min(1).max(500)).length(4), answer: z.coerce.number().int().min(0).max(3), marks: z.coerce.number().min(0).max(10).default(4), negative: z.coerce.number().min(0).max(5).default(1) });
+const questionInput = z.object({ subject: z.string().trim().min(1).max(40), chapter: z.string().trim().min(1).max(80), topic: z.string().trim().max(120).default(''), text: z.string().trim().min(3).max(2000), options: z.array(z.string().trim().min(1).max(500)).length(4), answer: z.coerce.number().int().min(0).max(3), marks: z.coerce.number().min(0).max(10).default(4), negative: z.coerce.number().min(0).max(5).default(1) });
 
-export async function createTest(user: Staff, input: { batchId: string; title: string; date: string; mode: 'online' | 'offline'; durationMin: number; maxMarks: number; subjects: string[] }) {
+export async function createTest(user: Staff, input: { batchId: string; title: string; date: string; mode: 'online' | 'offline'; durationMin: number; maxMarks: number; subjects: string[]; examType?: string }) {
   need(user, can(user, 'tests.manage'));
   await requireTeaches(user, input.batchId);
-  return tests.put(store(), { ...input, questions: [], published: false, createdBy: user.id });
+  return tests.put(store(), { ...input, examType: input.examType ?? 'other', questions: [], published: false, createdBy: user.id });
 }
 
 async function editableTest(user: Staff, testId: string) {
@@ -272,7 +275,7 @@ export async function addFromBank(user: Staff, testId: string, f: { subject: str
   const inExam = new Set([...have].filter((id) => id.startsWith('bank-')).map((id) => id.slice(5)));
   const picked = pickQuestions({ subject: (f.subject as Subject) || null, chapter: f.chapter || null, difficulty: f.difficulty }, inExam, `exam:${testId}:${have.size}`, count).filter((q) => !inExam.has(q.id));
   if (!picked.length) throw new SchoolError('No more bank questions match. Widen the subject, chapter or level.');
-  const added = picked.map((q) => ({ id: `bank-${q.id}`, subject: q.subject, chapter: q.chapter, text: q.stem, options: q.options, answer: q.answer, marks: 4, negative: 1 }));
+  const added = picked.map((q) => ({ id: `bank-${q.id}`, subject: q.subject, chapter: q.chapter, topic: '', text: q.stem, options: q.options, answer: q.answer, marks: 4, negative: 1 }));
   const questions = [...t.data.questions, ...added].slice(0, 200);
   const subjects = [...new Set([...t.data.subjects, ...added.map((q) => q.subject)])].slice(0, 6);
   await tests.put(store(), { ...t.data, subjects, questions, maxMarks: questions.reduce((s, x) => s + x.marks, 0) }, t.id);

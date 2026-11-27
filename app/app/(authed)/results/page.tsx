@@ -3,13 +3,14 @@ import { formatDate } from '@/lib/dates';
 import { studentResults } from '@/lib/school/academics';
 import { weakChapters, type Scored } from '@/lib/school/logic';
 import { sharedNotes } from '@/lib/school/mentoring';
+import { studentPerformance } from '@/lib/school/performance';
 
 export const metadata = { title: 'Results & analytics' };
 
 /** Score, batch rank, percentile, subject- and chapter-wise strengths, time per question (§9 student login). */
 export default async function ResultsPage() {
   const { p } = await requireEnrolled();
-  const [results, notes] = await Promise.all([studentResults(p.studentId), p.kind === 'parent' ? sharedNotes(p.studentId) : Promise.resolve([])]);
+  const [results, notes, perf] = await Promise.all([studentResults(p.studentId), p.kind === 'parent' ? sharedNotes(p.studentId) : Promise.resolve([]), studentPerformance(p.studentId)]);
   const chapters: Scored['byChapter'] = {};
   for (const r of results) for (const [k, v] of Object.entries(r.byChapter)) {
     const c = (chapters[k] ??= { right: 0, wrong: 0, skipped: 0 });
@@ -36,7 +37,15 @@ export default async function ResultsPage() {
               ))}
             </ol>
           </section>
-          <ul className="space-y-2">
+          {perf && (
+            <section className="card space-y-2 p-4 text-sm" aria-label="Performance analysis">
+              <p className="text-xs font-semibold uppercase tracking-wider text-muted">Analysis</p>
+              <p>Average <b>{perf.average ?? '–'}%</b>{perf.change !== null && perf.previous ? ` · ${perf.change >= 0 ? 'up' : 'down'} ${Math.abs(perf.change)} points vs ${perf.previous.title}` : ''}{perf.trend !== null ? ` · recent trend ${perf.trend > 0 ? '+' : ''}${perf.trend}` : ''}</p>
+              {perf.bySubject.length > 0 && <p className="text-xs">{perf.bySubject.map((x) => `${x.subject} ${x.pct ?? '–'}%`).join(' · ')}</p>}
+              {perf.weakTopics.length > 0 && <p className="text-xs">Weak concepts: {perf.weakTopics.slice(0, 4).map((t) => `${t.topic} (${t.accuracy}%)`).join(', ')}</p>}
+              {perf.recommendations.length > 0 && <><p className="text-xs font-semibold uppercase tracking-wider text-muted">What to revise next</p><ul className="list-disc space-y-1 pl-5">{perf.recommendations.map((r) => <li key={r}>{r}</li>)}</ul></>}
+            </section>
+          )}          <ul className="space-y-2">
             {[...results].reverse().map((r) => (
               <li key={r.test.id} className="card p-3 text-sm">
                 <div className="flex items-baseline justify-between gap-2"><span className="font-medium text-heading">{r.test.title}</span><span className="font-mono font-semibold">{r.score}/{r.max}</span></div>

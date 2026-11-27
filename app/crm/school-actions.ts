@@ -79,7 +79,8 @@ export const markAttendanceAction = async (_: ActionState, fd: FormData) =>
       if (k.startsWith('m:')) marks[k.slice(2)] = v;
       else if (k.startsWith('r:')) remarks[k.slice(2)] = v;
     }
-    const r = await A.markAttendance(user, req(fd, 'batchId', 'Batch'), req(fd, 'date', 'Date'), marks, remarks);
+    const r = await A.markAttendance(user, req(fd, 'batchId', 'Batch'), req(fd, 'date', 'Date'), marks, remarks, s(fd, 'reason') ?? '');
+    if (r.requested) return `Correction request sent for approval (${r.requested} change${r.requested === 1 ? '' : 's'}). The register changes once an academic head approves it.`;
     const parts = [r.corrected === null ? 'Attendance saved.' : r.corrected === 0 ? 'No marks changed.' : `Register corrected: ${r.corrected} change${r.corrected === 1 ? '' : 's'} recorded.`, `${r.absent} absent.`];
     const a = r.alerts;
     if (a.sent) parts.push(`${a.sent} absence alert${a.sent === 1 ? '' : 's'} handed to WhatsApp (delivery shows below).`);
@@ -123,14 +124,14 @@ export const addMaterialAction = async (_: ActionState, fd: FormData) =>
 export const createTestAction = async (_: ActionState, fd: FormData) =>
   run(async () => {
     const user = await requireStaff('tests.manage');
-    await A.createTest(user, { batchId: req(fd, 'batchId', 'Batch'), title: req(fd, 'title', 'Title'), date: req(fd, 'date', 'Date'), mode: s(fd, 'mode') === 'offline' ? 'offline' : 'online', durationMin: n(fd, 'durationMin') || 60, maxMarks: n(fd, 'maxMarks') || 100, subjects: (s(fd, 'subjects') ?? '').split(',').map((x) => x.trim()).filter(Boolean) });
+    await A.createTest(user, { batchId: req(fd, 'batchId', 'Batch'), title: req(fd, 'title', 'Title'), date: req(fd, 'date', 'Date'), mode: s(fd, 'mode') === 'offline' ? 'offline' : 'online', durationMin: n(fd, 'durationMin') || 60, maxMarks: n(fd, 'maxMarks') || 100, subjects: (s(fd, 'subjects') ?? '').split(',').map((x) => x.trim()).filter(Boolean), examType: s(fd, 'examType') ?? 'other' });
     return 'Test created.';
   }, ['/crm/academics/batch', ...ACAD]);
 
 export const addQuestionAction = async (_: ActionState, fd: FormData) =>
   run(async () => {
     const user = await requireStaff('tests.manage');
-    await A.addQuestion(user, req(fd, 'testId', 'Test'), { subject: s(fd, 'subject'), chapter: s(fd, 'chapter'), text: s(fd, 'text'), options: [s(fd, 'o0'), s(fd, 'o1'), s(fd, 'o2'), s(fd, 'o3')], answer: n(fd, 'answer'), marks: n(fd, 'marks') || 4, negative: Number.isFinite(n(fd, 'negative')) ? n(fd, 'negative') : 1 });
+    await A.addQuestion(user, req(fd, 'testId', 'Test'), { subject: s(fd, 'subject'), chapter: s(fd, 'chapter'), topic: s(fd, 'topic') ?? '', text: s(fd, 'text'), options: [s(fd, 'o0'), s(fd, 'o1'), s(fd, 'o2'), s(fd, 'o3')], answer: n(fd, 'answer'), marks: n(fd, 'marks') || 4, negative: Number.isFinite(n(fd, 'negative')) ? n(fd, 'negative') : 1 });
     return 'Question added.';
   }, ['/crm/academics/test']);
 

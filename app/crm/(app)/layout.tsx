@@ -42,6 +42,7 @@ export default async function CrmShell({ children }: { children: ReactNode }) {
     ...(can(user, 'verify.view') ? [{ href: '/crm/verification', label: 'Verification' }] : []),
     ...(can(user, 'fees.dues') || can(user, 'fees.export') || can(user, 'concession.approve.slab') || can(user, 'refund.approve') ? [{ href: '/crm/accounts', label: 'Accounts' }] : []),
     ...(can(user, 'lead.import') ? [{ href: '/crm/import', label: 'Import leads' }] : []),
+    ...(can(user, 'academics.view') || can(user, 'attendance.mark') || can(user, 'tests.manage') || can(user, 'marketing.spend') || can(user, 'lead.viewAll') || can(user, 'sports.view') || can(user, 'sessions.manage') ? [{ href: '/crm/analytics', label: '📊 Analytics' }] : []),
     ...(can(user, 'academics.view') ? [{ href: '/crm/academics/overview', label: 'Academic overview' }] : []),
     ...(can(user, 'academics.manage') ? [{ href: '/crm/academics', label: 'Batches & timetable' }] : []),
     ...(can(user, 'attendance.mark') && !can(user, 'academics.manage') ? [{ href: '/crm/academics/my-classes', label: 'My classes' }] : []),

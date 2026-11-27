@@ -9,15 +9,16 @@ import { Empty, Panel, programShort } from '@/components/crm/ui';
 import { requireStaff } from '@/lib/crm/auth';
 import { can } from '@/lib/crm/permissions';
 import { addDays, formatDate, todayIST } from '@/lib/dates';
-import { batches, MATERIAL_KINDS, SUBJECTS } from '@/lib/records/collections';
-import { batchMaterials, batchRegisters, batchTests, batchTimetable, canTeachBatch, sentToParents } from '@/lib/school/academics';
+import { batches, EXAM_TYPE_LABEL, EXAM_TYPES, MATERIAL_KINDS, SUBJECTS } from '@/lib/records/collections';
+import { batchMaterials, batchRegisters, batchTests, batchTimetable, canTeachBatch, CORRECTION_DAYS, sentToParents } from '@/lib/school/academics';
+import { subjectRegister, subjectsFor } from '@/lib/school/attendanceTools';
 import { store, studentsById } from '@/lib/school/common';
 import { attendanceSummary } from '@/lib/school/logic';
 
 export const metadata = { title: 'Batch' };
 const DAYS = ['', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
-export default async function BatchPage({ params, searchParams }: { params: { id: string }; searchParams: { date?: string } }) {
+export default async function BatchPage({ params, searchParams }: { params: { id: string }; searchParams: { date?: string; subject?: string } }) {
   const user = await requireStaff('attendance.mark');
   const b = await batches.get(store(), params.id);
   if (!b || !(await canTeachBatch(user, b.id))) notFound();
@@ -39,6 +40,11 @@ export default async function BatchPage({ params, searchParams }: { params: { id
     statusOf.set(sid, lines.join(' · '));
   }
   const staffNames = reg ? new Map((await getCrmRepo().listStaff()).map((s) => [s.id, s.fullName])) : new Map<string, string>();
+  // register: the whole day, or one subject (period) this user teaches the batch
+  const subjects = await subjectsFor(user, b.id);
+  const subject = searchParams.subject && subjects.includes(searchParams.subject) ? searchParams.subject : null;
+  const subjReg = subject ? await subjectRegister(b.id, date, subject) : null;
+  const needsReason = date < addDays(today, -CORRECTION_DAYS) && !can(user, 'academics.manage');
 
   return (
     <div className="space-y-5">
@@ -49,9 +55,12 @@ export default async function BatchPage({ params, searchParams }: { params: { id
       </div>
 
       <div className="grid gap-5 xl:grid-cols-[1.2fr_1fr]">
-        <Panel title={`Attendance · ${formatDate(date)}`} actions={<form method="get" className="flex items-center gap-2"><input type="date" name="date" defaultValue={date} max={today} className="input py-1 text-xs" /><button className="btn-outline py-1 text-xs">Go</button></form>}>
-          {students.length === 0 ? <Empty>No students in this batch yet.</Empty> : <AttendanceForm key={date} batchId={b.id} date={date} today={today} students={students} existing={(reg?.marks as Record<string, string>) ?? {}} existingRemarks={reg?.remarks ?? {}} />}
-          {reg && <p className="mt-2 text-xs text-muted">Already taken for this date by {staffNames.get(reg.markedBy) ?? 'a teacher'}; saving again corrects it and the change is recorded.</p>}
+        <Panel title={`Attendance · ${subject ?? 'whole day'} · ${formatDate(date)}`} actions={<form method="get" className="flex flex-wrap items-center gap-2"><select name="subject" defaultValue={subject ?? ''} aria-label="Register" className="input w-auto py-1 text-xs"><option value="">Whole day</option>{subjects.map((x) => <option key={x} value={x}>{x} (subject)</option>)}</select><input type="date" name="date" defaultValue={date} max={today} aria-label="Date" className="input py-1 text-xs" /><button className="btn-outline py-1 text-xs">Go</button></form>}>
+          {students.length === 0 ? <Empty>No students in this batch yet.</Empty> : subject
+            ? <AttendanceForm key={`${date}:${subject}`} batchId={b.id} date={date} today={today} students={students} subject={subject} needsReason={needsReason && !!subjReg} existing={(subjReg?.marks as Record<string, string>) ?? {}} existingRemarks={subjReg?.remarks ?? {}} />
+            : <AttendanceForm key={date} batchId={b.id} date={date} today={today} students={students} needsReason={needsReason && !!reg} existing={(reg?.marks as Record<string, string>) ?? {}} existingRemarks={reg?.remarks ?? {}} />}
+          {!subject && reg && <p className="mt-2 text-xs text-muted">Already taken for this date by {staffNames.get(reg.markedBy) ?? 'a teacher'}; saving again corrects it and the change is recorded.</p>}
+          {subject && subjReg && <p className="mt-2 text-xs text-muted">{subject} register already taken for this date; saving again corrects it and the change is recorded.</p>}
           {reg?.corrections && reg.corrections.length > 0 && (
             <details className="mt-2 text-xs">
               <summary className="cursor-pointer font-semibold text-heading">Correction history ({reg.corrections.length})</summary>
@@ -138,6 +147,7 @@ export default async function BatchPage({ params, searchParams }: { params: { id
             <QuickForm action={createTestAction} submit="Create test" fields={[
               { name: 'batchId', type: 'hidden', value: b.id },
               { name: 'title', label: 'Title', type: 'text', required: true, wide: true, placeholder: 'Physics weekly test 4' },
+              { name: 'examType', label: 'Examination type', type: 'select', defaultValue: 'weekly', options: EXAM_TYPES.map((v) => ({ value: v, label: EXAM_TYPE_LABEL[v] })) },
               { name: 'date', label: 'Date', type: 'date', required: true, defaultValue: today },
               { name: 'mode', label: 'Mode', type: 'select', options: [{ value: 'online', label: 'Online (in the app, timed)' }, { value: 'offline', label: 'Offline (enter marks)' }] },
               { name: 'durationMin', label: 'Duration (minutes)', type: 'number', defaultValue: '60', min: 5, max: 240 },

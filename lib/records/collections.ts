@@ -80,6 +80,8 @@ export const timetable = collection({
   k2: (d) => d.facultyId,
 });
 
+export const EXAM_TYPES = ['unit_test', 'weekly', 'monthly', 'quarterly', 'half_yearly', 'pre_final', 'final', 'jee_main_practice', 'jee_advanced_practice', 'neet_practice', 'other'] as const;
+export const EXAM_TYPE_LABEL: Record<(typeof EXAM_TYPES)[number], string> = { unit_test: 'Unit test', weekly: 'Weekly test', monthly: 'Monthly exam', quarterly: 'Quarterly exam', half_yearly: 'Half-yearly exam', pre_final: 'Pre-final exam', final: 'Final exam', jee_main_practice: 'JEE Main practice', jee_advanced_practice: 'JEE Advanced practice', neet_practice: 'NEET practice', other: 'Other test' };
 export const ATTENDANCE = ['present', 'absent', 'late', 'leave'] as const;
 /** One register per batch per day (per period if several are taken). */
 export const attendance = collection({
@@ -98,6 +100,43 @@ export const attendance = collection({
   }),
   k1: (d) => d.batchId,
   k2: (d) => d.date,
+});
+
+/** Subject-wise (period) attendance: one register per batch, date and subject. Kept apart from the daily register so day totals never double-count. */
+export const subjectAttendance = collection({
+  name: 'subject_attendance',
+  schema: z.object({
+    batchId: id,
+    date: isoDate,
+    subject: text(40),
+    marks: z.record(z.enum(ATTENDANCE)),
+    remarks: z.record(z.string().max(200)).default({}),
+    markedBy: id,
+    corrections: z.array(z.object({ at: z.string(), by: id, changes: z.array(z.object({ studentId: id, from: z.string(), to: z.string() })) })).max(100).default([]),
+  }),
+  k1: (d) => d.batchId,
+  k2: (d) => d.date,
+});
+
+/** A teacher's request to correct an older register (beyond the self-correction window); an academic head decides. */
+export const attendanceCorrections = collection({
+  name: 'attendance_corrections',
+  schema: z.object({
+    kind: z.enum(['day', 'subject']),
+    batchId: id,
+    date: isoDate,
+    subject: z.string().max(40).nullable().default(null),
+    changes: z.array(z.object({ studentId: id, from: z.string(), to: z.enum(ATTENDANCE) })).min(1).max(200),
+    reason: z.string().trim().min(3).max(300),
+    requestedBy: id,
+    requestedAt: z.string(),
+    status: z.enum(['pending', 'approved', 'rejected']),
+    decidedBy: id.nullable().default(null),
+    decidedAt: z.string().nullable().default(null),
+    note: z.string().max(300).nullable().default(null),
+  }),
+  k1: (d) => d.status,
+  k2: (d) => d.batchId,
 });
 
 /**
@@ -120,7 +159,7 @@ export const materials = collection({
 });
 
 /** A JEE/NEET-pattern test (online with questions, or offline with marks entry). */
-const question = z.object({ id: id, subject: text(40), chapter: text(80), text: text(2000), options: z.array(text(500)).length(4), answer: z.coerce.number().int().min(0).max(3), marks: z.coerce.number().min(0).max(10), negative: z.coerce.number().min(0).max(5) });
+const question = z.object({ id: id, subject: text(40), chapter: text(80), topic: z.string().max(120).default(''), text: text(2000), options: z.array(text(500)).length(4), answer: z.coerce.number().int().min(0).max(3), marks: z.coerce.number().min(0).max(10), negative: z.coerce.number().min(0).max(5) });
 export const tests = collection({
   name: 'tests',
   schema: z.object({
@@ -131,6 +170,8 @@ export const tests = collection({
     durationMin: z.coerce.number().int().min(5).max(240),
     maxMarks: z.coerce.number().min(1).max(1000),
     subjects: z.array(text(40)).min(1).max(6),
+    /** unit test, weekly, monthly, quarterly, half-yearly, pre-final, final, JEE / NEET practice */
+    examType: z.enum(EXAM_TYPES).default('other'),
     questions: z.array(question).max(200).default([]),
     published: z.boolean(),
     createdBy: id,

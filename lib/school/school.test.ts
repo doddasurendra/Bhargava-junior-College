@@ -98,7 +98,7 @@ describe('attendance', () => {
     await expect(A.markAttendance(faculty, batchId, date, { [s1]: 'present' })).rejects.toThrow('every student');
     await expect(A.markAttendance(faculty, batchId, '2999-01-01', { [s1]: 'present', [s2]: 'absent' })).rejects.toThrow('future');
     // development without WhatsApp credentials: the alert is recorded but reported as NOT delivered
-    expect(await A.markAttendance(faculty, batchId, date, { [s1]: 'present', [s2]: 'absent' })).toEqual({ absent: 1, corrected: null, alerts: { sent: 0, simulated: 1, failed: 0, skipped: 0 } });
+    expect(await A.markAttendance(faculty, batchId, date, { [s1]: 'present', [s2]: 'absent' })).toEqual({ absent: 1, corrected: null, requested: 0, alerts: { sent: 0, simulated: 1, failed: 0, skipped: 0 } });
     // re-marking the same day doesn't alert again
     await A.markAttendance(faculty, batchId, date, { [s1]: 'present', [s2]: 'absent' });
     const msgs = (await outbound()).filter((m) => m.template.endsWith('absence_alert'));

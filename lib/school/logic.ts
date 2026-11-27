@@ -6,7 +6,7 @@
 import type { Question } from '../records/collections';
 
 export interface TestLike {
-  questions: Question[];
+  questions: (Omit<Question, 'topic'> & { topic?: string })[];
   maxMarks: number;
 }
 
