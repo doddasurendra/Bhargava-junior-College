@@ -154,7 +154,7 @@ export interface SignUpInput { name: string; collegeId: string; dob: string; pas
 export function signUpFieldErrors(i: SignUpInput): Record<string, string> {
   const e: Record<string, string> = {};
   const name = i.name.trim().replace(/\s+/g, ' ');
-  if (!/^[\p{L}][\p{L} .'-]{1,59}$/u.test(name) || name.replace(/[^\p{L}]/gu, '').length < 2) e.name = 'Enter your name as in college records (2–60 letters).';
+  if (!/^[\p{L}\d][\p{L}\d .'-]{1,59}$/u.test(name) || name.replace(/[^\p{L}]/gu, '').length < 2) e.name = 'Enter your name as in college records (2–60 letters).';
   if (!COLLEGE_ID_RE.test(normCollegeId(i.collegeId))) e.collegeId = 'Enter your College ID, like BJC-2027-JEE-0001.';
   const age = ageProblem(i.dob);
   if (age) e.dob = age;
