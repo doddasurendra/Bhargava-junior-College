@@ -28,8 +28,8 @@ export async function GET(req: Request) {
   if (kind === 'book') {
     const b = await obBooks.get(store(), id);
     if (!b?.data.fileKey || (b.data.status !== 'approved' && !(staff && canTeach(staff)) && b.data.uploadedBy.id !== studentId)) return new Response('Not found', { status: 404 });
-    key = b.data.fileKey; name = b.data.fileName ?? `${b.data.title}.pdf`; mime = /\.docx$/i.test(name) ? 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' : 'application/pdf';
-    mayDownload = b.data.downloadAllowed;
+    key = b.data.fileKey; name = b.data.fileName ?? `${b.data.title}.pdf`; mime = /\.docx$/i.test(name) ? 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' : /\.pptx$/i.test(name) ? 'application/vnd.openxmlformats-officedocument.presentationml.presentation' : 'application/pdf';
+    mayDownload = b.data.downloadAllowed || !!(staff && canTeach(staff)); // staff manage the college's documents
   } else if (kind === 'paper' || kind === 'solution') {
     const p = await obPapers.get(store(), id);
     if (!p || (p.data.status !== 'approved' && !(staff && canTeach(staff)) && p.data.uploadedBy.id !== studentId)) return new Response('Not found', { status: 404 });

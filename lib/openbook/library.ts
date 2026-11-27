@@ -25,14 +25,69 @@ interface GVolume {
 
 const OFFICIAL_PUBLISHER = /\b(ncert|national council of educational research|telugu akademi|national testing agency|nta)\b/i;
 
-export async function searchGoogleBooks(q: string, max = 20): Promise<GVolume[]> {
+/** Google Books request with clear quota / key errors (server side only; the key never reaches the browser). */
+async function googleFetch(pathAndQuery: string) {
   const key = process.env.GOOGLE_BOOKS_API_KEY ? `&key=${encodeURIComponent(process.env.GOOGLE_BOOKS_API_KEY)}` : '';
-  const r = await fetch(`https://www.googleapis.com/books/v1/volumes?q=${encodeURIComponent(q)}&maxResults=${Math.min(40, max)}&printType=books&langRestrict=en${key}`, { headers: { Accept: 'application/json' } });
-  if (r.status === 429) throw new OpenBookError('Google Books rate limit reached. Add GOOGLE_BOOKS_API_KEY or try again later.');
+  const r = await fetch(`https://www.googleapis.com/books/v1/${pathAndQuery}${pathAndQuery.includes('?') ? '' : '?'}${key}`, { headers: { Accept: 'application/json' }, cache: 'no-store' });
+  if (r.status === 429) throw new OpenBookError(process.env.GOOGLE_BOOKS_API_KEY ? 'Google Books daily quota is used up for this key. Try again tomorrow or raise the quota in Google Cloud Console.' : 'Google Books refused the request (rate limit for requests without a key). Add GOOGLE_BOOKS_API_KEY in Vercel to search reliably.');
+  if (r.status === 400 || r.status === 403) {
+    const msg = ((await r.json().catch(() => null)) as { error?: { message?: string } } | null)?.error?.message ?? '';
+    throw new OpenBookError(`Google Books rejected the request${process.env.GOOGLE_BOOKS_API_KEY ? ' (check that GOOGLE_BOOKS_API_KEY is valid and the Books API is enabled for it)' : ''}${msg ? `: ${msg.slice(0, 160)}` : '.'}`);
+  }
   if (!r.ok) throw new OpenBookError(`Google Books returned HTTP ${r.status}.`);
-  return ((await r.json()) as { items?: GVolume[] }).items ?? [];
+  return r.json();
 }
 
+export async function searchGoogleBooks(q: string, max = 20): Promise<GVolume[]> {
+  return (((await googleFetch(`volumes?q=${encodeURIComponent(q)}&maxResults=${Math.min(40, max)}&printType=books&langRestrict=en`)) as { items?: GVolume[] }).items) ?? [];
+}
+
+export type GoogleField = 'any' | 'title' | 'author' | 'subject' | 'isbn';
+export interface GoogleHit { id: string; title: string; authors: string[]; publisher: string | null; year: string | null; isbn: string | null; cover: string | null; description: string | null; categories: string[]; viewability: string; publicDomain: boolean; previewUrl: string | null; buyUrl: string | null; inLibrary: boolean }
+
+/** Search by title, author, subject or ISBN (Google's intitle: / inauthor: / subject: / isbn: operators). */
+export async function googleSearch(field: GoogleField, q: string, page = 1): Promise<{ total: number; hits: GoogleHit[] }> {
+  const term = q.trim();
+  need(term.length >= 2, 'Type at least 2 characters to search.');
+  const prefix = { any: '', title: 'intitle:', author: 'inauthor:', subject: 'subject:', isbn: 'isbn:' }[field];
+  const query = field === 'isbn' ? `isbn:${term.replace(/[^0-9Xx]/g, '')}` : `${prefix}${term}`;
+  const j = (await googleFetch(`volumes?q=${encodeURIComponent(query)}&maxResults=20&startIndex=${(Math.max(1, page) - 1) * 20}&printType=books`)) as { totalItems?: number; items?: GVolume[] };
+  const have = new Set((await obBooks.list(store())).map((b) => b.data.googleId).filter(Boolean));
+  return {
+    total: j.totalItems ?? 0,
+    hits: (j.items ?? []).filter((v) => v.volumeInfo.title).map((v) => ({
+      id: v.id, title: [v.volumeInfo.title, v.volumeInfo.subtitle].filter(Boolean).join(': '), authors: v.volumeInfo.authors ?? [], publisher: v.volumeInfo.publisher ?? null, year: v.volumeInfo.publishedDate?.slice(0, 4) ?? null,
+      isbn: v.volumeInfo.industryIdentifiers?.find((i) => i.type === 'ISBN_13')?.identifier ?? v.volumeInfo.industryIdentifiers?.[0]?.identifier ?? null,
+      cover: v.volumeInfo.imageLinks?.thumbnail?.replace(/^http:/, 'https:') ?? null, description: v.volumeInfo.description?.slice(0, 600) ?? null, categories: v.volumeInfo.categories ?? [],
+      viewability: v.accessInfo?.viewability ?? 'NO_PAGES', publicDomain: !!v.accessInfo?.publicDomain,
+      previewUrl: v.accessInfo?.viewability && v.accessInfo.viewability !== 'NO_PAGES' ? (v.accessInfo.webReaderLink ?? v.volumeInfo.previewLink ?? null) : null, buyUrl: v.saleInfo?.buyLink ?? v.volumeInfo.infoLink ?? null,
+      inLibrary: have.has(v.id),
+    })),
+  };
+}
+
+/** Adds one Google Books volume to the college library (metadata + preview/purchase links; download only if public domain + free file). */
+export async function addGoogleVolume(u: Staff, volumeId: string, meta: { category: string; examIds: string[]; subjects: string[]; cls: '11' | '12' | 'both' | 'na'; language: string | null; docType: string | null }) {
+  need(canManage(u));
+  need(/^[\w-]{4,20}$/.test(volumeId), 'Invalid book id.');
+  const have = (await obBooks.list(store())).find((b) => b.data.googleId === volumeId);
+  need(!have, 'This book is already in the library.');
+  const v = (await googleFetch(`volumes/${encodeURIComponent(volumeId)}`)) as GVolume;
+  need(v?.volumeInfo?.title, 'Google Books did not return this book.');
+  const vi = v.volumeInfo, ai = v.accessInfo ?? {};
+  const publicDomain = !!ai.publicDomain;
+  const r = await obBooks.put(store(), {
+    title: [vi.title, vi.subtitle].filter(Boolean).join(': ').slice(0, 300), authors: (vi.authors ?? []).slice(0, 12), publisher: vi.publisher ?? null, edition: null,
+    isbn: vi.industryIdentifiers?.find((i) => i.type === 'ISBN_13')?.identifier ?? vi.industryIdentifiers?.[0]?.identifier ?? null, year: vi.publishedDate?.slice(0, 4) ?? null,
+    coverUrl: vi.imageLinks?.thumbnail?.replace(/^http:/, 'https:') ?? null, description: vi.description?.replace(/<[^>]+>/g, '').slice(0, 4000) ?? null,
+    category: meta.category, examIds: meta.examIds, subjects: meta.subjects, cls: meta.cls, chapters: [], language: meta.language, docType: meta.docType ?? 'reference',
+    kind: OFFICIAL_PUBLISHER.test(vi.publisher ?? '') ? 'official' : 'reference', licence: publicDomain ? 'public_domain' : 'copyrighted', source: 'google_books', googleId: v.id,
+    previewUrl: ai.viewability && ai.viewability !== 'NO_PAGES' ? (ai.webReaderLink ?? vi.previewLink ?? null) : null, purchaseUrl: v.saleInfo?.buyLink ?? vi.infoLink ?? null, officialUrl: null,
+    downloadAllowed: publicDomain && !!(ai.pdf?.isAvailable || ai.epub?.isAvailable), status: 'approved', uploadedBy: staffActor(u),
+  });
+  await audit(staffActor(u), 'book.google_add', r.id, vi.title ?? '');
+  return r.id;
+}
 /** Imports Google Books results for a category/exam/subject (metadata, cover, preview and purchase links). */
 export async function importFromGoogle(u: Staff, input: { query: string; category: string; examIds: string[]; subjects: string[]; cls: '11' | '12' | 'both' | 'na'; max?: number }) {
   need(canManage(u));
@@ -64,11 +119,11 @@ export async function importFromGoogle(u: Staff, input: { query: string; categor
 
 // ---------------------------------------------------------------- upload (institution-owned / open-licence files)
 
-export async function uploadBook(by: Actor, isManager: boolean, file: { name: string; bytes: Uint8Array }, meta: { title: string; authors: string[]; publisher: string | null; edition: string | null; year: string | null; isbn: string | null; description: string | null; category: string; examIds: string[]; subjects: string[]; cls: '11' | '12' | 'both' | 'na'; chapters: string[]; kind: 'official' | 'reference' | 'institution'; licence: string; officialUrl: string | null; downloadAllowed: boolean }) {
+export async function uploadBook(by: Actor, isManager: boolean, file: { name: string; bytes: Uint8Array }, meta: { title: string; authors: string[]; publisher: string | null; edition: string | null; year: string | null; isbn: string | null; description: string | null; category: string; examIds: string[]; subjects: string[]; cls: '11' | '12' | 'both' | 'na'; chapters: string[]; kind: 'official' | 'reference' | 'institution'; licence: string; officialUrl: string | null; downloadAllowed: boolean; language?: string | null; academicYear?: string | null; docType?: 'textbook' | 'reference' | 'notes' | 'question_bank' | 'lab_manual' | 'syllabus' | 'question_paper' | 'other' | null }) {
   if (!LICENCES_STORABLE.has(meta.licence)) throw new OpenBookError('Only public-domain, open-licence, free official or institution-owned books can be uploaded. For copyrighted books, add the metadata with a purchase or preview link instead.');
   const s = sniff(file.name, file.bytes);
   if ('error' in s) throw new OpenBookError(s.error);
-  if (s.kind !== 'pdf' && s.kind !== 'word') throw new OpenBookError('Upload books as PDF or Word (.docx).');
+  if (s.kind !== 'pdf' && s.kind !== 'word' && s.kind !== 'powerpoint') throw new OpenBookError('Upload books and documents as PDF, Word (.docx) or PowerPoint (.pptx).');
   const fileKey = await putFile('book', file.bytes, s.mime);
   const book = await obBooks.put(store(), {
     ...meta, coverUrl: null, source: 'upload', googleId: null, previewUrl: null, purchaseUrl: null,
@@ -132,7 +187,7 @@ export async function removeBook(u: Staff, id: string, reason: string) {
 
 // ---------------------------------------------------------------- search & browse
 
-export interface BookFilter { q?: string; category?: string; examId?: string; subject?: string; cls?: string; kind?: string; page?: number; size?: number; status?: 'approved' | 'pending' | 'all' }
+export interface BookFilter { q?: string; category?: string; examId?: string; subject?: string; cls?: string; kind?: string; language?: string; docType?: string; academicYear?: string; page?: number; size?: number; status?: 'approved' | 'pending' | 'rejected' | 'all' }
 
 export async function listBooks(f: BookFilter = {}) {
   const all = (await obBooks.list(store())).map((r) => ({ id: r.id, createdAt: r.createdAt, ...r.data }));
@@ -144,6 +199,9 @@ export async function listBooks(f: BookFilter = {}) {
     .filter((b) => !f.subject || b.subjects.includes(f.subject))
     .filter((b) => !f.cls || b.cls === f.cls || b.cls === 'both')
     .filter((b) => !f.kind || b.kind === f.kind)
+    .filter((b) => !f.language || b.language === f.language)
+    .filter((b) => !f.docType || b.docType === f.docType)
+    .filter((b) => !f.academicYear || b.academicYear === f.academicYear)
     .filter((b) => {
       if (!words.length) return true;
       const hay = [b.title, b.authors.join(' '), b.publisher ?? '', b.subjects.join(' '), b.chapters.join(' '), b.isbn ?? '', ...b.examIds.map((e) => EXAM_BY_ID.get(e)?.name ?? e)].join(' ').toLowerCase();

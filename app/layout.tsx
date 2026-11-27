@@ -1,5 +1,5 @@
 import type { Metadata, Viewport } from 'next';
-import { Figtree, IBM_Plex_Mono, Marcellus } from 'next/font/google';
+import { Figtree, IBM_Plex_Mono, Marcellus, Noto_Sans_Devanagari, Noto_Sans_Telugu } from 'next/font/google';
 import type { ReactNode } from 'react';
 import { college } from '@/content/college';
 import { getLang } from '@/lib/i18n-server';
@@ -9,6 +9,9 @@ import './globals.css';
 const display = Marcellus({ subsets: ['latin'], weight: '400', variable: '--font-display', display: 'swap' });
 const sans = Figtree({ subsets: ['latin'], variable: '--font-sans', display: 'swap' });
 const mono = IBM_Plex_Mono({ subsets: ['latin'], weight: ['400', '500', '600'], variable: '--font-mono', display: 'swap' });
+// Telugu and Hindi text (staff CRM, student app, site). Loaded only when those glyphs appear (unicode-range).
+const telugu = Noto_Sans_Telugu({ subsets: ['telugu'], weight: ['400', '600', '700'], variable: '--font-te', display: 'swap', preload: false });
+const devanagari = Noto_Sans_Devanagari({ subsets: ['devanagari'], weight: ['400', '600', '700'], variable: '--font-hi', display: 'swap', preload: false });
 
 export const metadata: Metadata = {
   metadataBase: new URL(siteUrl),
@@ -44,7 +47,7 @@ const themeScript = `(function(){try{var t=localStorage.getItem('bjc_theme');var
 export default function RootLayout({ children }: { children: ReactNode }) {
   const lang = getLang();
   return (
-    <html lang={lang === 'en' ? 'en-IN' : `${lang}-IN`} className={`${display.variable} ${sans.variable} ${mono.variable}`} suppressHydrationWarning>
+    <html lang={lang === 'en' ? 'en-IN' : `${lang}-IN`} className={`${display.variable} ${sans.variable} ${mono.variable} ${telugu.variable} ${devanagari.variable}`} suppressHydrationWarning>
       <head>
         <script dangerouslySetInnerHTML={{ __html: themeScript }} />
       </head>

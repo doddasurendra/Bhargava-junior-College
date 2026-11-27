@@ -3,6 +3,7 @@ import * as A from '@/app/crm/openbook-actions';
 import { ActionButton, QuickForm } from '@/components/crm/QuickForm';
 import { Empty, Panel, Stat } from '@/components/crm/ui';
 import { BigFileInput } from '@/components/openbook/BigFileInput';
+import { GoogleSearch } from '@/components/openbook/GoogleSearch';
 import { Field, ObForm } from '@/components/openbook/client';
 import { requireStaff } from '@/lib/crm/auth';
 import { batchPerformance, monitoring } from '@/lib/openbook/analytics';
@@ -26,9 +27,18 @@ export const maxDuration = 60;
 
 const TABS = [['overview', 'Overview'], ['books', 'Books'], ['papers', 'Papers'], ['bank', 'Question bank'], ['sources', 'Official sources'], ['teach', 'Teaching'], ['community', 'Community'], ['settings', 'AI settings']] as const;
 const exOpts = EXAMS.map((e) => ({ value: e.id, label: e.name }));
+const LANG_OPTS = [['en', 'English'], ['te', 'Telugu'], ['hi', 'Hindi'], ['ur', 'Urdu'], ['sa', 'Sanskrit'], ['other', 'Other']] as const;
+const DOC_TYPES = [['textbook', 'Textbook'], ['reference', 'Reference book'], ['notes', 'Notes'], ['question_bank', 'Question bank'], ['lab_manual', 'Lab manual'], ['syllabus', 'Syllabus'], ['other', 'Other']] as const;
+const LangYear = ({ lang = 'en', year = '' }: { lang?: string | null; year?: string | null }) => (
+  <>
+    <Field label="Language"><select name="language" defaultValue={lang ?? 'en'} className="input w-full">{LANG_OPTS.map(([v, l]) => <option key={v} value={v}>{l}</option>)}</select></Field>
+    <Field label="Academic year"><input name="academicYear" defaultValue={year ?? ''} className="input w-full" placeholder="2026-27" pattern="\d{4}(-\d{2})?" title="For example 2026-27" /></Field>
+  </>
+);
 const ExamChecks = () => <fieldset className="grid max-h-40 grid-cols-2 gap-1 overflow-y-auto rounded border border-line p-2 text-xs">{EXAMS.map((e) => <label key={e.id} className="flex gap-1"><input type="checkbox" name="examIds" value={e.id} />{e.name}</label>)}</fieldset>;
 
-export default async function OpenBookAdmin({ searchParams }: { searchParams: { tab?: string; batch?: string; student?: string; paper?: string } }) {
+type BookQuery = { q?: string; category?: string; language?: string; docType?: string; academicYear?: string; status?: string; edit?: string; pg?: string };
+export default async function OpenBookAdmin({ searchParams }: { searchParams: { tab?: string; batch?: string; student?: string; paper?: string } & BookQuery }) {
   const u = await requireStaff();
   if (!canTeach(u)) return <Panel title="Open Book"><p className="text-sm text-muted">Your role doesn’t manage Open Book. Students use it from the Student & Parent app.</p></Panel>;
   const tab = searchParams.tab ?? 'overview';
@@ -38,7 +48,7 @@ export default async function OpenBookAdmin({ searchParams }: { searchParams: { 
       <div><h1 className="font-display text-3xl text-heading">Open Book</h1><p className="text-sm text-muted">AI digital library and exam preparation · content, approvals, teaching tools, moderation and AI settings.</p></div>
       <nav className="flex flex-wrap gap-1.5">{TABS.map(([k, l]) => <Link key={k} href={`/crm/openbook?tab=${k}`} className={k === tab ? 'chip chip-active' : 'chip'}>{l}</Link>)}</nav>
       {tab === 'overview' && <Overview />}
-      {tab === 'books' && <Books manager={manager} />}
+      {tab === 'books' && <Books manager={manager} f={searchParams} />}
       {tab === 'papers' && <Papers paperId={searchParams.paper} />}
       {tab === 'bank' && <Bank manager={manager} />}
       {tab === 'sources' && <Sources manager={manager} />}
@@ -69,14 +79,18 @@ export default async function OpenBookAdmin({ searchParams }: { searchParams: { 
     );
   }
 
-  async function Books({ manager }: { manager: boolean }) {
-    const [pending, all] = await Promise.all([listBooks({ status: 'pending', size: 60 }), listBooks({ status: 'all', size: 60 })]);
+  async function Books({ manager, f }: { manager: boolean; f: BookQuery }) {
+    const status = (['approved', 'pending', 'rejected'].includes(f.status ?? '') ? f.status : 'all') as 'all';
+    const pg = Math.max(1, Number(f.pg) || 1);
+    const [pending, all] = await Promise.all([listBooks({ status: 'pending', size: 60 }), listBooks({ status, size: 30, page: pg, q: f.q || undefined, category: f.category || undefined, language: f.language || undefined, docType: f.docType || undefined, academicYear: f.academicYear || undefined })]);
+    const editing = f.edit ? all.items.find((b) => b.id === f.edit) : undefined;
+    const qs = (o: Record<string, string | number | undefined>) => `/crm/openbook?${new URLSearchParams(Object.entries({ tab: 'books', q: f.q, category: f.category, language: f.language, docType: f.docType, academicYear: f.academicYear, status: f.status, ...o }).filter(([, v]) => v !== undefined && v !== '') as [string, string][]).toString()}`;
     return (
       <>
         <div className="grid gap-5 lg:grid-cols-2">
           <Panel title="Upload a book (institution-owned or open licence)">
             <ObForm action={A.uploadBookAction as never} submit="Upload and extract text">
-              <BigFileInput name="file" accept=".pdf,.docx" label="PDF or Word file" required />
+              <BigFileInput name="file" accept=".pdf,.docx,.pptx" label="PDF, Word (.docx) or PowerPoint (.pptx) file" required />
               <Field label="Title"><input name="title" required className="input w-full" /></Field>
               <div className="grid grid-cols-2 gap-2">
                 <Field label="Authors (comma separated)"><input name="authors" className="input w-full" /></Field>
@@ -88,6 +102,8 @@ export default async function OpenBookAdmin({ searchParams }: { searchParams: { 
                 <Field label="Subjects (comma)"><input name="subjects" className="input w-full" placeholder="Physics" /></Field>
                 <Field label="Year (Inter)"><select name="cls" className="input w-full"><option value="na">—</option><option value="11">1st year</option><option value="12">2nd year</option><option value="both">Both</option></select></Field>
                 <Field label="Type"><select name="kind" className="input w-full"><option value="institution">BJC material</option><option value="official">Official (NCERT, board…)</option><option value="reference">Reference</option></select></Field>
+                <LangYear />
+                <Field label="Document type"><select name="docType" className="input w-full"><option value="textbook">Textbook</option><option value="reference">Reference book</option><option value="notes">Notes</option><option value="question_bank">Question bank</option><option value="lab_manual">Lab manual</option><option value="syllabus">Syllabus</option><option value="other">Other</option></select></Field>
                 <Field label="Licence"><select name="licence" className="input w-full"><option value="institution_owned">Owned by the college</option><option value="open_licence">Open licence (CC etc.)</option><option value="free_official">Free official resource (terms allow)</option><option value="public_domain">Public domain</option></select></Field>
               </div>
               <Field label="Chapters (comma, optional)"><input name="chapters" className="input w-full" /></Field>
@@ -97,22 +113,58 @@ export default async function OpenBookAdmin({ searchParams }: { searchParams: { 
             </ObForm>
             {!manager && <p className="mt-2 text-xs text-muted">Teacher uploads wait for an administrator’s approval.</p>}
           </Panel>
-          {manager && <Panel title="Import from Google Books (metadata, cover, preview, purchase link)">
-            <ObForm action={A.googleImportAction as never} submit="Search Google Books and import">
-              <Field label="Search"><input name="query" required className="input w-full" placeholder="NCERT Physics Class 11" /></Field>
-              <div className="grid grid-cols-2 gap-2">
-                <Field label="Category"><select name="category" className="input w-full">{CATEGORIES.map((c) => <option key={c.id} value={c.id}>{c.short}</option>)}</select></Field>
-                <Field label="Subjects (comma)"><input name="subjects" className="input w-full" /></Field>
-                <Field label="Year (Inter)"><select name="cls" className="input w-full"><option value="na">—</option><option value="11">1st year</option><option value="12">2nd year</option><option value="both">Both</option></select></Field>
-              </div>
-              <ExamChecks />
-              <p className="text-xs text-muted">Copyrighted books are stored as metadata with Google’s preview and the purchase link only; a book is downloadable only if Google marks it public domain with a free PDF/EPUB.</p>
-            </ObForm>
+          {manager && <Panel title="Google Books: search by title, author, subject or ISBN">
+            <GoogleSearch exams={EXAMS.map((e) => ({ id: e.id, name: e.name }))} />
+            <p className="mt-2 text-xs text-muted">Copyrighted books are added as details with Google’s preview and the publisher link only; a book is downloadable only if Google marks it public domain with a free PDF/EPUB.</p>
           </Panel>}
         </div>
         {manager && <div><ActionButton action={A.seedCatalogueAction} label="Add the official NCERT and OpenStax catalogue" className="btn-outline py-1.5 text-sm" /></div>}
+        {editing && manager && <Panel title={`Edit details · ${editing.title}`}>
+          <ObForm action={A.editBookAction as never} submit="Save details">
+            <input type="hidden" name="id" value={editing.id} />
+            <Field label="Title"><input name="title" defaultValue={editing.title} required className="input w-full" /></Field>
+            <div className="grid gap-2 sm:grid-cols-3">
+              <Field label="Authors (comma separated)"><input name="authors" defaultValue={editing.authors.join(', ')} className="input w-full" /></Field>
+              <Field label="Publisher"><input name="publisher" defaultValue={editing.publisher ?? ''} className="input w-full" /></Field>
+              <Field label="Edition"><input name="edition" defaultValue={editing.edition ?? ''} className="input w-full" /></Field>
+              <Field label="Year"><input name="year" defaultValue={editing.year ?? ''} className="input w-full" /></Field>
+              <Field label="Subjects (comma)"><input name="subjects" defaultValue={editing.subjects.join(', ')} className="input w-full" /></Field>
+              <Field label="Year (Inter)"><select name="cls" defaultValue={editing.cls} className="input w-full"><option value="na">—</option><option value="11">1st year</option><option value="12">2nd year</option><option value="both">Both</option></select></Field>
+              <LangYear lang={editing.language} year={editing.academicYear} />
+              <Field label="Document type"><select name="docType" defaultValue={editing.docType ?? 'textbook'} className="input w-full">{DOC_TYPES.map(([v, l]) => <option key={v} value={v}>{l}</option>)}</select></Field>
+            </div>
+            <Field label="Chapters (comma, optional)"><input name="chapters" defaultValue={editing.chapters.join(', ')} className="input w-full" /></Field>
+            <Field label="Official page (optional)"><input name="officialUrl" type="url" defaultValue={editing.officialUrl ?? ''} className="input w-full" /></Field>
+            <label className="flex gap-2 text-sm"><input type="checkbox" name="downloadAllowed" defaultChecked={editing.downloadAllowed} /> Students may download it (licence allows)</label>
+          </ObForm>
+          <Link href={qs({})} className="mt-2 inline-block text-xs underline">Close</Link>
+        </Panel>}
         <Panel title={`Waiting for approval (${pending.total})`}>{pending.items.length ? <ul className="divide-y divide-line text-sm">{pending.items.map((b) => <li key={b.id} className="flex flex-wrap items-center justify-between gap-2 py-2"><span>{b.title} <span className="text-xs text-muted">· {b.licence} · by {b.uploadedBy.name}</span></span>{manager && <span className="flex gap-1"><ActionButton action={A.reviewBookAction} label="Approve" hidden={{ id: b.id, decision: 'approve' }} /><ActionButton action={A.reviewBookAction} label="Reject" hidden={{ id: b.id, decision: 'reject' }} /></span>}</li>)}</ul> : <Empty>Nothing waiting.</Empty>}</Panel>
-        <Panel title={`All books (${all.total})`}>{all.items.length ? <ul className="divide-y divide-line text-sm">{all.items.map((b) => <li key={b.id} className="flex flex-wrap items-center justify-between gap-2 py-2"><span><b>{b.title}</b> <span className="text-xs text-muted">· {b.kind} · {b.licence} · {b.source} · {b.status}{b.fileKey ? ` · ${b.pages} pages, text ${b.textStatus}` : ''}</span></span>{manager && b.status !== 'rejected' && <ActionButton action={A.removeBookAction} label="Remove" hidden={{ id: b.id, reason: 'Removed by an administrator' }} />}</li>)}</ul> : <Empty>No books yet.</Empty>}</Panel>
+        <Panel title={`Library documents (${all.total})`}>
+          <form method="get" action="/crm/openbook" className="mb-3 flex flex-wrap gap-2 text-sm">
+            <input type="hidden" name="tab" value="books" />
+            <input name="q" defaultValue={f.q ?? ''} aria-label="Search the library" placeholder="Title, author, ISBN, subject" className="input min-w-[12rem] flex-1" />
+            <select name="category" defaultValue={f.category ?? ''} aria-label="Category" className="input w-auto"><option value="">All categories</option>{CATEGORIES.map((c) => <option key={c.id} value={c.id}>{c.short}</option>)}</select>
+            <select name="docType" defaultValue={f.docType ?? ''} aria-label="Document type" className="input w-auto"><option value="">All types</option>{DOC_TYPES.map(([v, l]) => <option key={v} value={v}>{l}</option>)}</select>
+            <select name="language" defaultValue={f.language ?? ''} aria-label="Language" className="input w-auto"><option value="">All languages</option>{LANG_OPTS.map(([v, l]) => <option key={v} value={v}>{l}</option>)}</select>
+            <input name="academicYear" defaultValue={f.academicYear ?? ''} aria-label="Academic year" placeholder="2026-27" className="input w-28" />
+            <select name="status" defaultValue={f.status ?? ''} aria-label="Status" className="input w-auto"><option value="">Any status</option><option value="approved">Approved</option><option value="pending">Waiting</option><option value="rejected">Removed</option></select>
+            <button className="btn-primary px-4">Filter</button>
+          </form>
+          {all.items.length ? <ul className="divide-y divide-line text-sm">{all.items.map((b) => (
+            <li key={b.id} className="flex flex-wrap items-center justify-between gap-2 py-2">
+              <span><b>{b.title}</b> <span className="text-xs text-muted">· {DOC_TYPES.find(([v]) => v === b.docType)?.[1] ?? b.kind} · {LANG_OPTS.find(([v]) => v === b.language)?.[1] ?? '—'}{b.academicYear ? ` · ${b.academicYear}` : ''} · {b.licence} · {b.source} · {b.status}{b.fileKey ? ` · ${b.pages} pages, text ${b.textStatus}` : ''}</span></span>
+              <span className="flex flex-wrap gap-2 text-xs">
+                {b.status === 'approved' && <a className="underline" href={`/app/openbook/book/${b.id}`} target="_blank" rel="noopener noreferrer">Student view</a>}
+                {b.fileKey && <a className="underline" href={`/api/openbook/file?k=book&id=${b.id}`} target="_blank" rel="noopener noreferrer">Preview</a>}
+                {b.fileKey && <a className="underline" href={`/api/openbook/file?k=book&id=${b.id}&download=1`}>Download</a>}
+                {!b.fileKey && (b.officialUrl || b.previewUrl) && <a className="underline" href={(b.officialUrl ?? b.previewUrl)!} target="_blank" rel="noopener noreferrer">Open link</a>}
+                {manager && <Link className="underline" href={qs({ edit: b.id, pg })}>Edit</Link>}
+                {manager && b.status !== 'rejected' && <ActionButton action={A.removeBookAction} label="Remove" hidden={{ id: b.id, reason: 'Removed by an administrator' }} />}
+              </span>
+            </li>))}</ul> : <Empty>No documents match.</Empty>}
+          <div className="mt-2 flex justify-between text-xs">{pg > 1 ? <Link className="underline" href={qs({ pg: pg - 1 })}>Previous</Link> : <span />}{all.total > pg * 30 && <Link className="underline" href={qs({ pg: pg + 1 })}>Next</Link>}</div>
+        </Panel>
       </>
     );
   }
@@ -135,6 +187,7 @@ export default async function OpenBookAdmin({ searchParams }: { searchParams: { 
               <Field label="Board / body"><input name="board" className="input w-full" /></Field>
               <Field label="Type"><select name="paperType" className="input w-full"><option value="official">Official</option><option value="board">Board</option><option value="model">Model</option><option value="mock">Mock</option><option value="handwritten">Handwritten</option></select></Field>
               <Field label="Licence"><select name="licence" className="input w-full"><option value="official_public">Official, publicly released</option><option value="institution_owned">College-owned</option></select></Field>
+              <LangYear />
               <Field label="Topics (comma)"><input name="topics" className="input w-full" /></Field>
             </div>
             <Field label="Answer key (1-B, 2-C, 3-4.5 …)"><textarea name="answerKey" rows={2} className="input w-full" /></Field>

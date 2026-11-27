@@ -4,18 +4,21 @@ import { usePathname, useRouter } from 'next/navigation';
 import { useEffect, useRef, useState } from 'react';
 import { LANG_COOKIE, LANGS, type Lang } from '@/lib/i18n';
 
-export function LangSwitch({ current, label }: { current: Lang; label: string }) {
+export function LangSwitch({ current, label, tone = 'dark' }: { current: Lang; label: string; tone?: 'dark' | 'light' }) {
   const router = useRouter();
   return (
-    <label className="inline-flex items-center gap-1.5">
+    <label className="inline-flex items-center gap-1.5" data-no-translate>
       <span className="sr-only">{label}</span>
       <select
         value={current}
+        aria-label={label}
         onChange={(e) => {
           document.cookie = `${LANG_COOKIE}=${e.target.value}; path=/; max-age=31536000; samesite=lax`;
-          router.refresh();
+          // the CRM translates in the browser, so a full reload applies the new language everywhere at once
+          if (tone === 'light') window.location.reload();
+          else router.refresh();
         }}
-        className="cursor-pointer rounded-md border border-white/20 bg-transparent px-1.5 py-0.5 text-xs text-white [&>option]:text-ink"
+        className={tone === 'light' ? 'cursor-pointer rounded-md border border-line bg-surface px-1.5 py-1 text-xs text-ink' : 'cursor-pointer rounded-md border border-white/20 bg-transparent px-1.5 py-0.5 text-xs text-white [&>option]:text-ink'}
       >
         {LANGS.map((l) => (
           <option key={l.code} value={l.code}>

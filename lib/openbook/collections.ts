@@ -46,6 +46,9 @@ export const obBooks = collection({
     coverUrl: z.string().max(500).nullable().default(null), description: opt(4000),
     category: txt(20), examIds: z.array(z.string().max(40)).max(30).default([]), subjects: z.array(z.string().max(80)).max(10).default([]),
     cls: z.enum(['11', '12', 'both', 'na']).default('na'), chapters: z.array(z.string().max(140)).max(60).default([]),
+    /** en, te, hi, ur, sa … (null = not recorded) and the academic year it applies to, e.g. 2026-27 */
+    language: z.string().max(10).nullable().default(null), academicYear: z.string().max(12).nullable().default(null),
+    docType: z.enum(['textbook', 'reference', 'notes', 'question_bank', 'lab_manual', 'syllabus', 'question_paper', 'other']).nullable().default(null),
     kind: z.enum(['official', 'reference', 'institution']),
     licence: z.enum(['public_domain', 'open_licence', 'free_official', 'institution_owned', 'copyrighted']),
     source: z.enum(['google_books', 'official', 'upload']),
@@ -97,6 +100,7 @@ export const obPapers = collection({
     title: txt(200), examId: txt(40), category: txt(20), board: opt(120), subject: txt(80), topics: z.array(z.string().max(140)).max(40).default([]),
     year: z.number().int().min(1950).max(2100), session: opt(60), paperType: z.enum(['official', 'model', 'mock', 'board', 'handwritten', 'other']).default('official'), difficulty: difficulty.nullable().default(null),
     cls: z.enum(['11', '12', 'both', 'na']).default('na'),
+    language: z.string().max(10).nullable().default(null), academicYear: z.string().max(12).nullable().default(null),
     fileKey: z.string().max(300), fileName: z.string().max(200), mime: z.string().max(120), size: z.number().int().min(0),
     solutionKey: z.string().max(300).nullable().default(null), answerKey: opt(20_000), licence: z.enum(['official_public', 'institution_owned', 'student_upload', 'unknown']).default('unknown'),
     status, uploadedBy: actor, reviewNote: opt(300),

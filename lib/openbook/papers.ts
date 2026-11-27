@@ -18,7 +18,7 @@ import { lexicalSimilarity, parseOptions, splitQuestions, tokens } from './text'
  */
 const ACCEPT_KINDS = new Set(['pdf', 'word', 'image']);
 
-export interface PaperMeta { title: string; examId: string; board: string | null; subject: string; topics: string[]; year: number; session: string | null; paperType: 'official' | 'model' | 'mock' | 'board' | 'handwritten' | 'other'; difficulty: Difficulty | null; cls: '11' | '12' | 'both' | 'na'; licence: 'official_public' | 'institution_owned' | 'student_upload' | 'unknown'; answerKey: string | null }
+export interface PaperMeta { title: string; examId: string; board: string | null; subject: string; topics: string[]; year: number; session: string | null; paperType: 'official' | 'model' | 'mock' | 'board' | 'handwritten' | 'other'; difficulty: Difficulty | null; cls: '11' | '12' | 'both' | 'na'; licence: 'official_public' | 'institution_owned' | 'student_upload' | 'unknown'; answerKey: string | null; language?: string | null; academicYear?: string | null }
 
 export async function uploadPaper(by: Actor, approver: boolean, file: { name: string; bytes: Uint8Array }, meta: PaperMeta, solution?: { name: string; bytes: Uint8Array } | null) {
   const exam = examOrThrow(meta.examId);

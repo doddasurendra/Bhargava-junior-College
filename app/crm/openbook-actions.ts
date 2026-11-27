@@ -53,8 +53,26 @@ export async function uploadBookAction(_: ActionState, fd: FormData) {
       title: s(fd, 'title') ?? f.name, authors: list(fd, 'authors'), publisher: s(fd, 'publisher'), edition: s(fd, 'edition'), year: s(fd, 'year'), isbn: s(fd, 'isbn'), description: s(fd, 'description'),
       category: s(fd, 'category') ?? 'intermediate', examIds: fd.getAll('examIds').map(String), subjects: list(fd, 'subjects'), cls: (s(fd, 'cls') ?? 'na') as 'na', chapters: list(fd, 'chapters'),
       kind: (s(fd, 'kind') ?? 'institution') as 'institution', licence: s(fd, 'licence') ?? 'institution_owned', officialUrl: s(fd, 'officialUrl'), downloadAllowed: fd.get('downloadAllowed') === 'on',
+      language: s(fd, 'language'), academicYear: s(fd, 'academicYear'), docType: (s(fd, 'docType') ?? 'textbook') as 'textbook',
     });
   }, canManage(u) ? 'Book added and its text extracted.' : 'Book uploaded; an administrator approves it.');
+}
+export async function googleSearchAction(field: L.GoogleField, q: string, page: number) {
+  const u = await requireStaff();
+  try {
+    if (!canManage(u)) throw new OpenBookError('You do not have permission to do this.');
+    return { ok: true as const, data: await L.googleSearch(field, q, page) };
+  } catch (e) {
+    return { ok: false as const, error: e instanceof OpenBookError ? e.message : 'Google Books could not be reached. Please try again.' };
+  }
+}
+export async function addGoogleBookAction(volumeId: string, meta: { category: string; examIds: string[]; subjects: string[]; cls: '11' | '12' | 'both' | 'na'; language: string | null; docType: string | null }) {
+  const u = await requireStaff();
+  return run(() => L.addGoogleVolume(u, volumeId, meta), 'Added to the library.', ['/crm/openbook']);
+}
+export async function editBookAction(_: ActionState, fd: FormData) {
+  const u = await requireStaff();
+  return run(() => L.editBook(u, s(fd, 'id')!, { title: s(fd, 'title') ?? undefined, authors: list(fd, 'authors'), publisher: s(fd, 'publisher'), edition: s(fd, 'edition'), year: s(fd, 'year'), subjects: list(fd, 'subjects'), chapters: list(fd, 'chapters'), cls: s(fd, 'cls') ?? 'na', language: s(fd, 'language'), academicYear: s(fd, 'academicYear'), docType: s(fd, 'docType'), officialUrl: s(fd, 'officialUrl'), downloadAllowed: fd.get('downloadAllowed') === 'on' }), 'Saved.');
 }
 export async function googleImportAction(_: ActionState, fd: FormData) {
   const u = await requireStaff();
@@ -96,7 +114,7 @@ export async function staffUploadPaperAction(_: ActionState, fd: FormData) {
     if (!canTeach(u)) throw new OpenBookError('You do not have permission to do this.');
     const f = await file(fd, 'file', u.id);
     if (!f) throw new OpenBookError('Choose the paper file.');
-    await P.uploadPaper(staffActor(u), true, f, { title: s(fd, 'title') ?? f.name, examId: s(fd, 'examId') ?? 'jee-main', board: s(fd, 'board'), subject: s(fd, 'subject') ?? 'Physics', topics: list(fd, 'topics'), year: Number(s(fd, 'year')), session: s(fd, 'session'), paperType: (s(fd, 'paperType') ?? 'official') as 'official', difficulty: (s(fd, 'difficulty') as Difficulty) ?? null, cls: (s(fd, 'cls') ?? 'na') as 'na', licence: (s(fd, 'licence') ?? 'official_public') as 'official_public', answerKey: s(fd, 'answerKey') }, await file(fd, 'solution', u.id));
+    await P.uploadPaper(staffActor(u), true, f, { title: s(fd, 'title') ?? f.name, examId: s(fd, 'examId') ?? 'jee-main', board: s(fd, 'board'), subject: s(fd, 'subject') ?? 'Physics', topics: list(fd, 'topics'), year: Number(s(fd, 'year')), session: s(fd, 'session'), paperType: (s(fd, 'paperType') ?? 'official') as 'official', difficulty: (s(fd, 'difficulty') as Difficulty) ?? null, cls: (s(fd, 'cls') ?? 'na') as 'na', licence: (s(fd, 'licence') ?? 'official_public') as 'official_public', answerKey: s(fd, 'answerKey'), language: s(fd, 'language'), academicYear: s(fd, 'academicYear') }, await file(fd, 'solution', u.id));
   }, 'Paper uploaded and questions extracted.');
 }
 export async function reviewPaperAction(_: ActionState, fd: FormData) {
