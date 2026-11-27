@@ -109,8 +109,8 @@ export default async function AnalyticsPage({ searchParams: q }: { searchParams:
             </div>
             <Panel title="Section-wise attendance %"><BarList rows={a.byBatch.map((b) => ({ label: b.name, value: b.pct ?? 0, note: b.pct === null ? 'no registers' : `${b.absent} abs`, hint: `${b.students} students` }))} unit="%" /></Panel>
             <div className="grid gap-5 xl:grid-cols-2">
-              <Panel title="Monthly attendance trend"><TrendChart rows={a.monthly.map((m) => ({ date: `${m.month}-01`, pct: m.pct ?? 0, absent: m.absent }))} series={[{ key: 'pct', label: 'Attendance %', color: 'var(--viz-1)' }]} /></Panel>
-              <Panel title="Daily attendance %"><TrendChart rows={a.daily.map((d) => ({ date: d.date, pct: d.pct ?? 0 }))} series={[{ key: 'pct', label: 'Attendance %', color: 'var(--viz-4)' }]} /></Panel>
+              <Panel title="Monthly attendance trend"><TrendChart rows={a.monthly.map((m) => ({ date: `${m.month}-01`, pct: m.pct ?? 0, absent: m.absent }))} series={[{ key: 'pct', label: 'Attendance %', color: 'var(--viz-1)' }]} max={100} /></Panel>
+              <Panel title="Daily attendance %"><TrendChart rows={a.daily.map((d) => ({ date: d.date, pct: d.pct ?? 0 }))} series={[{ key: 'pct', label: 'Attendance %', color: 'var(--viz-4)' }]} max={100} /></Panel>
             </div>
             <Panel title="Status mix by section"><MixBars rows={a.byBatch.map((b) => ({ key: b.name, total: b.present + b.late + b.absent + b.leave, present: b.present, late: b.late, absent: b.absent, leave: b.leave }))} segments={[{ key: 'present', label: 'Present', color: 'var(--viz-4)' }, { key: 'late', label: 'Late', color: 'var(--viz-2)' }, { key: 'absent', label: 'Absent', color: 'var(--viz-3)' }, { key: 'leave', label: 'Leave', color: 'var(--viz-1)' }]} /></Panel>
           </>
@@ -164,7 +164,7 @@ export default async function AnalyticsPage({ searchParams: q }: { searchParams:
         </div>
         {c.examTrend.length === 0 ? <Empty>No published results for this batch yet. Analysis starts when the exam cell publishes a test.</Empty> : (
           <>
-            <Panel title="Class average by exam (improvement over time)"><TrendChart rows={c.examTrend.map((e) => ({ date: e.date, avg: e.avg }))} series={[{ key: 'avg', label: 'Class average %', color: 'var(--viz-1)' }]} /></Panel>
+            <Panel title="Class average by exam (improvement over time)"><TrendChart rows={c.examTrend.map((e) => ({ date: e.date, avg: e.avg }))} series={[{ key: 'avg', label: 'Class average %', color: 'var(--viz-1)' }]} max={100} /></Panel>
             <div className="grid gap-5 xl:grid-cols-2">
               <Panel title="Subject-wise average"><BarList rows={c.bySubject.map((s) => ({ label: s.subject, value: s.avg ?? 0, note: `${s.students} st.` }))} unit="%" /></Panel>
               <Panel title="Chapter-wise accuracy (weakest first)">{c.chapters.length ? <BarList rows={c.chapters.slice(0, 12).map((ch) => ({ label: ch.chapter, value: ch.accuracy ?? 0, note: `${ch.attempted} q`, hint: ch.subject }))} unit="%" color="var(--viz-3)" /> : <Empty>Chapter accuracy comes from online tests (offline marks have no per-question data).</Empty>}</Panel>

@@ -46,14 +46,14 @@ export interface LineSeries {
   color: string;
 }
 
-export function TrendChart({ rows, series, height = 220 }: { rows: ({ date: string } & Record<string, number | string>)[]; series: LineSeries[]; height?: number }) {
+export function TrendChart({ rows, series, height = 220, max: fixedMax }: { rows: ({ date: string } & Record<string, number | string>)[]; series: LineSeries[]; height?: number; /** fixed top of the axis, e.g. 100 for percentages */ max?: number }) {
   // Drawn at roughly the card's real width so 11px text stays 11px (no viewBox shrinking).
   const W = 480;
   const pad = { l: 28, r: 104, t: 10, b: 24 };
   const H = height;
   const iw = W - pad.l - pad.r;
   const ih = H - pad.t - pad.b;
-  const max = niceMax(Math.max(1, ...rows.flatMap((r) => series.map((s) => Number(r[s.key]) || 0))));
+  const max = fixedMax ?? niceMax(Math.max(1, ...rows.flatMap((r) => series.map((s) => Number(r[s.key]) || 0))));
   const x = (i: number) => pad.l + (rows.length <= 1 ? iw / 2 : (i / (rows.length - 1)) * iw);
   const y = (v: number) => pad.t + ih - (v / max) * ih;
   const ticks = [0, max / 4, max / 2, (3 * max) / 4, max];

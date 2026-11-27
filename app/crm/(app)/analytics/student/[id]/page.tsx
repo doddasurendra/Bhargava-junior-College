@@ -47,7 +47,7 @@ export default async function StudentReport({ params }: { params: { id: string }
           {p.latest && <p className="text-sm">Latest: <b>{p.latest.title}</b> {p.latest.pct}%{p.latest.rank ? ` (rank ${p.latest.rank}/${p.latest.of})` : ''}{p.previous && p.change !== null ? ` · ${p.change >= 0 ? 'up' : 'down'} ${Math.abs(p.change)} points vs ${p.previous.title} (${p.previous.pct}%)` : ''}</p>}
           {p.exams.length === 0 ? <Empty>No published results yet.</Empty> : (
             <>
-              <Panel title="Improvement graph: score % by exam"><TrendChart rows={p.exams.map((e) => ({ date: e.date, pct: e.pct }))} series={[{ key: 'pct', label: 'Score %', color: 'var(--viz-1)' }]} /></Panel>
+              <Panel title="Improvement graph: score % by exam"><TrendChart rows={p.exams.map((e) => ({ date: e.date, pct: e.pct }))} series={[{ key: 'pct', label: 'Score %', color: 'var(--viz-1)' }]} max={100} /></Panel>
               <div className="grid gap-5 lg:grid-cols-2">
                 <Panel title="Subject-wise performance">{p.bySubject.length ? <BarList rows={p.bySubject.map((x) => ({ label: x.subject, value: x.pct ?? 0, note: `${x.score}/${x.max}` }))} unit="%" /> : <Empty>Subject % needs online tests or single-subject tests.</Empty>}</Panel>
                 <Panel title="By examination type"><BarList rows={p.byExamType.map((x) => ({ label: x.label, value: x.avg ?? 0, note: `${x.exams} exam${x.exams === 1 ? '' : 's'}` }))} unit="%" color="var(--viz-2)" /></Panel>
@@ -76,7 +76,7 @@ export default async function StudentReport({ params }: { params: { id: string }
           {h && (
             <>
               <Panel title={`Attendance history since ${formatDate(from)}`}>
-                {h.monthly.length ? <TrendChart rows={h.monthly.map((m) => ({ date: `${m.month}-01`, pct: m.pct ?? 0 }))} series={[{ key: 'pct', label: 'Attendance %', color: 'var(--viz-4)' }]} /> : <Empty>No registers yet.</Empty>}
+                {h.monthly.length ? <TrendChart rows={h.monthly.map((m) => ({ date: `${m.month}-01`, pct: m.pct ?? 0 }))} series={[{ key: 'pct', label: 'Attendance %', color: 'var(--viz-4)' }]} max={100} /> : <Empty>No registers yet.</Empty>}
                 {h.monthly.length > 0 && <table className="table-base mt-3 text-sm"><thead><tr><th>Month</th><th className="text-right">Days</th><th className="text-right">P</th><th className="text-right">L</th><th className="text-right">A</th><th className="text-right">Lv</th><th className="text-right">%</th></tr></thead>
                   <tbody>{h.monthly.map((m) => <tr key={m.month}><td>{m.month}</td><td className="text-right">{m.days}</td><td className="text-right">{m.present}</td><td className="text-right">{m.late}</td><td className="text-right">{m.absent}</td><td className="text-right">{m.leave}</td><td className="text-right font-mono">{m.pct ?? '–'}</td></tr>)}</tbody></table>}
               </Panel>
