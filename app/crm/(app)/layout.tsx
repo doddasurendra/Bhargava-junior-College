@@ -59,6 +59,7 @@ export default async function CrmShell({ children }: { children: ReactNode }) {
     ...(can(user, 'sessions.manage') || can(user, 'academics.view') ? [{ href: '/crm/sessions', label: 'Speaker sessions' }] : []),
     ...(can(user, 'wellbeing.counsel') || can(user, 'wellbeing.trends') ? [{ href: '/crm/wellbeing', label: can(user, 'wellbeing.counsel') ? 'Counsellor dashboard' : 'Wellbeing trends' }] : []),
     ...(can(user, 'ob.teach') ? [{ href: '/crm/openbook', label: '📘 Open Book' }] : []),
+    ...(can(user, 'ob.teach') ? [{ href: '/crm/exams', label: 'Closed-book exams' }] : []),
     ...(can(user, 'openbook.manage') ? [{ href: '/crm/open-book', label: 'Open-book' }] : []),
     { href: '/crm/notices', label: 'Notices' },
     { href: '/crm/events', label: 'Events calendar' },

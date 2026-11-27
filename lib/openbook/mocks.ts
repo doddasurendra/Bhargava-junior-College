@@ -73,7 +73,7 @@ export async function mocksFor(studentId: string, batchId: string | null) {
   const own = await obMocks.list(store(), { k1: studentId });
   const shared = batchId ? await obMocks.list(store(), { k1: `b:${batchId}` }) : [];
   const attempts = await obMockAttempts.list(store(), { k1: studentId });
-  return [...own, ...shared].map((m) => ({ id: m.id, createdAt: m.createdAt, ...m.data, shared: !!m.data.batchId, attempt: attempts.filter((a) => a.data.mockId === m.id).map((a) => ({ id: a.id, ...a.data }))[0] ?? null })).sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+  return [...own, ...shared].filter((m) => !m.data.closed).map((m) => ({ id: m.id, createdAt: m.createdAt, ...m.data, shared: !!m.data.batchId, attempt: attempts.filter((a) => a.data.mockId === m.id).map((a) => ({ id: a.id, ...a.data }))[0] ?? null })).sort((a, b) => b.createdAt.localeCompare(a.createdAt));
 }
 
 function mayTake(m: NonNullable<Awaited<ReturnType<typeof getMock>>>, studentId: string, batchId: string | null) {
@@ -84,6 +84,7 @@ function mayTake(m: NonNullable<Awaited<ReturnType<typeof getMock>>>, studentId:
 export async function startAttempt(studentId: string, batchId: string | null, mockId: string) {
   const m = await getMock(mockId);
   need(m && mayTake(m, studentId, batchId), 'Mock test not found.');
+  need(!m!.closed, 'This is a closed-book examination: open it from Exams.');
   const prev = (await obMockAttempts.list(store(), { k1: studentId, k2: mockId }))[0];
   if (prev) return prev.id;
   const now = new Date();
@@ -98,11 +99,12 @@ export async function getAttempt(studentId: string, attemptId: string) {
 }
 
 /** Saves answers / review marks / time as the student works (also used for resume). */
-export async function saveAnswers(studentId: string, attemptId: string, patch: { answers?: Record<string, string[]>; review?: string[]; time?: Record<string, number> }) {
+export async function saveAnswers(studentId: string, attemptId: string, patch: { answers?: Record<string, string[]>; review?: string[]; time?: Record<string, number> }, viaClosedExam = false) {
   const a = await obMockAttempts.get(store(), attemptId);
   need(a && a.data.studentId === studentId, 'Attempt not found.');
+  if (!viaClosedExam) need(!(await getMock(a!.data.mockId))?.closed, 'This is a closed-book examination: continue it from Exams.');
   if (a!.data.status === 'submitted') return { submitted: true };
-  if (Date.now() > Date.parse(a!.data.endsAt) + 15_000) return { submitted: true, ...(await submit(studentId, null, attemptId, true)) };
+  if (Date.now() > Date.parse(a!.data.endsAt) + 15_000) return { submitted: true, ...(await submit(studentId, null, attemptId, true, viaClosedExam)) };
   const time = { ...a!.data.time };
   for (const [k, v] of Object.entries(patch.time ?? {})) time[k] = Math.max(time[k] ?? 0, Math.min(36_000, Math.round(v)));
   await obMockAttempts.put(store(), { ...a!.data, answers: { ...a!.data.answers, ...(patch.answers ?? {}) }, review: patch.review ?? a!.data.review, time }, attemptId);
@@ -110,9 +112,10 @@ export async function saveAnswers(studentId: string, attemptId: string, patch: {
 }
 
 /** Marks everything: objective questions instantly, subjective ones with AI-assisted rubric marking. */
-export async function submit(studentId: string, batchId: string | null, attemptId: string, auto = false) {
+export async function submit(studentId: string, batchId: string | null, attemptId: string, auto = false, viaClosedExam = false) {
   const a = await obMockAttempts.get(store(), attemptId);
   need(a && a.data.studentId === studentId, 'Attempt not found.');
+  if (!viaClosedExam && a!.data.status !== 'submitted') need(!(await getMock(a!.data.mockId))?.closed || Date.now() > Date.parse(a!.data.endsAt), 'This is a closed-book examination: submit it from Exams.');
   if (a!.data.status === 'submitted') return { score: a!.data.score, max: a!.data.max };
   const m = await getMock(a!.data.mockId);
   need(m, 'Mock test not found.');

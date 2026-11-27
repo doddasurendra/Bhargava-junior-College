@@ -106,6 +106,8 @@ export const D7: readonly Row[] = [
   ['Supabase integration', 'Supabase ఇంటిగ్రేషన్', 'Supabase एकीकरण'],
   ['📊 Analytics', '📊 విశ్లేషణలు', '📊 विश्लेषण'],
   ['Analytics', 'విశ్లేషణలు', 'विश्लेषण'],
+  ['Closed-book exams', 'క్లోజ్డ్-బుక్ పరీక్షలు', 'क्लोज़्ड-बुक परीक्षाएँ'],
+  ['Mock exams', 'మాక్ పరీక్షలు', 'मॉक परीक्षाएँ'],
   // common chapter names (Inter / JEE / NEET)
   ['Laws of Motion', 'చలన నియమాలు', 'गति के नियम'], ['Laws of motion', 'చలన నియమాలు', 'गति के नियम'],
   ['Work, Energy and Power', 'పని, శక్తి మరియు సామర్థ్యం', 'कार्य, ऊर्जा और शक्ति'], ['Work, energy and power', 'పని, శక్తి మరియు సామర్థ్యం', 'कार्य, ऊर्जा और शक्ति'],

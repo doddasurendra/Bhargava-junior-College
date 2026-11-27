@@ -10,7 +10,17 @@ interface MQ { id: string; type: string; stem: string; options: string[]; subjec
  * Exam screen (§8): countdown timer, question palette (answered / marked for review / not visited), mark for
  * review, autosave every change (resume on any device), automatic submission at 0:00.
  */
-export function MockRunner({ attemptId, endsAt, questions, initialAnswers, initialReview, initialTime, marks, negative, lang = 'en' }: { attemptId: string; endsAt: string; questions: MQ[]; initialAnswers: Record<string, string[]>; initialReview: string[]; initialTime: Record<string, number>; marks: number; negative: number; lang?: ObLang }) {
+export interface RunnerHooks {
+  save: (patch: { answers?: Record<string, string[]>; review?: string[]; time?: Record<string, number> }) => Promise<{ error?: string; data?: unknown }>;
+  submit: (auto: boolean) => Promise<{ error?: string }>;
+  reportHref: string;
+  /** display order of each question's options (original indices); answers are still stored as original indices */
+  optionOrder?: Record<string, number[]>;
+  /** sticky offset of the timer bar (the exam screen has no app header) */
+  top?: string;
+}
+
+export function MockRunner({ attemptId, endsAt, questions, initialAnswers, initialReview, initialTime, marks, negative, lang = 'en', hooks }: { attemptId: string; endsAt: string; questions: MQ[]; initialAnswers: Record<string, string[]>; initialReview: string[]; initialTime: Record<string, number>; marks: number; negative: number; lang?: ObLang; hooks?: RunnerHooks }) {
   const router = useRouter();
   const [i, setI] = useState(0);
   const [answers, setAnswers] = useState(initialAnswers);
@@ -26,14 +36,17 @@ export function MockRunner({ attemptId, endsAt, questions, initialAnswers, initi
 
   const save = async (patch: Parameters<typeof act.saveMockAction>[1]) => {
     setSaving('saving');
-    const r = await act.saveMockAction(attemptId, { ...patch, time: { ...time.current } });
+    const r = hooks ? await hooks.save({ ...patch, time: { ...time.current } }) : await act.saveMockAction(attemptId, { ...patch, time: { ...time.current } });
     setSaving(r.error ? 'offline' : 'saved');
-    if ((r.data as { submitted?: boolean } | undefined)?.submitted) router.replace(`/app/openbook/mock/report/${attemptId}`);
+    if ((r.data as { submitted?: boolean } | undefined)?.submitted) router.replace(hooks?.reportHref ?? `/app/openbook/mock/report/${attemptId}`);
   };
   const submit = (auto: boolean) => {
     if (submitted.current) return;
     submitted.current = true;
-    start(async () => { await act.saveMockAction(attemptId, { answers, review, time: { ...time.current } }); const r = await act.submitMockAction(attemptId, auto); if (!r.error) router.replace(`/app/openbook/mock/report/${attemptId}`); else submitted.current = false; });
+    start(async () => {
+      if (hooks) { await hooks.save({ answers, review, time: { ...time.current } }); const r = await hooks.submit(auto); if (!r.error) router.replace(hooks.reportHref); else submitted.current = false; return; }
+      await act.saveMockAction(attemptId, { answers, review, time: { ...time.current } }); const r = await act.submitMockAction(attemptId, auto); if (!r.error) router.replace(`/app/openbook/mock/report/${attemptId}`); else submitted.current = false;
+    });
   };
   useEffect(() => {
     const t = setInterval(() => {
@@ -56,7 +69,7 @@ export function MockRunner({ attemptId, endsAt, questions, initialAnswers, initi
   if (!q) return null;
   return (
     <div className="space-y-3">
-      <div className="sticky top-[60px] z-20 flex items-center justify-between rounded-xl border border-line bg-surface px-3 py-2 text-sm">
+      <div style={hooks?.top ? { top: hooks.top } : undefined} className="sticky top-[60px] z-20 flex items-center justify-between rounded-xl border border-line bg-surface px-3 py-2 text-sm">
         <span className={`font-mono text-lg font-semibold ${left < 300_000 ? 'text-red-700' : 'text-heading'}`}>{String(mm).padStart(2, '0')}:{String(ss).padStart(2, '0')}</span>
         <span className="text-xs text-muted">{saving === 'saving' ? ui(lang, 'saving') : saving === 'offline' ? 'Not saved: check your connection' : ui(lang, 'saved')}</span>
         <button disabled={pending} onClick={() => { if (confirmSubmit(questions.length - questions.filter((x) => answered(x.id)).length)) submit(false); }} className="btn-primary px-3 py-1.5 text-sm">{ui(lang, 'submit')}</button>
@@ -67,9 +80,10 @@ export function MockRunner({ attemptId, endsAt, questions, initialAnswers, initi
         <p className="text-xs text-muted">Question {i + 1} of {questions.length} · {q.subject} · {q.type.replace(/_/g, ' ')}</p>
         <p className="whitespace-pre-line text-[15px] text-heading">{q.stem}</p>
         {q.options.length ? (
-          <ul className="space-y-1.5">{q.options.map((o, n) => {
+          <ul className="space-y-1.5">{(hooks?.optionOrder?.[q.id] ?? q.options.map((_, k) => k)).map((n, shown) => {
+            const o = q.options[n];
             const on = (answers[q.id] ?? []).includes(String(n));
-            return <li key={n}><button onClick={() => setAns(q.type === 'mcq_multi' ? (on ? (answers[q.id] ?? []).filter((x) => x !== String(n)) : [...(answers[q.id] ?? []), String(n)]) : [String(n)])} className={`w-full rounded-lg border px-3 py-2 text-left text-sm ${on ? 'border-navy bg-navy/5 dark:border-gold' : 'border-line'}`}><b>({'abcdefgh'[n]})</b> {o}</button></li>;
+            return <li key={n}><button onClick={() => setAns(q.type === 'mcq_multi' ? (on ? (answers[q.id] ?? []).filter((x) => x !== String(n)) : [...(answers[q.id] ?? []), String(n)]) : [String(n)])} className={`w-full rounded-lg border px-3 py-2 text-left text-sm ${on ? 'border-navy bg-navy/5 dark:border-gold' : 'border-line'}`}><b>({'abcdefgh'[shown]})</b> {o}</button></li>;
           })}</ul>
         ) : <textarea className="input w-full" rows={['numerical', 'one_word', 'fill_blank'].includes(q.type) ? 1 : 6} value={(answers[q.id] ?? [''])[0]} onChange={(e) => setAnswers({ ...answers, [q.id]: [e.target.value] })} onBlur={() => void save({ answers: { [q.id]: answers[q.id] ?? [''] } })} placeholder="Your answer" />}
         <div className="flex flex-wrap gap-2">

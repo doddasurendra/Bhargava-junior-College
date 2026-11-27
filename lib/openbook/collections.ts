@@ -175,6 +175,11 @@ export const obMocks = collection({
     ownerId: z.string().max(80).nullable(), createdBy: actor, title: txt(200), examId: z.string().max(40), subjects: z.array(z.string().max(80)).max(10), chapters: z.array(z.string().max(140)).max(80),
     minutes: z.number().int().min(1).max(600), marks: z.number().min(0).max(100), negative: z.number().min(0).max(100), questionIds: z.array(z.string().max(80)).min(1).max(200),
     source: z.enum(['ai', 'pool', 'pattern']), batchId: z.string().max(80).nullable().default(null), basis: opt(400),
+    /** closed-book examination rules (null = an ordinary practice mock) */
+    closed: z.object({
+      fullscreen: z.boolean(), maxFocusLoss: z.number().int().min(0).max(20), shuffleQuestions: z.boolean(), shuffleOptions: z.boolean(),
+      singleDevice: z.boolean(), showAnswers: z.boolean(), opensAt: z.string().nullable(), closesAt: z.string().nullable(),
+    }).nullable().default(null),
   }),
   k1: (d) => d.ownerId ?? (d.batchId ? `b:${d.batchId}` : 'shared'),
   k2: (d) => d.examId,
@@ -189,6 +194,10 @@ export const obMockAttempts = collection({
     status: z.enum(['in_progress', 'submitted']), submittedAt: z.string().nullable().default(null), auto: z.boolean().default(false),
     score: z.number().nullable().default(null), max: z.number().nullable().default(null),
     results: z.array(z.object({ questionId: z.string(), correct: z.boolean().nullable(), score: z.number(), max: z.number(), feedback: z.string().max(4000).nullable() })).default([]),
+    /** closed-book exams: this student's question order, option order per question, device and suspicious-activity log */
+    order: z.array(z.string().max(80)).default([]), optionOrder: z.record(z.array(z.number().int().min(0).max(9))).default({}),
+    deviceId: z.string().max(80).nullable().default(null), focusLosses: z.number().int().min(0).default(0),
+    events: z.array(z.object({ at: z.string(), kind: z.enum(['start', 'resume', 'blur', 'hidden', 'fullscreen_exit', 'other_device', 'auto_submit', 'submit']), detail: z.string().max(200).nullable() })).max(500).default([]),
   }),
   k1: (d) => d.studentId,
   k2: (d) => d.mockId,
