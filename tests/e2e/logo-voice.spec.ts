@@ -25,7 +25,10 @@ for (const [label, vp, px] of [['desktop', { width: 1366, height: 800 }, 80], ['
     const nat = await img.evaluate((i: HTMLImageElement) => ({ w: i.naturalWidth, dpr: window.devicePixelRatio }));
     expect(nat.w).toBeGreaterThanOrEqual(px * 2); // source big enough to stay sharp on 2× screens
     const header = (await p.locator('header').first().boundingBox())!;
-    expect(box.x - header.x).toBeLessThan(60); // still at the left of the header
+    // still the first thing at the left of the header's content area (same place as before)
+    const inner = (await p.locator('header > div').first().boundingBox())!;
+    const padL = await p.locator('header > div').first().evaluate((d) => parseFloat(getComputedStyle(d).paddingLeft));
+    expect(Math.abs(box.x - (inner.x + padL))).toBeLessThan(2);
     expect(box.y).toBeGreaterThanOrEqual(header.y); // inside the header
     expect(box.y + box.height).toBeLessThanOrEqual(header.y + header.height);
     await expect(link.getByText('Bhargava Junior College')).toBeVisible(); // aligned with the name

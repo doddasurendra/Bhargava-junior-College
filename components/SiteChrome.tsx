@@ -57,8 +57,8 @@ export function Header() {
             {/* larger crest, same place; 512 px source keeps it sharp; subtle hover zoom */}
             <Crest size={160} className="h-16 w-16 shrink-0 object-contain drop-shadow-sm transition-transform duration-200 ease-out group-hover:scale-[1.06] motion-reduce:transition-none motion-reduce:group-hover:scale-100 sm:h-20 sm:w-20" />
             <span className="min-w-0 leading-tight">
-              <span className="block truncate font-display text-[17px] text-heading sm:text-lg">{college.name}</span>
-              <span className="block truncate text-[11px] uppercase tracking-[0.16em] text-muted">Hyderabad · College Code {college.collegeCode}</span>
+              <span className="line-clamp-2 block font-display text-[17px] leading-tight text-heading sm:text-lg xl:max-w-[11rem] 2xl:max-w-none">{college.name}</span>
+              <span className="block truncate text-[11px] uppercase tracking-[0.16em] text-muted xl:hidden 2xl:block">Hyderabad · College Code {college.collegeCode}</span>
             </span>
           </Link>
           <nav aria-label="Main" className="hidden items-center xl:flex">
