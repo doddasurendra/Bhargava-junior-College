@@ -141,12 +141,142 @@ Commit `4153eff`. All of these were deployed and checked on production.
 
 Unit tests after this round: **287 passed in 45 files**. Live E2E after this round: **16 of 16 passed** (	ests/e2e/openbook.spec.ts, 6.7 min), including the new test for the catalogue, formula sheet, diagram cards, offline review, the Telugu interface and the winners trigger. The live run also found and fixed one more bug: a diagram box drawn with a quick release was lost.
 
+## Third round (27 Nov): removing the remaining blockers
+
+Commits `c9b4a7e` … `dcef4d1` on `main`, each deployed to Vercel Production.
+
+### API keys: configured and verified?
+
+Checked with `vercel env ls production` on 27 Nov. Only names were printed, never values.
+
+| Key | In Vercel? | Result |
+|---|---|---|
+| `ANTHROPIC_API_KEY` | **No** | AI generation, explanations, OCR of scans, tutor and assistant cannot run. All code paths are built, validated with zod and show "AI is not configured" when the key is missing. **Not tested against the live AI service.** |
+| `GOOGLE_BOOKS_API_KEY` | **No** | Search runs without a key, but Google refuses keyless requests (HTTP 429). The screen shows that message. |
+| `VOYAGE_API_KEY` | **No** | Semantic duplicate check is off. The exact fingerprint and lexical similarity checks run instead (the fallback). |
+
+No key is hard-coded anywhere. All three are read only on the server (`lib/openbook/llm.ts`, `lib/openbook/library.ts`, `lib/openbook/vectors.ts`), and none of them appears in browser code.
+
+**Administrator setup (exact steps):**
+
+1. **Anthropic.**
+   - Go to console.anthropic.com → API keys → Create key.
+   - Then Vercel → project `bhargava-junior-college` → Settings → Environment Variables → add `ANTHROPIC_API_KEY`, for the Production and Preview environments.
+   - Optionally set a monthly spend limit in the Anthropic console.
+2. **Google Books.**
+   - Go to console.cloud.google.com → create or choose a project → APIs & Services → Library → enable **Books API**.
+   - Then Credentials → Create credentials → API key.
+   - Restrict the key to the Books API, and add it in Vercel as `GOOGLE_BOOKS_API_KEY`.
+3. **Voyage AI.**
+   - Go to dash.voyageai.com → API keys → create a key.
+   - Add it in Vercel as `VOYAGE_API_KEY`.
+   - The pgvector table and the `ob_match_questions` function are already migrated.
+4. **Redeploy** (Vercel → Deployments → Redeploy) so the new variables take effect.
+5. **Re-run the live tests:** `QA_RUN_OPENBOOK=1 npx playwright test tests/e2e/openbook.spec.ts`. Tests 7–9, 16, 20, 22 (OCR) and 24 then exercise the real AI service.
+
+### Task by task
+
+| Task | Status | What was done / what is missing |
+|---|---|---|
+| 1. Anthropic AI | **Built, blocked by the missing key** | Generation, explanations, scanned-paper OCR (Claude vision), tutor and assistant are implemented with loading states, schema validation of every AI answer, daily limits and clear errors. Nothing is simulated. |
+| 2. Google Books | **Built; live search blocked by the missing key** | New search in CRM → Open Book → Books: search by **title, author, subject or ISBN** (Google's `intitle:` / `inauthor:` / `subject:` / `isbn:`), with cover, authors, publisher, year, ISBN, description, licence, preview level, **Preview** and **Publisher/buy** links, and "Already in the library". **Add to library** comes with category, subjects, year, language, type and exams. Quota (429), key (400/403) and network errors each show a specific message. Copyrighted books are added as details and links only. |
+| 3. Duplicate detection | **Built; semantic layer waits for the key** | Exact fingerprint + lexical similarity (word-bag cosine and character trigrams) run today against the whole bank, across subjects, chapters and extracted previous-paper questions. AI-generated near-repeats are rejected, logged and regenerated. With `VOYAGE_API_KEY`, pgvector embeddings add a check for reworded questions. Without it the lexical checks are the fallback. |
+| 4. Library & previous papers | **Done and tested live** | CRM upload of books and documents (PDF, Word .docx, PowerPoint .pptx) and of papers (PDF, Word, JPG/PNG, scans) for Intermediate, JEE, NEET, IIT and other exams. Files go to the private Supabase bucket `kb-files`; metadata goes to Supabase (`records`). New fields: **language, academic year, document type** (textbook, reference, notes, question bank, lab manual, syllabus). Library screen: search plus filters (category, type, language, academic year, status), pagination, **Preview, Download, Student view, Edit details, Remove**. Word/PowerPoint documents open as page-by-page text for students. Permissions: teachers upload and wait for approval; managers approve, edit and remove; students see approved items only and download only when the licence allows; staff may always download college documents; signed-out requests get 401. |
+| 5. Telugu & Hindi for the staff CRM | **Done (see coverage below)** | |
+| 6. Security & deployment | **Checked** | See below. |
+| 7. Testing | **Done for everything that doesn't need a key** | See below. |
+
+### Localization coverage (staff CRM)
+
+How it works:
+
+- One dictionary, `lib/crm-i18n` (rows of English, Telugu, Hindi), with a browser translator, `components/crm/CrmTranslator.tsx`.
+- It translates every CRM page, the sign-in pages, menus, tables, buttons, form labels, placeholders, tooltips, validation and server messages, notifications and browser confirm/alert dialogs. Text that appears later (results of actions, lists that load) is translated too.
+- English text is the key, so database columns, values, IDs, URLs and code are never changed.
+- Messages with numbers or names use `{x}` patterns, for example "Waiting for approval (3)".
+- Knowledge Hub centre names and topics reuse their existing Telugu/Hindi. Knowledge Hub article titles that have a Telugu/Hindi version are added for signed-in staff only, through `/api/crm-i18n/<lang>/content`, limited to articles that person may read.
+- Language menu at the top of every CRM page. It uses the site's existing `bjc_lang` cookie, so the choice stays across pages and sessions.
+- Unicode fonts: Noto Sans Telugu and Noto Sans Devanagari.
+
+Coverage, measured:
+
+- **Source strings:** `node scripts/i18n-extract.mjs` then `npx vite-node scripts/i18n-coverage.ts`. **2,201 of 2,208 CRM UI strings (99.7%)** are translated in both Telugu and Hindi.
+- **Kept in English on purpose:**
+  - the three printable official certificates (Bonafide, Study/Conduct, Transfer); they are legal documents;
+  - brand names such as WhatsApp;
+  - 155 non-UI strings: CSS class names, log tags and sample names.
+- **Live audit on production** (`tests/e2e/crm-language.spec.ts`): opens every menu page of 7 role/language combinations and fails if any phrase the dictionary knows is still shown in English.
+
+| Role · language | Pages | Visible text items in Telugu/Hindi | Dictionary phrases still in English |
+|---|---|---|---|
+| Super Admin · Telugu | 63 | 11,161 / 17,203 | none |
+| Super Admin · Hindi | 63 | 11,161 / 17,204 | none |
+| Principal · Telugu | 48 | 6,804 / 11,611 | none |
+| Accounts · Hindi | 26 | 2,748 / 4,240 | none |
+| Telecaller · Telugu | 21 | 1,726 / 2,582 | none |
+| Faculty · Hindi | 28 | 3,020 / 5,135 | none |
+| Hostel Warden · Telugu | 24 | 2,462 / 3,906 | none |
+
+What the remaining English is (from the audit's list of untranslated visible text):
+
+- data that should not be translated: people's names (including the QA accounts), device names, IDs, numbers and audit action IDs such as `paper.reject`;
+- **Knowledge Hub articles the college wrote in English only.** The Knowledge Hub editor already has Telugu and Hindi fields, so the college should add those versions;
+- a few chapter names, which Indian syllabi print in English.
+
+The Telugu and Hindi were written for this project and **have not been reviewed by a native speaker yet.** That review is recommended before relying on them for official communication.
+
+### Database and storage status
+
+- Supabase project `nkhpahcmldfuwydeglml`. **RLS is enabled on all 35 public tables**, and none allows anonymous or signed-in database access. The app reads and writes only on the server with the service role, after its own session and permission checks.
+- Storage buckets `kb-files` (50 MB limit) and `applicant-docs` (5 MB limit) are both **private**. Files are served only through `/api/openbook/file`, which checks the session, role, approval status and licence. A signed-out request returned **401** in the live test.
+- New metadata fields are optional and default to empty, so existing records stay valid. No migration was needed, and nothing was deleted or overwritten.
+- Supabase security advisors (27 Nov), all items that already existed:
+  - "RLS enabled, no policy" on 10 tables. This is the intended deny-all model.
+  - `pg_net` installed in the public schema. It is used by the link-check cron.
+  - `has_any_role` is callable by signed-in users. It is a role-check helper that only answers about the caller's own roles.
+  - Leaked-password protection is off. To turn it on: Supabase → Authentication → Settings.
+
+### Testing results (27 Nov)
+
+- **Unit tests:** 293 passed in 46 files. New: the dictionary-integrity test (every row has Telugu/Devanagari script, matching `{x}` markers, no conflicting duplicates) and the translation-engine test.
+- **Live, `tests/e2e/crm-language.spec.ts`:** 9 of 9 passed on production.
+  - Every menu page for super admin, principal, accounts, telecaller, faculty and hostel warden, in Telugu and Hindi, with the language kept while navigating.
+  - Switching back to English.
+  - **Library:** upload a PDF with language, academic year and type → filter by all three → preview (inline PDF) → download (attachment) → signed-out request refused (401) → edit details → remove.
+  - The first full run was interrupted when this computer went to sleep (network suspended). The six affected tests were re-run and passed.
+- **Fixes found by live testing:**
+  - the language menu's own label;
+  - chart labels drawn in SVG were not translated;
+  - the edit panel closed when an edit moved the book out of the current filter.
+- **Live, `tests/e2e/openbook.spec.ts` (regression):** 16 of 16 passed on production in 5.4 minutes. Its QA data was removed or hidden afterwards. In that run:
+  - the new Google Books search was exercised and recorded as **BLOCKED**: "Google Books refused the request (rate limit for requests without a key)";
+  - AI steps were recorded as **BLOCKED** (`ANTHROPIC_API_KEY` not set).
+- **Not testable without keys:** AI generation, explanations, OCR, tutor and assistant, a live Google Books search and semantic duplicates.
+
+### Deployment
+
+- Vercel Production auto-deploys from `main`. The latest deployment is Ready.
+- One deployment failed and was fixed: `next/font` could not load Noto Sans Telugu. The fonts now load from a stylesheet instead. The previous deployment stayed live throughout, so users saw no break.
+- Locally, `tsc` is clean and the unit tests pass. `next build` couldn't run locally because this computer couldn't reach Google Fonts (`ECONNRESET`); Vercel's build succeeds.
+
+### Remaining actions that need an administrator
+
+1. Add `ANTHROPIC_API_KEY`, `GOOGLE_BOOKS_API_KEY` and `VOYAGE_API_KEY` (steps above), redeploy, and re-run the Open Book live tests.
+2. Upload the college's own documents through CRM → Open Book: textbooks and notes it owns, lab manuals and syllabi under Books; approved official previous-year papers under Papers. Missing today:
+   - TS Intermediate (TSBIE) previous papers, 1st and 2nd year, for each subject;
+   - JEE Main and Advanced papers;
+   - NEET papers;
+   - the college's own notes and question banks.
+   No book file is stored yet. The NCERT and OpenStax catalogue is linked.
+3. Ask a native Telugu and a native Hindi speaker to review the staff CRM wording in `lib/crm-i18n/dict/*.ts`, and add Telugu/Hindi versions of Knowledge Hub articles in the Knowledge Hub editor.
+4. Optional: turn on Supabase leaked-password protection.
+
 ## Still pending (honest list)
 
 1. **Add the API keys above.** Until then the AI features don't run, and the AI-dependent live tests (7–9, 16, 20, 22-OCR, 24) can't pass. Re-run the suite after adding them.
 2. **Google Books import:** keyless requests are refused (HTTP 429) both from Vercel and from the developer's computer, so `GOOGLE_BOOKS_API_KEY` is required.
 3. **The college's own books and past papers:** the official NCERT/OpenStax catalogue is linked, but no book file is stored yet. The college should upload the books it owns (or open-licence PDFs) and the official past papers through the CRM.
-4. **Telugu/Hindi:** form field labels inside the upload forms, and the staff CRM screens, are still in English.
+4. **Telugu/Hindi:** done for the staff CRM in the third round (above). Still to do: a review by native speakers, and Telugu/Hindi versions of the Knowledge Hub articles the college wrote in English.
 5. pgvector semantic duplicate search is built and migrated but inactive until `VOYAGE_API_KEY` is set.
 6. Supabase Auth-level RLS per student doesn't apply: the app uses its own sessions and server-side checks, and all tables deny anonymous and authenticated access. This is the same model as the rest of BJC.
 7. `npm run seed:demo` was not run: it is for staging only.
