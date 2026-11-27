@@ -147,10 +147,10 @@ function backend(): PasswordBackend {
 async function audit(action: (typeof studentAuthAudit)['schema']['_output']['action'], outcome: string, collegeId: string | null, ip: string | null, actor: string | null = null) {
   await studentAuthAudit.put(st(), { at: now(), action, outcome, collegeId, ip, actor }).catch((e) => console.error('[student-account] audit failed', e));
 }
-async function attempts(action: 'signup' | 'reset' | 'login', key: { ip?: string | null; collegeId?: string | null }, sinceMs: number) {
+async function attempts(action: 'signup' | 'reset' | 'login', key: { ip?: string | null; collegeId?: string | null }, sinceMs: number, failuresOnly = false) {
   const since = new Date(Date.now() - sinceMs).toISOString();
   const rows = key.collegeId ? await studentAuthAudit.list(st(), { k1: key.collegeId }) : key.ip ? await studentAuthAudit.list(st(), { k2: key.ip }) : [];
-  return rows.filter((r) => r.data.action === action && r.data.at >= since).length;
+  return rows.filter((r) => r.data.action === action && r.data.at >= since && (!failuresOnly || r.data.outcome !== 'ok')).length;
 }
 
 // ---------------------------------------------------------------- sign-up
@@ -289,7 +289,8 @@ export async function officeResetCode(user: Staff, studentId: string) {
 /** Student: College ID + one-time code + new password. The old password stops working; other devices are signed out. */
 export async function resetWithCode(idRaw: string, code: string, password: string, confirm: string, ip: string | null) {
   const collegeId = normCollegeId(idRaw);
-  if ((await attempts('reset', { ip }, 3600_000)) >= 10 || (await attempts('reset', { collegeId }, 3600_000)) >= 5) throw new StudentAccountError(MSG.tooMany);
+  // wrong codes only: a correct, single-use code from a parent or the office is not an attack
+  if ((await attempts('reset', { ip }, 3600_000, true)) >= 10 || (await attempts('reset', { collegeId }, 3600_000, true)) >= 5) throw new StudentAccountError(MSG.tooMany);
   const pwErr = passwordProblem(password, collegeId);
   if (pwErr) throw new StudentAccountError(pwErr, 'password');
   if (password !== confirm) throw new StudentAccountError('The two passwords don’t match.', 'confirm');

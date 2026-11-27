@@ -143,7 +143,7 @@ test('QA student: older password still signs in (moved into Supabase Auth); pare
   const ctx = await browser.newContext();
   const o = await ctx.newPage();
   await staffLogin(o, staffFor('admin_office'));
-  const sid = await (async () => { await o.goto('/crm/students'); await o.getByRole('link', { name: new RegExp(qa.studentName) }).first().click(); return o.url(); })();
+  const sid = await (async () => { await o.goto('/crm/students'); await o.getByRole('link', { name: new RegExp(qa.studentName) }).first().click(); await o.waitForURL(/\/crm\/students\/[^/?]+$/); return o.url(); })();
   await expect(o.getByTestId('student-account-status')).toHaveText('Active');
   await o.getByRole('button', { name: 'Reset password (one-time code)' }).click();
   const msg = await o.getByText(/One-time code \d{6}/).innerText();
