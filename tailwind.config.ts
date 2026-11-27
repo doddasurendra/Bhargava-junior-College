@@ -18,8 +18,8 @@ export default {
         line: v('line'),
       },
       fontFamily: {
-        display: ['var(--font-display)', 'var(--font-te)', 'var(--font-hi)', 'Georgia', 'serif'],
-        sans: ['var(--font-sans)', 'var(--font-te)', 'var(--font-hi)', 'system-ui', 'sans-serif'],
+        display: ['var(--font-display)', 'Noto Sans Telugu', 'Noto Sans Devanagari', 'Georgia', 'serif'],
+        sans: ['var(--font-sans)', 'Noto Sans Telugu', 'Noto Sans Devanagari', 'system-ui', 'sans-serif'],
         mono: ['var(--font-mono)', 'ui-monospace', 'monospace'],
       },
       keyframes: {
