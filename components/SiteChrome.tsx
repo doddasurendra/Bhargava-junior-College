@@ -52,9 +52,10 @@ export function Header() {
         </div>
       </div>
       <header className="sticky top-0 z-40 border-b border-line bg-surface/90 backdrop-blur supports-[backdrop-filter]:bg-surface/80">
-        <div className="container-x relative flex h-16 items-center justify-between gap-4 sm:h-[72px]">
-          <Link href="/" className="flex min-w-0 items-center gap-3" aria-label={`${college.name} — home`}>
-            <Crest size={44} className="h-10 w-10 shrink-0 sm:h-11 sm:w-11" />
+        <div className="container-x relative flex h-[76px] items-center justify-between gap-4 sm:h-[92px]">
+          <Link href="/" className="group flex min-w-0 items-center gap-3 sm:gap-4" aria-label={`${college.name} — home`}>
+            {/* larger crest, same place; 512 px source keeps it sharp; subtle hover zoom */}
+            <Crest size={160} className="h-16 w-16 shrink-0 object-contain drop-shadow-sm transition-transform duration-200 ease-out group-hover:scale-[1.06] motion-reduce:transition-none motion-reduce:group-hover:scale-100 sm:h-20 sm:w-20" />
             <span className="min-w-0 leading-tight">
               <span className="block truncate font-display text-[17px] text-heading sm:text-lg">{college.name}</span>
               <span className="block truncate text-[11px] uppercase tracking-[0.16em] text-muted">Hyderabad · College Code {college.collegeCode}</span>

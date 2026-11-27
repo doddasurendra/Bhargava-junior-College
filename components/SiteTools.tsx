@@ -119,7 +119,7 @@ export function MockTest({ test }: { test: Content['mockTest'] }) {
 
   return (
     <div className="space-y-3">
-      <div className="sticky top-16 z-10 flex justify-between rounded-xl bg-navy px-4 py-2 text-white"><span className="text-sm">{Object.keys(answers).length}/{test.questions.length} answered</span><span className="font-mono">{String(Math.floor(left / 60000)).padStart(2, '0')}:{String(Math.floor((left % 60000) / 1000)).padStart(2, '0')}</span></div>
+      <div className="sticky top-[80px] z-10 flex justify-between sm:top-[96px] rounded-xl bg-navy px-4 py-2 text-white"><span className="text-sm">{Object.keys(answers).length}/{test.questions.length} answered</span><span className="font-mono">{String(Math.floor(left / 60000)).padStart(2, '0')}:{String(Math.floor((left % 60000) / 1000)).padStart(2, '0')}</span></div>
       <ol className="space-y-3">
         {test.questions.map((q, i) => (
           <li key={q.id} className="card p-4">

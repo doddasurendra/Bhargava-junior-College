@@ -10,7 +10,7 @@ import { college } from '@/content/college';
  * Web Speech API (Chrome, Edge, Safari, Android Chrome). Voice: Azure female neural voice via /api/voice/tts
  * when configured on the server, else the browser's female voice for that language.
  */
-type Status = 'IDLE' | 'CONNECTING' | 'LISTENING' | 'PROCESSING' | 'RETRIEVING_INFORMATION' | 'SPEAKING' | 'ERROR';
+type Status = 'IDLE' | 'CONNECTING' | 'LISTENING' | 'PROCESSING' | 'RETRIEVING_INFORMATION' | 'SPEAKING' | 'STOPPED' | 'ERROR';
 type Lang = 'en' | 'te' | 'hi';
 const LOCALE: Record<Lang, string> = { en: 'en-IN', te: 'te-IN', hi: 'hi-IN' };
 const LANG_LABEL: Record<Lang, string> = { en: 'English', te: 'తెలుగు', hi: 'हिंदी' };
@@ -21,8 +21,16 @@ const STATUS_TEXT: Record<Status, string> = {
   PROCESSING: 'Thinking…',
   RETRIEVING_INFORMATION: 'Finding verified college information…',
   SPEAKING: 'Speaking… start talking any time to interrupt.',
+  STOPPED: 'Stopped. Press Start conversation to talk again.',
   ERROR: 'Something went wrong.',
 };
+/** Short status chip in the chosen language (the long help line stays in English as before). */
+const CHIP: Record<Lang, Partial<Record<Status, string>>> = {
+  en: { LISTENING: 'Listening', PROCESSING: 'Processing', RETRIEVING_INFORMATION: 'Processing', SPEAKING: 'Speaking', STOPPED: 'Stopped', IDLE: 'Ready', CONNECTING: 'Connecting', ERROR: 'Error' },
+  te: { LISTENING: 'వింటోంది', PROCESSING: 'ప్రాసెస్ చేస్తోంది', RETRIEVING_INFORMATION: 'ప్రాసెస్ చేస్తోంది', SPEAKING: 'మాట్లాడుతోంది', STOPPED: 'ఆపబడింది', IDLE: 'సిద్ధం', CONNECTING: 'కనెక్ట్ అవుతోంది', ERROR: 'లోపం' },
+  hi: { LISTENING: 'सुन रही है', PROCESSING: 'प्रोसेस हो रहा है', RETRIEVING_INFORMATION: 'प्रोसेस हो रहा है', SPEAKING: 'बोल रही है', STOPPED: 'रुका हुआ', IDLE: 'तैयार', CONNECTING: 'जुड़ रहा है', ERROR: 'त्रुटि' },
+};
+const POS_KEY = 'bjc_voice_y';
 const SESSION_KEY = 'bjc_voice';
 const FEMALE = /female|woman|neerja|heera|swara|shruti|kalpana|lekha|veena|zira|samantha|aditi|raveena|priya|google.*(हिन्दी|తెలుగు|india)/i;
 const MALE = /\bmale\b|ravi|hemant|prabhat|madhur|mohan|david|mark|rishi|guy|george/i;
@@ -57,6 +65,14 @@ export function VoiceAgent({ embedded = false }: { embedded?: boolean }) {
   const turn = useRef(0);
   const inflight = useRef<AbortController | null>(null);
   const statusRef = useRef<Status>('IDLE');
+  const micStream = useRef<MediaStream | null>(null);
+  const audioCtx = useRef<AudioContext | null>(null);
+  const raf = useRef<number | null>(null);
+  const [level, setLevel] = useState(0);
+  // vertical position (px from the top) when dragged; null = the default place near the bottom
+  const [y, setY] = useState<number | null>(null);
+  const panelRef = useRef<HTMLElement | null>(null);
+  const drag = useRef<{ startY: number; startTop: number; id: number } | null>(null);
   const langRef = useRef<Lang>('en');
   const mutedRef = useRef(false);
   statusRef.current = status;
@@ -210,12 +226,45 @@ export function VoiceAgent({ embedded = false }: { embedded?: boolean }) {
     r.start();
   }
 
+  /** Live microphone level for the activity meter; released by Stop / Close / leaving the page. */
+  function startMeter(stream: MediaStream) {
+    micStream.current = stream;
+    try {
+      const Ctx = window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
+      const ctx = new Ctx();
+      const an = ctx.createAnalyser();
+      an.fftSize = 256;
+      ctx.createMediaStreamSource(stream).connect(an);
+      audioCtx.current = ctx;
+      const buf = new Uint8Array(an.frequencyBinCount);
+      const tick = () => {
+        an.getByteTimeDomainData(buf);
+        let peak = 0;
+        for (const v of buf) peak = Math.max(peak, Math.abs(v - 128));
+        setLevel(Math.min(1, peak / 64));
+        raf.current = requestAnimationFrame(tick);
+      };
+      tick();
+    } catch { /* the meter is optional */ }
+  }
+  function stopMeter() {
+    if (raf.current) cancelAnimationFrame(raf.current);
+    raf.current = null;
+    micStream.current?.getTracks().forEach((t) => t.stop());
+    micStream.current = null;
+    void audioCtx.current?.close().catch(() => undefined);
+    audioCtx.current = null;
+    setLevel(0);
+  }
+
   async function start() {
+    // one microphone session at a time
+    if (active.current || statusRef.current === 'CONNECTING') return;
     setError(null);
     setStatus('CONNECTING');
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true } });
-      stream.getTracks().forEach((t) => t.stop()); // permission granted; recognition opens its own stream
+      startMeter(stream); // recognition opens its own stream; this one only drives the activity meter
     } catch (e) {
       const n = (e as Error).name;
       return fail(n === 'NotAllowedError' ? 'Microphone is blocked for this site. Click the icon left of the address bar → Microphone → Allow, reload the page and press Start again. On Windows also check Settings → Privacy & security → Microphone: microphone access and desktop app access must be On.' : n === 'NotFoundError' ? 'No microphone found. Connect a microphone and start again.' : 'Could not open the microphone.');
@@ -225,6 +274,7 @@ export function VoiceAgent({ embedded = false }: { embedded?: boolean }) {
     listen();
   }
 
+  /** Releases everything: recognition, microphone, pending answer, any speech playing or queued. */
   function end(resetStatus = true) {
     active.current = false;
     turn.current++;
@@ -233,7 +283,20 @@ export function VoiceAgent({ embedded = false }: { embedded?: boolean }) {
     rec.current = null;
     try { r?.abort(); } catch { /* ignore */ }
     stopAudio();
+    stopMeter();
     if (resetStatus) setStatus('IDLE');
+  }
+
+  /** STOP: stop listening and speaking now; captions and the conversation stay; Start again any time. */
+  function stopConversation() {
+    end(false);
+    setStatus('STOPPED');
+  }
+
+  /** CLOSE: release the microphone and speech, close the window; the conversation history is kept. */
+  function close() {
+    end();
+    setOpen(false);
   }
 
   function restart() {
@@ -258,23 +321,79 @@ export function VoiceAgent({ embedded = false }: { embedded?: boolean }) {
 
   useEffect(() => () => end(false), []); // eslint-disable-line react-hooks/exhaustive-deps
 
+  // ---- vertical dragging (mouse, touch and pen via pointer events; arrow keys on the header)
+  const clampY = useCallback((top: number) => {
+    const h = panelRef.current?.offsetHeight ?? 400;
+    return Math.max(8, Math.min(top, window.innerHeight - h - 8));
+  }, []);
+  useEffect(() => {
+    try { const v = Number(sessionStorage.getItem(POS_KEY)); if (v > 0) setY(v); } catch { /* ignore */ }
+    const onResize = () => setY((cur) => (cur === null ? cur : clampY(cur)));
+    window.addEventListener('resize', onResize);
+    return () => window.removeEventListener('resize', onResize);
+  }, [clampY]);
+  useEffect(() => { if (y !== null) try { sessionStorage.setItem(POS_KEY, String(Math.round(y))); } catch { /* ignore */ } }, [y]);
+  // keep it on screen when it grows (captions appear)
+  useEffect(() => { if (open && y !== null) setY((cur) => (cur === null ? cur : clampY(cur))); }, [open, heard, answer, error, clampY]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  function onDragStart(e: React.PointerEvent<HTMLElement>) {
+    if (embedded || (e.target as HTMLElement).closest('button,a,select,input')) return; // controls stay clickable
+    const top = panelRef.current?.getBoundingClientRect().top ?? 0;
+    drag.current = { startY: e.clientY, startTop: top, id: e.pointerId };
+    e.currentTarget.setPointerCapture(e.pointerId);
+    e.preventDefault();
+  }
+  function onDragMove(e: React.PointerEvent<HTMLElement>) {
+    const d = drag.current;
+    if (!d || d.id !== e.pointerId) return;
+    setY(clampY(d.startTop + (e.clientY - d.startY)));
+  }
+  function onDragEnd(e: React.PointerEvent<HTMLElement>) {
+    if (drag.current?.id === e.pointerId) drag.current = null;
+  }
+  function onHeaderKey(e: React.KeyboardEvent<HTMLElement>) {
+    if (embedded || (e.key !== 'ArrowUp' && e.key !== 'ArrowDown')) return;
+    e.preventDefault();
+    const top = panelRef.current?.getBoundingClientRect().top ?? 0;
+    setY(clampY(top + (e.key === 'ArrowUp' ? -40 : 40)));
+  }
+
   const busy = status === 'PROCESSING' || status === 'RETRIEVING_INFORMATION';
   const panel = (
-    <section aria-label="BJC AI Voice Assistant" className={`${embedded ? 'card mx-auto max-w-xl' : 'fixed bottom-36 left-4 z-50 w-[min(92vw,380px)] md:bottom-24 rounded-2xl border border-line bg-surface shadow-2xl'} overflow-hidden`}>
-      <header className="flex items-center gap-3 bg-navy px-4 py-3 text-white">
+    <section
+      ref={panelRef}
+      aria-label="BJC AI Voice Assistant"
+      style={!embedded && y !== null ? { top: y, bottom: 'auto' } : undefined}
+      className={`${embedded ? 'card mx-auto max-w-xl' : 'fixed bottom-36 left-4 z-50 w-[min(92vw,380px)] md:bottom-24 rounded-2xl border border-line bg-surface shadow-2xl'} overflow-hidden`}
+    >
+      <header
+        onPointerDown={onDragStart}
+        onPointerMove={onDragMove}
+        onPointerUp={onDragEnd}
+        onPointerCancel={onDragEnd}
+        onKeyDown={onHeaderKey}
+        tabIndex={embedded ? undefined : 0}
+        aria-label={embedded ? undefined : 'Drag up or down to move the voice assistant (or use the arrow keys)'}
+        className={`flex items-center gap-3 bg-navy px-4 py-3 text-white ${embedded ? '' : 'cursor-grab touch-none select-none active:cursor-grabbing focus:outline-none focus-visible:ring-2 focus-visible:ring-gold'}`}
+      >
+        {!embedded && <span aria-hidden className="-ml-1 text-white/50" title="Drag to move">⠿</span>}
         {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src={college.logoSrc} alt="" width={36} height={36} className="h-9 w-9 rounded-full bg-white" />
+        <img src={college.logoSrc} alt="" width={36} height={36} draggable={false} className="h-9 w-9 rounded-full bg-white" />
         <div className="min-w-0 flex-1">
           <p className="truncate font-semibold">BJC AI Voice Assistant</p>
-          <p className="text-xs text-white/70">Voice only · {LANG_LABEL[lang]} · {status === 'IDLE' ? 'ready' : status === 'ERROR' ? 'not connected' : 'connected'}</p>
+          <p className="text-xs text-white/70">Voice only · {LANG_LABEL[lang]} · <span data-testid="voice-status">{CHIP[lang][status] ?? status}</span></p>
         </div>
-        {!embedded && <button type="button" onClick={() => { end(); setOpen(false); }} aria-label="Close voice assistant" className="rounded-full px-2 text-lg text-white/80 hover:text-white">×</button>}
+        {!embedded && <button type="button" onClick={close} aria-label="Close voice assistant" title="Close" className="rounded-full px-2 text-lg text-white/80 hover:text-white">×</button>}
       </header>
 
       <div className="flex flex-col items-center gap-3 px-5 py-6 text-center">
         <div className="relative grid h-28 w-28 place-items-center">
           <span aria-hidden className={`absolute inset-0 rounded-full ${status === 'LISTENING' ? 'animate-ping bg-gold/30' : status === 'SPEAKING' ? 'animate-pulse bg-maroon/25' : busy ? 'animate-spin border-4 border-gold/40 border-t-gold' : ''}`} />
           <span aria-hidden className="relative grid h-24 w-24 place-items-center rounded-full bg-gradient-to-br from-gold-100 to-white text-5xl shadow-inner dark:from-gold/30 dark:to-navy">👩‍💼</span>
+        </div>
+        {/* microphone activity */}
+        <div className="flex h-3 w-40 items-end justify-center gap-0.5" aria-label={active.current ? 'Microphone is on' : 'Microphone is off'} role="img">
+          {Array.from({ length: 12 }, (_, i) => <span key={i} className={`w-2 rounded-sm transition-all duration-75 ${active.current && level * 12 > i ? 'bg-gold' : 'bg-line'}`} style={{ height: `${4 + (i % 4) * 2}px` }} />)}
         </div>
         <p role="status" aria-live="polite" className={`min-h-[2.5rem] text-sm ${status === 'ERROR' ? 'text-maroon' : 'text-heading'}`}>{status === 'ERROR' && error ? error : STATUS_TEXT[status]}</p>
 
@@ -286,16 +405,15 @@ export function VoiceAgent({ embedded = false }: { embedded?: boolean }) {
 
         {!supported ? (
           <p className="text-sm text-muted">Voice conversations need Chrome, Edge or Safari. <Link href="/" className="underline">Use the chat assistant</Link> instead.</p>
-        ) : status === 'IDLE' || status === 'ERROR' ? (
-          <button type="button" onClick={start} className="btn-primary px-6 py-3">🎙️ Start conversation</button>
         ) : (
-          <div className="flex flex-wrap justify-center gap-2">
-            <button type="button" onClick={() => end()} className="btn-primary px-5 py-2.5">End conversation</button>
-            <button type="button" onClick={() => { setMuted((m) => !m); if (!muted) { turn.current++; stopAudio(); if (active.current) setStatus('LISTENING'); } }} aria-pressed={muted} className="btn-outline px-4 py-2.5">{muted ? '🔇 Unmute' : '🔊 Mute'}</button>
-            <button type="button" onClick={restart} className="btn-outline px-4 py-2.5">↺ Restart</button>
+          <div className="flex flex-wrap justify-center gap-2" role="group" aria-label="Conversation controls">
+            <button type="button" onClick={start} disabled={status !== 'IDLE' && status !== 'ERROR' && status !== 'STOPPED'} className="btn-primary px-5 py-2.5 disabled:opacity-40">🎙️ Start conversation</button>
+            <button type="button" onClick={stopConversation} disabled={status === 'IDLE' || status === 'STOPPED' || status === 'ERROR'} className="btn-outline px-4 py-2.5 disabled:opacity-40">⏹ Stop conversation</button>
+            {!embedded && <button type="button" onClick={close} className="btn-outline px-4 py-2.5">✕ Close</button>}
+            {status !== 'IDLE' && status !== 'STOPPED' && status !== 'ERROR' && <button type="button" onClick={() => { setMuted((m) => !m); if (!muted) { turn.current++; stopAudio(); if (active.current) setStatus('LISTENING'); } }} aria-pressed={muted} className="btn-outline px-4 py-2.5">{muted ? '🔇 Unmute' : '🔊 Mute'}</button>}
+            {(heard || answer) && <button type="button" onClick={restart} className="px-2 py-2.5 text-xs text-muted underline">Clear conversation</button>}
           </div>
         )}
-
         {(heard || answer) && (
           <div className="w-full space-y-2 rounded-xl bg-bg p-3 text-left text-sm" aria-label="Captions">
             {heard && <p><span className="text-xs font-semibold uppercase text-muted">You</span><br />{heard}</p>}
@@ -316,7 +434,7 @@ export function VoiceAgent({ embedded = false }: { embedded?: boolean }) {
   return (
     <>
       {open && panel}
-      <button type="button" onClick={() => setOpen((o) => !o)} aria-expanded={open} className="fixed bottom-20 left-4 z-40 flex h-14 items-center gap-2 rounded-full bg-maroon px-4 md:bottom-6 md:left-6 font-semibold text-white shadow-lg transition hover:brightness-110">
+      <button type="button" onClick={() => (open ? close() : setOpen(true))} aria-expanded={open} className="fixed bottom-20 left-4 z-40 flex h-14 items-center gap-2 rounded-full bg-maroon px-4 md:bottom-6 md:left-6 font-semibold text-white shadow-lg transition hover:brightness-110">
         <span aria-hidden>🎙️</span> {open ? 'Close voice' : 'Voice assistant'}
       </button>
     </>
