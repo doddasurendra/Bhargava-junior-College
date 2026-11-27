@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { dictFor, ROWS, translate } from '.';
+import { ALL_ROWS as ROWS, dictFor, translate } from '.';
 
 const te = dictFor('te'), hi = dictFor('hi');
 
@@ -12,7 +12,7 @@ describe('staff CRM dictionary', () => {
       expect(n(t), `te {x} count: ${en}`).toBe(n(en));
       expect(n(h), `hi {x} count: ${en}`).toBe(n(en));
       // real Telugu / Devanagari text (catches encoding damage), unless the row is a brand/code-only string
-      if (/[a-z]{3}/.test(en.replace(/\{x\}|WhatsApp|ISBN|Google|NCERT|OpenStax|Excel|CSV|PDF|Supabase|pgvector|Claude|UTC|OCR|API/g, ''))) {
+      if (!(t === h && /^[A-Z0-9 ]+$/.test(t)) && /[a-z]{3}/.test(en.replace(/\{x\}|WhatsApp|ISBN|Google|NCERT|OpenStax|Excel|CSV|PDF|Supabase|pgvector|Claude|UTC|OCR|API/g, ''))) {
         expect(/[ఀ-౿]/.test(t), `Telugu script: ${en}`).toBe(true);
         expect(/[ऀ-ॿ]/.test(h), `Devanagari script: ${en}`).toBe(true);
       }

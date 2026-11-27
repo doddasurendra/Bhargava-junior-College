@@ -84,6 +84,12 @@ export function CrmTranslator({ lang }: { lang: 'en' | 'te' | 'hi' }) {
         }
         if (cancelled || !j) return;
         dict = deserialise(j);
+        // the college's own trilingual content (Knowledge Hub titles), only when signed in as staff
+        try {
+          const r = await fetch(`/api/crm-i18n/${lang}/content`, { credentials: 'same-origin' });
+          if (r.ok) { const c = (await r.json()) as { exact: Record<string, string> }; for (const [k, v] of Object.entries(c.exact)) if (!dict.exact.has(k)) dict.exact.set(k, v); }
+        } catch { /* optional */ }
+        if (cancelled) return;
         walk(document.body);
         observer = new MutationObserver((muts) => {
           for (const m of muts) {
