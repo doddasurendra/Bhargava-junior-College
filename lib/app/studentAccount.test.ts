@@ -69,6 +69,16 @@ describe('student account lifecycle (local store)', () => {
     expect(await A.verifyStudentLogin(collegeId, 'wrong-pass1', ip())).toEqual({ ok: false, reason: 'invalid' });
   });
 
+  it('an account saved before status/authUserId existed still signs in (read as active)', async () => {
+    const { collegeId, studentId } = await admit('Legacy Account', '+919877700005');
+    const { getRecordStore } = await import('../records');
+    const { hashPassword } = await import('../auth/service');
+    // the old row shape, written straight to the store (no schema defaults)
+    await getRecordStore().put('student_credentials', { k1: collegeId, k2: studentId, data: { collegeId, studentId, passwordHash: hashPassword('old12345pw'), failed: 0, lockedUntil: null, source: 'app' } });
+    expect((await A.verifyStudentLogin(collegeId, 'old12345pw', ip())).ok).toBe(true);
+    expect(await A.accountSummary(studentId)).toMatchObject({ exists: true, status: 'active' });
+  });
+
   it('rate limit: 5 sign-up attempts per College ID per day', async () => {
     const { collegeId } = await admit('Rate Limit', '+919877700002');
     const bad = { name: 'Rate Limit', collegeId, dob: '2010-01-01', password: 'mango77river', confirm: 'mango77river', consent: true };

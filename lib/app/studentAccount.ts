@@ -38,7 +38,13 @@ export const MSG = {
 } as const;
 
 const st = () => getRecordStore();
-const sha = (t: string) => createHash('sha256').update(t).digest('hex');
+/** Reads apply the schema defaults, so accounts saved before a field existed (e.g. status) read as active. */
+async function credList(store: ReturnType<typeof getRecordStore>, f?: { k1?: string; k2?: string }) {
+  return (await studentCredentials.list(store, f)).map((r) => {
+    const parsed = studentCredentials.schema.safeParse(r.data);
+    return { ...r, data: parsed.success ? parsed.data : r.data };
+  });
+}const sha = (t: string) => createHash('sha256').update(t).digest('hex');
 const now = () => new Date().toISOString();
 export const internalLoginId = (collegeId: string) => `${collegeId.toLowerCase().replace(/[^a-z0-9-]/g, '-')}@students.bjc.internal`;
 export const normCollegeId = (raw: string) => raw.trim().toUpperCase().replace(/\s+/g, '-').replace(/-+/g, '-');
@@ -180,7 +186,7 @@ export async function signUp(i: SignUpInput, ip: string | null): Promise<{ colle
     await audit('signup', 'no_match', collegeId, ip);
     throw new StudentAccountError(MSG.noMatch); // never says which field was wrong
   }
-  const prev = (await studentCredentials.list(st(), { k1: s.collegeId }))[0];
+  const prev = (await credList(st(), { k1: s.collegeId }))[0];
   if (prev) { await audit('signup', 'exists', collegeId, ip); throw new StudentAccountError(MSG.exists); }
   const pw = await backend().create(s.collegeId, s.id, i.password);
   await studentCredentials.put(st(), { collegeId: s.collegeId, studentId: s.id, ...pw, status: 'active', statusBy: null, statusAt: null, createdAt: now(), resetCodeHash: null, resetCodeExp: null, resetCodeBy: null, resetFailed: 0, failed: 0, lockedUntil: null, email: null, emailVerifiedAt: null, emailTokenHash: null, emailTokenExp: null, verifiedPhone: null, source: 'signup' });
@@ -201,7 +207,7 @@ async function notifyParents(studentId: string, name: string, collegeId: string)
 const MAX_FAILS = 5, LOCK_MS = 15 * 60_000;
 export async function verifyStudentLogin(idRaw: string, password: string, ip: string | null): Promise<{ ok: true; collegeId: string } | { ok: false; reason: 'invalid' | 'locked' | 'blocked' | 'unverified' }> {
   const id = idRaw.includes('@') ? idRaw.trim().toLowerCase() : normCollegeId(idRaw);
-  const cred = id.includes('@') ? (await studentCredentials.list(st())).find((c) => c.data.email === id) : (await studentCredentials.list(st(), { k1: id }))[0];
+  const cred = id.includes('@') ? (await credList(st())).find((c) => c.data.email === id) : (await credList(st(), { k1: id }))[0];
   if (!cred) { await audit('login', 'unknown', id.includes('@') ? null : id, ip); return { ok: false, reason: 'invalid' }; }
   const c = cred.data;
   if (c.status !== 'active') { await audit('login', c.status, c.collegeId, ip); return { ok: false, reason: 'blocked' }; }
@@ -229,7 +235,7 @@ export async function verifyStudentLogin(idRaw: string, password: string, ip: st
 async function credFor(studentId: string) {
   const s = await getAppStore().getStudent(studentId);
   if (!s?.collegeId) return null;
-  const c = (await studentCredentials.list(st(), { k1: s.collegeId }))[0];
+  const c = (await credList(st(), { k1: s.collegeId }))[0];
   return c ? { s, c } : { s, c: null };
 }
 
@@ -287,7 +293,7 @@ export async function resetWithCode(idRaw: string, code: string, password: strin
   const pwErr = passwordProblem(password, collegeId);
   if (pwErr) throw new StudentAccountError(pwErr, 'password');
   if (password !== confirm) throw new StudentAccountError('The two passwords don’t match.', 'confirm');
-  const cred = (await studentCredentials.list(st(), { k1: collegeId }))[0];
+  const cred = (await credList(st(), { k1: collegeId }))[0];
   const c = cred?.data;
   const ok = !!c?.resetCodeHash && !!c.resetCodeExp && new Date(c.resetCodeExp) > new Date() && c.resetFailed < 5 && /^\d{6}$/.test(code) && timingSafeEqual(Buffer.from(sha(`${collegeId}:${code}`)), Buffer.from(c.resetCodeHash));
   if (!ok) {
@@ -306,7 +312,7 @@ export async function resetWithCode(idRaw: string, code: string, password: strin
 export async function changeOwnPassword(collegeId: string, studentId: string, password: string) {
   const err = passwordProblem(password, collegeId);
   if (err) return err;
-  const prev = (await studentCredentials.list(st(), { k1: collegeId }))[0];
+  const prev = (await credList(st(), { k1: collegeId }))[0];
   const pw = await backend().set({ authUserId: prev?.data.authUserId ?? null, collegeId, studentId }, password);
   if (prev) await studentCredentials.put(st(), { ...prev.data, ...pw, failed: 0, lockedUntil: null }, prev.id);
   else await studentCredentials.put(st(), { collegeId, studentId, ...pw, status: 'active', statusBy: null, statusAt: null, createdAt: now(), resetCodeHash: null, resetCodeExp: null, resetCodeBy: null, resetFailed: 0, failed: 0, lockedUntil: null, email: null, emailVerifiedAt: null, emailTokenHash: null, emailTokenExp: null, verifiedPhone: null, source: 'app' });
