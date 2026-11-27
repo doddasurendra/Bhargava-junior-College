@@ -8,7 +8,7 @@ import { NextResponse, type NextRequest } from 'next/server';
 export function middleware(req: NextRequest) {
   const { pathname } = req.nextUrl;
   if (pathname === '/app' || pathname.startsWith('/app/')) {
-    if (pathname.startsWith('/app/login') || pathname.startsWith('/app/register') || pathname.startsWith('/app/verify-email')) return withNoIndex(NextResponse.next());
+    if (pathname.startsWith('/app/login') || pathname.startsWith('/app/register') || pathname.startsWith('/app/verify-email') || pathname.startsWith('/app/forgot-password')) return withNoIndex(NextResponse.next());
     if (!req.cookies.get('bjc_app')) return NextResponse.redirect(new URL('/app/login', req.url));
     return withNoIndex(NextResponse.next());
   }
