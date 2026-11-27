@@ -118,7 +118,13 @@ test('QA student: older password still signs in (moved into Supabase Auth); pare
     await o.getByRole('link', { name: new RegExp(qa.studentName) }).first().click();
     const st = o.getByTestId('student-account-status');
     if ((await st.innerText()) !== 'Active') { await o.getByRole('button', { name: 'Enable account' }).click(); await expect(st).toHaveText('Active', { timeout: 30_000 }); }
+    // and the usual QA password (an interrupted run may have left a temporary one)
+    await o.getByRole('button', { name: 'Reset password (one-time code)' }).click();
+    const c0 = /One-time code (\d{6})/.exec(await o.getByText(/One-time code \d{6}/).innerText())![1];
     await c.close();
+    const r0 = await phone(browser);
+    await resetWith(r0, c0, PW);
+    await r0.context().close();
   }
   const s = await phone(browser);
   await studentIdLogin(s, qa.collegeId, PW);
