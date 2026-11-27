@@ -31,6 +31,25 @@ export async function staffLogin(page: Page, s: Pick<QaStaff, 'email' | 'passwor
   await page.waitForURL((u) => !u.pathname.startsWith('/crm/login'), { timeout: 60_000 });
 }
 
+/** QA student password (set by tests/e2e/family.spec.ts from the QA OTP code). */
+export const qaStudentPassword = (otpCode: string) => `Qa-Student-${otpCode}-x`;
+
+/** Students sign in with College ID (registration number) + password only. */
+export async function studentIdLogin(page: Page, collegeId: string, password: string) {
+  await page.goto('/app/login');
+  const f = page.locator('form').filter({ has: page.locator('input[name=collegeId]') });
+  await f.locator('input[name=collegeId]').fill(collegeId);
+  await f.locator('input[name=password]').fill(password);
+  await f.getByRole('button', { name: 'Sign in' }).click();
+  await page.waitForURL((u) => !u.pathname.startsWith('/app/login'), { timeout: 60_000 });
+  await page.waitForLoadState('networkidle');
+  if (new URL(page.url()).pathname.startsWith('/app/consent')) {
+    await page.locator('input[name=agree]').check({ force: true });
+    await page.getByRole('button', { name: /agree|continue|accept/i }).first().click();
+    await page.waitForURL((u) => !u.pathname.startsWith('/app/consent'));
+  }
+}
+
 export async function expectHealthy(page: Page) {
   await expect(page.locator('body')).not.toContainText(CRASH);
 }

@@ -80,9 +80,11 @@ export async function startStudentRegistration(input: unknown) {
   const guardians = await getAppStore().guardiansOf(s.id);
   const who = s.loginPhone === v.phone ? 'student' : guardians.some((g) => g.phone === v.phone) ? 'parent' : null;
   if (!who) throw new RegistrationError('That mobile number is not on the college’s record for this student. Use your own number given at admission, or a parent’s number (the code will go to them).');
+  // Already registered? The same steps (College ID + date of birth + code to the student's or a parent's
+  // WhatsApp) reset the password: students have no phone sign-in, so this is their "forgot password".
   const cred = (await studentCredentials.list(store(), { k1: s.collegeId! }))[0];
-  if (cred?.data.source === 'self' && cred.data.emailVerifiedAt) throw new RegistrationError('You are already registered. Sign in with your College ID or email and password.');
-  return { studentId: s.id, phone: v.phone, who, devCode: await sendCode(v.phone) };
+  const reset = !!(cred?.data.source === 'self' && cred.data.emailVerifiedAt);
+  return { studentId: s.id, phone: v.phone, who, reset, devCode: await sendCode(v.phone) };
 }
 
 export const studentFinishSchema = z
@@ -102,6 +104,11 @@ export async function finishStudentRegistration(studentId: string, phone: string
   const all = await studentCredentials.list(store());
   if (all.some((c) => c.data.email === v.email && c.data.studentId !== s.id)) throw new RegistrationError('This email is already used by another student account.');
   const prev = all.find((c) => c.data.collegeId === s.collegeId);
+  // password reset with the same, already-confirmed email: no new confirmation needed
+  if (prev?.data.email === v.email && prev.data.emailVerifiedAt) {
+    await studentCredentials.put(store(), { ...prev.data, passwordHash: hashPassword(v.password), failed: 0, lockedUntil: null, verifiedPhone: phone, source: 'self' }, prev.id);
+    return { emailed: false, reset: true, maskedPhone: maskPhone(phone) };
+  }
   const token = randomBytes(24).toString('base64url');
   await studentCredentials.put(store(), { collegeId: s.collegeId, studentId: s.id, passwordHash: hashPassword(v.password), failed: 0, lockedUntil: null, email: v.email, emailVerifiedAt: null, emailTokenHash: sha(token), emailTokenExp: new Date(Date.now() + EMAIL_TOKEN_MS).toISOString(), verifiedPhone: phone, source: 'self' }, prev?.id);
   const link = `${siteUrl}/app/verify-email?token=${token}`;

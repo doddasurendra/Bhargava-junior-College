@@ -1,7 +1,7 @@
 import { existsSync, readFileSync } from 'node:fs';
 import path from 'node:path';
 import { expect, test, type Page } from '@playwright/test';
-import { CRASH, expectHealthy } from './helpers';
+import { CRASH, expectHealthy, qaStudentPassword, studentIdLogin } from './helpers';
 
 /**
  * Student & Parent app with the QA family (docs/qa/TEST_ACCOUNTS.md): needs the deployment to have
@@ -90,25 +90,24 @@ test('parent: OTP sign-in, sees only the linked child, attendance (absent + rema
   await signOut(page);
 });
 
-test('student: OTP sign-in, sets a College ID password, then signs in with College ID + password', async ({ page }) => {
-  await otpLogin(page, qa.numbers.student);
-  await expect(page.locator('body')).toContainText(qa.collegeId);
-  await page.goto('/app/more');
-  const pw = `Qa-Student-${qa.otpCode}-x`;
-  const f = page.locator('form').filter({ has: page.locator('input[name=confirm]') });
-  await f.locator('input[name=password]').fill(pw);
-  await f.locator('input[name=confirm]').fill(pw);
-  await f.getByRole('button').first().click();
-  await expect(page.locator('body')).toContainText(/Password set/i);
-  await signOut(page);
+test('student: no phone sign-in; signs in with College ID (any case / spaces) + password; wrong password refused', async ({ page }) => {
+  // the student's own phone number opens nothing (same answer as an unknown number, no code)
   await page.goto('/app/login');
-  await page.getByRole('button', { name: /Sign in with College ID/ }).click(); // the form is folded away
-  await page.locator('input[name=collegeId]').fill(qa.collegeId);
-  await page.locator('input[name=password]').fill(pw);
-  await page.locator('form').filter({ has: page.locator('input[name=collegeId]') }).getByRole('button').click();
-  await page.waitForURL((u) => !u.pathname.startsWith('/app/login'), { timeout: 60_000 });
-  await acceptConsent(page);
+  await page.locator('input[type=tel]').first().fill(qa.numbers.student.replace(/^\+91/, ''));
+  await page.getByRole('button', { name: 'Send sign-in code' }).click();
+  await page.waitForTimeout(4000);
+  await expect(page.locator('body')).not.toContainText(qa.otpCode);
+  // College ID / registration number + password
+  const pw = qaStudentPassword(qa.otpCode);
+  const f = page.locator('form').filter({ has: page.locator('input[name=collegeId]') });
+  await f.locator('input[name=collegeId]').fill(qa.collegeId);
+  await f.locator('input[name=password]').fill(pw + 'wrong');
+  await f.getByRole('button', { name: 'Sign in' }).click();
+  await expect(page.locator('body')).toContainText(/incorrect/i);
+  await studentIdLogin(page, qa.collegeId.toLowerCase().replace(/-/g, ' '), pw);
   await expect(page.locator('body')).toContainText(qa.collegeId);
+  await expect(page.locator('body')).toContainText(/Student ·/);
+  await signOut(page);
 });
 
 test('applicant: OTP sign-in shows the admission tracker', async ({ page }) => {

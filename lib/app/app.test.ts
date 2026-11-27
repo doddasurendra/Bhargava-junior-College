@@ -51,7 +51,7 @@ afterAll(() => {
 });
 
 describe('Student & Parent app', () => {
-  it('the admin office adds the student’s own mobile after admission, and the student can then sign in with it', async () => {
+  it('the admin office records the student’s own mobile (for registration codes), but a phone never opens a student login', async () => {
     const { leadId } = await admit('+919888811001', 'Sanjana Rao', 'iit-jee', 'day');
     const sid = (await repo.getVerification(leadId)).student!.id;
     const own = '+919888811002';
@@ -61,7 +61,10 @@ describe('Student & Parent app', () => {
     await expect(admin.setStudentLoginPhone(adminOffice, sid, '+919888811001')).rejects.toThrow(/parent/);
     await expect(admin.setStudentLoginPhone(adminOffice, sid, '12345')).rejects.toThrow(/valid/);
     await admin.setStudentLoginPhone(adminOffice, sid, '98888 11002');
-    expect((await app.resolveProfiles(own)).map((p) => p.kind)).toEqual(['student']);
+    // students sign in with College ID + password only: the student's phone gives no profile
+    expect(await app.resolveProfiles(own)).toEqual([]);
+    const collegeId = (await repo.getVerification(leadId)).student!.collegeId!;
+    expect((await app.resolveProfiles(`cid:${collegeId}`)).map((p) => p.kind)).toEqual(['student']);
     expect((await repo.getLeadHistory(leadId)).audit.some((a) => a.action === 'student_phone_changed')).toBe(true);
     await admin.setStudentLoginPhone(adminOffice, sid, '');
     expect((await app.resolveProfiles(own)).length).toBe(0);
@@ -82,8 +85,10 @@ describe('Student & Parent app', () => {
     const { collegeId } = await admit(phone, 'Ravi Teja', 'iit-jee', 'hostel', '+919888800002');
     const profiles = await app.resolveProfiles(phone);
     expect(profiles).toEqual([expect.objectContaining({ kind: 'parent', name: 'Ravi Teja', collegeId })]);
-    // The student signs in with their own number.
-    expect((await app.resolveProfiles('+919888800002')).map((p) => p.kind)).toEqual(['student']);
+    // The student's own number opens nothing (students use College ID + password) …
+    expect(await app.resolveProfiles('+919888800002')).toEqual([]);
+    // … and the College ID login is the student profile.
+    expect((await app.resolveProfiles(`cid:${collegeId}`)).map((p) => p.kind)).toEqual(['student']);
     // Unknown numbers see nothing (and get no code).
     expect(await app.resolveProfiles('+919888800099')).toEqual([]);
     expect(await app.requestLoginCode('+919888800099')).toEqual({});
@@ -132,9 +137,10 @@ describe('Student & Parent app', () => {
 
   it('students see no fee information: no payments in their data, no receipts; parents keep everything', async () => {
     const parent = '+919888800040', own = '+919888800041';
-    await admit(parent, 'Meghana', 'neet', 'day', own);
+    const { collegeId } = await admit(parent, 'Meghana', 'neet', 'day', own);
     const pp = await app.resolveProfiles(parent);
-    const sp = await app.resolveProfiles(own);
+    const sp = await app.resolveProfiles(`cid:${collegeId}`);
+    expect(await app.resolveProfiles(own)).toEqual([]); // no phone login for students, so no fee path either
     expect(pp.map((p) => p.kind)).toEqual(['parent']);
     expect(sp.map((p) => p.kind)).toEqual(['student']);
     expect(app.canSeeFees(pp[0])).toBe(true);

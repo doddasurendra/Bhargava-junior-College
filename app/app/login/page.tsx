@@ -25,21 +25,31 @@ export default async function AppLoginPage({ searchParams }: { searchParams: Rec
         <p className="mt-1 text-sm text-muted">{as ? `${FAMILY_LABELS[as]} sign-in` : 'Student & parent portal'}</p>
         {as && (
           <p className="mt-2 text-xs text-muted">
-            {as === 'student' ? 'Use your mobile number, or your College ID and password below.' : as === 'applicant' ? 'Use the mobile number you enquired with.' : 'Use the mobile number registered with the college.'}{' '}
+            {as === 'student' ? 'Sign in with your College ID (registration number) and password.' : as === 'applicant' ? 'Use the mobile number you enquired with.' : 'Use the mobile number registered with the college.'}{' '}
             <Link href="/login" className="underline">Choose another role</Link>
           </p>
         )}
       </div>
-      <div className="card mt-8 p-5">
-        <LoginForm />
-        <CollegeIdForm />
-      </div>
+      {/* Students: College ID / registration number + password only (never a phone number) */}
+      {as !== 'parent' && as !== 'applicant' && (
+        <section className="card mt-8 p-5" aria-labelledby="student-signin">
+          <h2 id="student-signin" className="mb-3 text-sm font-semibold uppercase tracking-wider text-muted">Students</h2>
+          <CollegeIdForm />
+        </section>
+      )}
+      {/* Parents, guardians and applicant families: mobile number + WhatsApp code */}
+      {as !== 'student' && (
+        <section className="card mt-4 p-5" aria-labelledby="family-signin">
+          <h2 id="family-signin" className="mb-3 text-sm font-semibold uppercase tracking-wider text-muted">Parents &amp; applicants</h2>
+          <LoginForm />
+        </section>
+      )}
       <p className="mt-4 text-center text-sm">
         New here? Register as a <Link href="/app/register/student" className="font-semibold underline">student</Link> or a <Link href="/app/register/parent" className="font-semibold underline">parent</Link>
       </p>
       {devLoginEnabled() && <DevSignIn />}
       <p className="mt-6 text-center text-xs text-muted">
-        Use the mobile number registered with the college. Applicants can sign in to follow their admission. Trouble signing in? Call{' '}
+        Students sign in with their College ID and password. Parents and applicants use the mobile number registered with the college. Trouble signing in? Call{' '}
         <a className="font-mono" href={`tel:${college.phones[0].tel}`}>
           {college.phones[0].display}
         </a>

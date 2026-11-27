@@ -68,7 +68,7 @@ export function createSupabaseAppStore(url: string, key: string): AppStore {
       ok(await sb.from('lead_audit').insert({ lead_id: s.lead_id, actor_id: actorId, action: 'student_phone_changed', field: 'login_phone', old_value: s.login_phone, new_value: phone }));
     },
     async applicationsByPhone(phone) {
-      const rows = (ok(await sb.from('leads').select('id, student_name, contact_name, college_id, status').is('merged_into', null).or(`phone.eq.${phone},student_phone.eq.${phone}`)) ?? []) as Row[];
+      const rows = (ok(await sb.from('leads').select('id, student_name, contact_name, college_id, status').is('merged_into', null).eq('phone', phone) /* the family's number only; students never sign in by phone */) ?? []) as Row[];
       return rows.filter((l) => !l.college_id && l.status !== 'invalid').map((l) => ({ leadId: l.id, name: l.student_name ?? l.contact_name ?? 'Your application' }));
     },
     async addHostelEvent(e) {

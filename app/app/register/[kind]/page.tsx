@@ -15,10 +15,10 @@ export default function RegisterPage({ params }: { params: { kind: string } }) {
     <main className="mx-auto flex min-h-screen max-w-md flex-col justify-center px-5 py-10">
       <div className="text-center">
         <Crest size={72} className="mx-auto" />
-        <h1 className="mt-4 font-display text-2xl text-heading">{student ? 'Student registration' : 'Parent registration'}</h1>
+        <h1 className="mt-4 font-display text-2xl text-heading">{student ? 'Student registration or forgotten password' : 'Parent registration'}</h1>
         <p className="mt-1 text-sm text-muted">{college.name}</p>
         <p className="mt-2 text-xs text-muted">
-          {student ? 'For admitted students with a College ID.' : 'For parents and guardians of admitted students.'} <Link href={`/app/register/${student ? 'parent' : 'student'}`} className="underline">{student ? 'I’m a parent' : 'I’m a student'}</Link>
+          {student ? 'For admitted students with a College ID. Students sign in with College ID and password, not a phone number. Forgot your password? Do these steps again to set a new one.' : 'For parents and guardians of admitted students.'} <Link href={`/app/register/${student ? 'parent' : 'student'}`} className="underline">{student ? 'I’m a parent' : 'I’m a student'}</Link>
         </p>
       </div>
       <div className="card mt-6 p-5">{student ? <StudentRegisterForm /> : <ParentRegisterForm />}</div>

@@ -2,7 +2,7 @@ import { existsSync, mkdirSync, readFileSync } from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { expect, test, type Browser } from '@playwright/test';
-import { staffFor, staffLogin } from './helpers';
+import { qaStudentPassword, staffFor, staffLogin, studentIdLogin } from './helpers';
 
 /**
  * College rule on production: students see no fee information; parents keep everything; staff fee views unchanged.
@@ -45,7 +45,9 @@ test('parent still sees fees, dues and receipts', async ({ browser }) => {
 });
 
 test('student: no fee card, menu item, link or amount; fee URLs blocked; assistants redirect', async ({ browser }) => {
-  const p = await appLogin(browser, qa.numbers.student);
+  const ctx = await browser.newContext({ viewport: { width: 390, height: 844 } });
+  const p = await ctx.newPage();
+  await studentIdLogin(p, qa.collegeId, qaStudentPassword(qa.otpCode));
   for (const url of ['/app', '/app/more', '/app/id-card', '/app/results', '/app/knowledge']) {
     await p.goto(url);
     await p.waitForLoadState('networkidle');

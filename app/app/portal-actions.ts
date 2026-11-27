@@ -45,12 +45,12 @@ async function run(fn: () => Promise<string | void>, paths: string[]): Promise<A
 export async function collegeIdLoginAction(_: AppState, fd: FormData): Promise<AppState> {
   const id = s(fd, 'collegeId') ?? '';
   const pw = typeof fd.get('password') === 'string' ? String(fd.get('password')) : '';
-  if (!id || !pw) return { error: 'Enter your College ID (or email) and password.' };
+  if (!id || !pw) return { error: 'Enter your College ID / registration number and password.' };
   if (!rateLimit(`cid-login:${id.toUpperCase()}`, 10, 10 * 60_000)) return { error: 'Too many attempts. Please wait a few minutes.' };
   const r = await loginWithCollegeId(id.slice(0, 254), pw.slice(0, 200));
-  if (r === 'locked') return { error: 'Too many wrong passwords. Try again in 15 minutes or sign in with your mobile number.' };
+  if (r === 'locked') return { error: 'Too many wrong passwords. Try again in 15 minutes, or use Forgot password? to set a new one.' };
   if (r === 'unverified') return { error: 'Confirm your email first: open the link we emailed you when you registered.' };
-  if (r === 'invalid') return { error: 'College ID or password is incorrect. First time? Register as a student below.' };
+  if (r === 'invalid') return { error: 'College ID / registration number or password is incorrect. First time? Use Create your login.' };
   redirect('/app');
 }
 

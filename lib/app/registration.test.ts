@@ -82,7 +82,14 @@ describe('student self-registration', () => {
     expect(await R.verifyStudentEmail('not-a-real-token-123456')).toBe('invalid');
     expect(await R.verifyStudentEmail(token)).toBe('ok');
     expect(await R.verifyStudentEmail(token)).toBe('invalid'); // single use
-    await expect(R.startStudentRegistration({ collegeId, dob: '2010-05-14', phone: STUDENT_PHONE })).rejects.toThrow('already registered');
+    // registering again is the student's "forgot password": same checks, then a new password
+    const again = await R.startStudentRegistration({ collegeId, dob: '2010-05-14', phone: STUDENT_PHONE });
+    expect(again.reset).toBe(true);
+    expect(await R.finishStudentRegistration(studentId, STUDENT_PHONE, { email: 'meera@example.test', password: 'lotus-river-77', confirm: 'lotus-river-77' })).toMatchObject({ reset: true });
+    const { loginWithCollegeId } = await import('./service');
+    const [c2] = await studentCredentials.list(getRecordStore(), { k1: collegeId });
+    expect(c2.data.emailVerifiedAt).not.toBeNull(); // same confirmed email: still confirmed
+    expect(typeof loginWithCollegeId).toBe('function');
   });
 });
 

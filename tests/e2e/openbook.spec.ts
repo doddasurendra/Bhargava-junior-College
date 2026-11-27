@@ -2,7 +2,7 @@ import { existsSync, readFileSync } from 'node:fs';
 import path from 'node:path';
 import { PDFDocument, StandardFonts } from 'pdf-lib';
 import { expect, test, type Browser, type Page } from '@playwright/test';
-import { CRASH, staffFor, staffLogin } from './helpers';
+import { CRASH, qaStudentPassword, staffFor, staffLogin, studentIdLogin } from './helpers';
 
 /**
  * Open Book end-to-end on a real deployment (real Supabase): the spec's test list (§14 + §29).
@@ -33,14 +33,7 @@ async function status(scope: Page | import('@playwright/test').Locator) { const 
 async function studentLogin(browser: Browser) {
   const ctx = await browser.newContext({ viewport: { width: 390, height: 844 } });
   const p = await ctx.newPage();
-  await p.goto('/app/login');
-  await p.locator('input[type=tel]').first().fill(qa.numbers.student.replace(/^\+91/, ''));
-  await p.getByRole('button', { name: 'Send sign-in code' }).click();
-  await p.locator('input[name=code]').fill(qa.otpCode);
-  await p.locator('form').filter({ has: p.locator('input[name=code]') }).getByRole('button', { name: 'Sign in' }).click();
-  await p.waitForURL((u) => !u.pathname.startsWith('/app/login'), { timeout: 60_000 });
-  await p.waitForLoadState('networkidle');
-  if (new URL(p.url()).pathname.startsWith('/app/consent')) { await p.locator('input[name=agree]').check({ force: true }); await p.getByRole('button', { name: /agree|continue|accept/i }).first().click(); await p.waitForURL((u) => !u.pathname.startsWith('/app/consent')); }
+  await studentIdLogin(p, qa.collegeId, qaStudentPassword(qa.otpCode)); // students: College ID + password
   return p;
 }
 

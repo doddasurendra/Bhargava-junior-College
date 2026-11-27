@@ -44,13 +44,14 @@ export async function resolveProfiles(phone: string): Promise<Profile[]> {
     const s = await st.studentByCollegeId(phone.slice(4));
     return s?.collegeId ? [{ key: `s:${s.id}`, kind: 'student', studentId: s.id, leadId: s.leadId, name: s.fullName, collegeId: s.collegeId }] : [];
   }
-  const [guardianOf, ownStudent, applications] = await Promise.all([st.guardiansByPhone(phone), st.studentsByLoginPhone(phone), st.applicationsByPhone(phone)]);
+  // Phone sign-in (OTP) is for parents/guardians and applicant families only. Students sign in with their
+  // College ID (registration number) or email and a password, never with a phone number.
+  const [guardianOf, applications] = await Promise.all([st.guardiansByPhone(phone), st.applicationsByPhone(phone)]);
   const profiles: Profile[] = [];
   for (const g of guardianOf) {
     const s = await st.getStudent(g.studentId);
     if (s?.collegeId) profiles.push({ key: `p:${s.id}`, kind: 'parent', studentId: s.id, leadId: s.leadId, name: s.fullName, collegeId: s.collegeId, relation: g.relation });
   }
-  for (const s of ownStudent) profiles.push({ key: `s:${s.id}`, kind: 'student', studentId: s.id, leadId: s.leadId, name: s.fullName, collegeId: s.collegeId! });
   const enrolledLeads = new Set(profiles.map(leadOf));
   for (const a of applications) if (!enrolledLeads.has(a.leadId)) profiles.push({ key: `a:${a.leadId}`, kind: 'applicant', leadId: a.leadId, name: a.name });
   // §9A row 20: passed-out students moved to the alumni network
@@ -124,6 +125,9 @@ async function startAppSession(subject: string) {
  */
 export async function devOpenPortalAs(phone: string) {
   if (process.env.NODE_ENV !== 'development') throw new Error('Only available in local development.');
+  // demo students open through their College ID, like real students (no phone sign-in for students)
+  const own = (await getAppStore().studentsByLoginPhone(phone)).find((s) => s.collegeId);
+  if (own) { await startAppSession(`cid:${own.collegeId}`); return; }
   if ((await resolveProfiles(phone)).length === 0) throw new Error('That number has no portal access.');
   await startAppSession(phone);
 }
@@ -146,7 +150,8 @@ const LOCK_MS = 15 * 60_000;
  * said only after the right password, so it reveals nothing to someone guessing.
  */
 export async function loginWithCollegeId(idRaw: string, password: string): Promise<'ok' | 'invalid' | 'locked' | 'unverified'> {
-  const id = idRaw.trim();
+  // College ID / registration number: case and spaces don't matter ("bjc 2027 jee 0001" works)
+  const id = idRaw.includes('@') ? idRaw.trim() : idRaw.trim().toUpperCase().replace(/\s+/g, '-').replace(/-+/g, '-');
   const store = getRecordStore();
   const cred = id.includes('@')
     ? (await studentCredentials.list(store)).find((c) => c.data.email === id.toLowerCase())

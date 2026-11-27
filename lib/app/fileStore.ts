@@ -41,7 +41,7 @@ export function createFileAppStore(): AppStore {
       tx((db) => {
         const admitted = new Set(db.students.filter((s) => s.collegeId).map((s) => s.leadId));
         return db.leads
-          .filter((l) => (l.phone === phone || l.studentPhone === phone) && !admitted.has(l.id) && l.status !== 'invalid')
+          .filter((l) => l.phone === phone && !admitted.has(l.id) && l.status !== 'invalid') // the family's number only; students never sign in by phone
           .map((l) => ({ leadId: l.id, name: l.studentName ?? l.contactName ?? 'Your application' }));
       }, false),
 

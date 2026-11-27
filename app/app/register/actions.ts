@@ -82,6 +82,7 @@ export async function studentRegisterAction(prev: RegState, fd: FormData): Promi
     if (!p.v) return { step: 'details', error: 'Verify the mobile number first.' };
     const r = await R.finishStudentRegistration(p.sid, p.phone, { email: str(fd, 'email'), password: str(fd, 'password'), confirm: str(fd, 'confirm') });
     clear();
+    if ('reset' in r && r.reset) return { step: 'done', message: 'Password changed. Sign in with your College ID (or email) and the new password.' };
     return { step: 'done', message: r.emailed ? 'Almost done. We emailed you a confirmation link. Open it, then sign in with your College ID or email and your password.' : 'Almost done. Confirm your email with the link we sent (in this local setup there is no mailer, so the link is in the server console). Then sign in with your College ID or email and your password.' };
   });
 }
