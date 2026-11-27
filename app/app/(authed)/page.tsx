@@ -143,6 +143,9 @@ export default async function AppHome() {
         </Link>
       )}
 
+      {/* fees: parents only (students never see fee information) */}
+      {p.kind === 'parent' && <PaymentsSummary payments={d.payments} />}
+
       <section className="card p-4 text-sm">
         <p className="text-[11px] font-semibold uppercase tracking-wider text-muted">Guardians with app access</p>
         <ul className="mt-2 space-y-1">
