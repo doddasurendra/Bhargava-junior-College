@@ -55,6 +55,7 @@ export default async function DeveloperPage() {
           <div className="flex justify-between gap-3"><dt className="text-muted">SUPABASE_SERVICE_ROLE_KEY</dt><dd className="font-mono">{set(process.env.SUPABASE_SERVICE_ROLE_KEY)}</dd></div>
           <div className="flex justify-between gap-3"><dt className="text-muted">OPENROUTER_API_KEY (AI via OpenRouter)</dt><dd className="font-mono">{set(process.env.OPENROUTER_API_KEY)}</dd></div>
           <div className="flex justify-between gap-3"><dt className="text-muted">ANTHROPIC_API_KEY (AI direct)</dt><dd className="font-mono">{set(process.env.ANTHROPIC_API_KEY)}</dd></div>
+          <div className="flex justify-between gap-3"><dt className="text-muted">GOOGLE_AI_STUDIO_API_KEY (voice assistant, Gemini)</dt><dd className="font-mono">{set(process.env.GOOGLE_AI_STUDIO_API_KEY || process.env.GEMINI_API_KEY)}</dd></div>
           <div className="flex justify-between gap-3"><dt className="text-muted">WhatsApp</dt><dd className="font-mono">{process.env.MESSAGING_PROVIDER || 'logging only'}</dd></div>
           <div className="flex justify-between gap-3"><dt className="text-muted">SMTP (7 PM email)</dt><dd className="font-mono">{set(process.env.SMTP_HOST)}</dd></div>
           <div className="flex justify-between gap-3"><dt className="text-muted">Razorpay</dt><dd className="font-mono">{set(process.env.RAZORPAY_KEY_ID)}</dd></div>

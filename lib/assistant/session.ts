@@ -5,6 +5,8 @@ import { getConversationStore, handoffExisting, startBotConversation, visitorCon
 import type { Conversation } from '../chat/types';
 import type { Attribution } from '../validation';
 import { AssistantUnavailable, runAssistant, type Turn } from './agent';
+import { geminiConfigured } from '../ai/gemini';
+import { geminiVoiceTurn } from './voiceGemini';
 import { recordTurn } from './analytics';
 import { detectLang, GREETING, groundedAnswer, isGreeting } from '../rag';
 import { detectDistress } from '../studentLife/safety';
@@ -35,7 +37,7 @@ async function history(convId: string): Promise<Turn[]> {
   return turns;
 }
 
-export async function assistantTurn(p: { c?: string; t?: string; text: string; attribution?: Attribution }): Promise<TurnResponse | { error: string; status: number }> {
+export async function assistantTurn(p: { c?: string; t?: string; text: string; attribution?: Attribution; engine?: 'gemini' }): Promise<TurnResponse | { error: string; status: number }> {
   let conv: Conversation | null = null;
   let token = p.t ?? '';
   if (p.c && p.t) {
@@ -66,7 +68,8 @@ export async function assistantTurn(p: { c?: string; t?: string; text: string; a
   }
 
   try {
-    const r = await runAssistant(await history(conv.id), { conversationId: conv.id, consent, attribution: p.attribution });
+    // Voice: Google Gemini (GOOGLE_AI_STUDIO_API_KEY) when configured; chat: Claude with tools.
+    const r = p.engine === 'gemini' && geminiConfigured() ? await geminiVoiceTurn(await history(conv.id)) : await runAssistant(await history(conv.id), { conversationId: conv.id, consent, attribution: p.attribution });
     await st.addMessage({ conversationId: conv.id, author: 'bot', staffId: null, text: r.text, waMessageId: null });
     await recordTurn({
       conversationId: conv.id,

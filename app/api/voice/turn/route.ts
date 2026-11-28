@@ -27,7 +27,7 @@ export async function POST(req: Request) {
   if ('error' in parsed) return fail(parsed.error);
   const d = parsed.data;
   const started = Date.now();
-  const r = await assistantTurn({ c: d.c, t: d.t, text: d.text, attribution: { device: deviceFromUA(req), page: '/voice-assistant' } as never });
+  const r = await assistantTurn({ c: d.c, t: d.t, text: d.text, attribution: { device: deviceFromUA(req), page: '/voice-assistant' } as never, engine: 'gemini' });
   if ('error' in r) return fail(r.error, r.status);
   const lang = d.lang ?? detectLang(d.text);
   return ok({ c: r.c, t: r.t, speech: toSpeech(r.reply), caption: r.reply, lang, sources: r.links, fallback: r.fallback, ms: Date.now() - started });
