@@ -6,7 +6,7 @@ import { H1 } from '../ui';
 import { page as pageText } from '@/lib/openbook/i18n';
 
 export const dynamic = 'force-dynamic';
-export const maxDuration = 60;
+export const maxDuration = 300; // AI question generation can take longer than a minute
 
 export default async function GeneratePage() {
   const me = await obStudent();

@@ -131,7 +131,7 @@ async function callGemini<T>(c: JsonCall<T>) {
       turns: [{ role: 'user', text: c.parts.map((p) => (p.kind === 'text' ? p.text : '')).join('\n\n') }],
       maxTokens: c.maxTokens ?? 16000,
       json: true,
-      thinking: c.effort === 'high' ? 'MEDIUM' : 'LOW',
+      thinking: c.effort === 'high' ? 'MEDIUM' : c.effort === 'low' ? 'MINIMAL' : 'LOW',
     });
   } catch (e) {
     if (e instanceof GeminiError) {

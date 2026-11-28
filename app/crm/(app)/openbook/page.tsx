@@ -23,7 +23,7 @@ import { studentsById } from '@/lib/school/common';
 
 export const metadata = { title: 'Open Book' };
 export const dynamic = 'force-dynamic';
-export const maxDuration = 60;
+export const maxDuration = 300; // AI question generation can take longer than a minute
 
 const TABS = [['overview', 'Overview'], ['books', 'Books'], ['papers', 'Papers'], ['bank', 'Question bank'], ['sources', 'Official sources'], ['teach', 'Teaching'], ['community', 'Community'], ['settings', 'AI settings']] as const;
 const exOpts = EXAMS.map((e) => ({ value: e.id, label: e.name }));
