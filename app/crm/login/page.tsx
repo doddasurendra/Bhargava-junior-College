@@ -8,12 +8,14 @@ import { requiresMfa } from '@/lib/auth/service';
 import { devLoginEnabled, getStaffSession } from '@/lib/crm/auth';
 import { getCrmRepo } from '@/lib/crm/repo';
 import { ROLE_LABELS } from '@/lib/crm/types';
+import { safeNext } from '@/lib/crm/nextPath';
 
 export const metadata: Metadata = { title: 'Sign in' };
 export const dynamic = 'force-dynamic';
 
 export default async function LoginPage({ searchParams }: { searchParams: Record<string, string | string[] | undefined> }) {
-  if (await getStaffSession()) redirect('/crm');
+  const next = safeNext(searchParams.next);
+  if (await getStaffSession()) redirect(next ?? '/crm');
   const dev = devLoginEnabled();
   // ?as=<role> from the /login hub: say who is signing in; in development list matching sample users first.
   const asParam = typeof searchParams.as === 'string' ? searchParams.as : null;
@@ -36,6 +38,9 @@ export default async function LoginPage({ searchParams }: { searchParams: Record
             <Link href="/login" className="text-xs text-muted underline">Not you? Choose another role</Link>
           </p>
         )}
+        {next && (
+          <p className="mb-4 rounded-xl border border-line bg-surface px-4 py-2.5 text-sm">Sign in to open <strong className="text-heading">{next.startsWith('/crm/summary') ? 'the Summary dashboard' : next.split('?')[0].replace('/crm/', '').replace(/[-/]/g, ' ')}</strong>.</p>
+        )}
         {searchParams.reset === '1' && (
           <p role="status" className="mb-4 rounded-xl bg-emerald-50 px-4 py-3 text-sm text-emerald-800 dark:bg-emerald-400/10 dark:text-emerald-200">
             Password saved. Sign in with it now. Any other open sessions were signed out.
@@ -46,11 +51,11 @@ export default async function LoginPage({ searchParams }: { searchParams: Record
             <>
               <p className="mb-1 font-semibold text-heading">Local development: sign in as</p>
               <p className="mb-4 text-xs text-muted">Sample staff from the brief. This skips the password only: anyone marked 2FA (turned on in My account) still needs a code from their authenticator app. In production, staff sign in with email and password (Supabase Auth).</p>
-              <DevLoginForm staff={staff.map((s) => ({ id: s.id, name: s.fullName, role: s.roles.map((r) => ROLE_LABELS[r]).join(', ') + (requiresMfa(s) ? ' · 2FA' : '') }))} />
+              <DevLoginForm next={next} staff={staff.map((s) => ({ id: s.id, name: s.fullName, role: s.roles.map((r) => ROLE_LABELS[r]).join(', ') + (requiresMfa(s) ? ' · 2FA' : '') }))} />
             </>
           ) : (
             <>
-              <PasswordLoginForm />
+              <PasswordLoginForm next={next} />
               <p className="mt-3 flex flex-wrap justify-center gap-x-4 gap-y-1 text-center text-sm">
                 <Link href="/crm/login/forgot" className="text-muted underline">
                   Forgot password?

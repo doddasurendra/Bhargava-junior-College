@@ -25,7 +25,7 @@ export interface HostelEvent {
 /** A thing this phone can see in the app. One phone can hold several (two children, or a child plus a sibling's application). */
 export type Profile =
   | { key: string; kind: 'parent'; studentId: string; leadId: string; name: string; collegeId: string; relation: Relation }
-  | { key: string; kind: 'student'; studentId: string; leadId: string; name: string; collegeId: string }
+  | { key: string; kind: 'student'; studentId: string; leadId: string; name: string; collegeId: string; /** self-sign-up waiting for the admin office: general features only */ pending?: true }
   | { key: string; kind: 'applicant'; leadId: string; name: string }
   | { key: string; kind: 'alumni'; alumniId: string; name: string };
 

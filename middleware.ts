@@ -10,10 +10,18 @@ export function middleware(req: NextRequest) {
   if (pathname === '/app' || pathname.startsWith('/app/')) {
     if (pathname.startsWith('/app/login') || pathname.startsWith('/app/register') || pathname.startsWith('/app/verify-email') || pathname.startsWith('/app/forgot-password')) return withNoIndex(NextResponse.next());
     if (!req.cookies.get('bjc_app')) return NextResponse.redirect(new URL('/app/login', req.url));
-    return withNoIndex(NextResponse.next());
+    // the app layout checks per-page access (e.g. pending sign-ups) on the server; it needs the path
+    const h = new Headers(req.headers);
+    h.set('x-bjc-path', pathname);
+    return withNoIndex(NextResponse.next({ request: { headers: h } }));
   }
   if (pathname.startsWith('/crm/login')) return withNoIndex(NextResponse.next());
-  if (!req.cookies.get('bjc_staff')) return NextResponse.redirect(new URL('/crm/login', req.url));
+  if (!req.cookies.get('bjc_staff')) {
+    // remember the page they asked for (e.g. /crm/summary) so sign-in returns them there, not to a generic home
+    const to = new URL('/crm/login', req.url);
+    if (pathname !== '/crm' && pathname !== '/crm/') to.searchParams.set('next', pathname + req.nextUrl.search);
+    return NextResponse.redirect(to);
+  }
   // §9A.4 "view as" is for support: a Super Admin sees what the person sees but cannot change anything.
   // Server actions are POSTs; ending "view as" is a GET to /crm/view-as/stop.
   if (req.cookies.get('bjc_viewas') && req.method !== 'GET' && req.method !== 'HEAD') {

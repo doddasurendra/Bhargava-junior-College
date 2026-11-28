@@ -120,6 +120,20 @@ export function createFileVerifyRepo(): VerifyRepo {
         return id;
       }),
 
+    officeAddStudent: (s, actorId) =>
+      tx((db) => {
+        const cid = s.collegeId.trim().toUpperCase();
+        if (db.students.some((x) => x.collegeId === cid) || db.leads.some((x) => (x as { collegeId?: string | null }).collegeId === cid)) throw new RepoConflict('college_id_exists');
+        const now = new Date().toISOString();
+        const leadId = randomUUID();
+        db.leads.push({ id: leadId, phone: s.guardianPhone, contactName: s.guardianName, studentName: s.fullName, studentClass: null, program: s.program, firstSource: 'office_import', lastSource: 'office_import', stage: 'college_id', status: 'admitted', consentAt: now, createdAt: now, updatedAt: now } as FileLead);
+        const id = randomUUID();
+        db.students.push({ id, leadId, fullName: s.fullName, dob: s.dob, gender: s.gender, program: s.program, stay: s.stay, guardianName: s.guardianName, guardianPhone: s.guardianPhone, loginPhone: null, collegeId: cid, createdBy: actorId, createdAt: now } as (typeof db.students)[number]);
+        db.guardians.push({ studentId: id, phone: s.guardianPhone, name: s.guardianName, relation: (s.relation ?? 'parent') as never, addedBy: actorId, addedAt: now });
+        pushAudit(db, leadId, { actorId, action: 'admitted', field: 'college_id', oldValue: null, newValue: cid, reason: 'office add / import' });
+        return id;
+      }),
+
     requestReversal: (leadId, stage, reason, actorId) =>
       tx((db) => {
         if (!db.signOffs.some((s) => s.leadId === leadId && s.stage === stage)) throw new RepoConflict('That step is not signed off.');

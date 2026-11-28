@@ -246,7 +246,7 @@ export function MobileBar() {
     { href: '/contact#enquire', label: t.bar.enquire, icon: 'M4 6h16v10H8l-4 4V6Z' },
   ];
   return (
-    <nav aria-label="Quick actions" className="fixed inset-x-0 bottom-0 z-40 border-t border-line bg-surface/95 backdrop-blur md:hidden">
+    <nav aria-label="Quick actions" data-floating-widget="quickbar" className="fixed inset-x-0 bottom-0 z-40 border-t border-line bg-surface/95 backdrop-blur md:hidden">
       <ul className="grid grid-cols-5">
         {items.map((i, idx) => {
           const external = i.href.startsWith('http') || i.href.startsWith('tel:');
@@ -284,6 +284,7 @@ export function WhatsAppButton() {
       target="_blank"
       rel="noopener noreferrer"
       aria-label="Chat with admissions on WhatsApp"
+      data-floating-widget="whatsapp"
       className="fixed bottom-[9rem] right-4 z-40 grid h-12 w-12 place-items-center rounded-full bg-[#25D366] text-white shadow-lg transition hover:scale-105 md:bottom-24 md:right-6"
     >
       <svg viewBox="0 0 32 32" className="h-7 w-7" fill="currentColor" aria-hidden>

@@ -253,6 +253,8 @@ export interface VerifyRepo {
   createStudent(leadId: string, s: Omit<StudentRow, 'id' | 'leadId' | 'collegeId' | 'createdAt' | 'createdBy'>, actorId: string): Promise<void>;
   /** Atomic: re-check the gate, take the next number, set the College ID, mark the lead admitted, sign off. */
   issueCollegeId(leadId: string, actorId: string): Promise<string>;
+  /** Admin Office add / import: lead + student (with the College ID the college already issued) + primary guardian, atomically. Returns the student id. */
+  officeAddStudent(s: { fullName: string; dob: string; gender: string; program: string; stay: string; guardianName: string; guardianPhone: string; relation?: string; collegeId: string }, actorId: string): Promise<string>;
   /** One pending request per lead + stage; the stage must be signed off. */
   requestReversal(leadId: string, stage: VerifyStage, reason: string, actorId: string): Promise<string>;
   getReversal(id: string): Promise<ReversalRow | null>;

@@ -320,9 +320,10 @@ export function VisitOutcomeForm({ visitId }: { visitId: string }) {
   );
 }
 
-export function DevLoginForm({ staff }: { staff: { id: string; name: string; role: string }[] }) {
+export function DevLoginForm({ staff, next }: { staff: { id: string; name: string; role: string }[]; next?: string | null }) {
   return (
     <ActionForm action={loginDevAction} className="grid gap-2 sm:grid-cols-2" reset={false}>
+      {next && <input type="hidden" name="next" value={next} />}
       {staff.map((s) => (
         <Submit key={s.id} name="staffId" value={s.id} className="flex flex-col items-start rounded-xl border border-line bg-surface px-4 py-3 text-left transition hover:border-gold">
           <span className="font-semibold text-heading">{s.name}</span>
@@ -333,9 +334,10 @@ export function DevLoginForm({ staff }: { staff: { id: string; name: string; rol
   );
 }
 
-export function PasswordLoginForm() {
+export function PasswordLoginForm({ next }: { next?: string | null } = {}) {
   return (
     <ActionForm action={loginPasswordAction} reset={false}>
+      {next && <input type="hidden" name="next" value={next} />}
       <label className="block">
         <span className={lbl}>Email</span>
         <input name="email" type="email" autoComplete="username" className="input" required />

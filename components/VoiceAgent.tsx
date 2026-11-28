@@ -30,7 +30,14 @@ const CHIP: Record<Lang, Partial<Record<Status, string>>> = {
   te: { LISTENING: 'వింటోంది', PROCESSING: 'ప్రాసెస్ చేస్తోంది', RETRIEVING_INFORMATION: 'ప్రాసెస్ చేస్తోంది', SPEAKING: 'మాట్లాడుతోంది', STOPPED: 'ఆపబడింది', IDLE: 'సిద్ధం', CONNECTING: 'కనెక్ట్ అవుతోంది', ERROR: 'లోపం' },
   hi: { LISTENING: 'सुन रही है', PROCESSING: 'प्रोसेस हो रहा है', RETRIEVING_INFORMATION: 'प्रोसेस हो रहा है', SPEAKING: 'बोल रही है', STOPPED: 'रुका हुआ', IDLE: 'तैयार', CONNECTING: 'जुड़ रहा है', ERROR: 'त्रुटि' },
 };
-const POS_KEY = 'bjc_voice_y';
+const POS_KEY = 'bjc_voice_pos';
+const PILL_KEY = 'bjc_voice_pill';
+/** Move / minimise controls and their screen-reader text, in the visitor's language. */
+const T: Record<Lang, { move: string; moveLabel: string; drag: string; min: string; expand: string; reset: string; resetBtn: string; close: string; moved: string; pill: string; pillClose: string; pillHint: string }> = {
+  en: { move: 'Move', moveLabel: 'Move voice assistant', drag: 'Drag to move', min: 'Minimise', expand: 'Expand', reset: 'Position reset', resetBtn: 'Reset position', close: 'Close voice assistant', moved: 'Voice assistant moved', pill: 'Voice assistant', pillClose: 'Close voice', pillHint: 'Drag up or down to move' },
+  te: { move: 'కదిలించు', moveLabel: 'వాయిస్ అసిస్టెంట్‌ను కదిలించండి', drag: 'కదిలించడానికి లాగండి', min: 'చిన్నదిగా చేయి', expand: 'విస్తరించు', reset: 'స్థానం రీసెట్ అయింది', resetBtn: 'స్థానం రీసెట్ చేయి', close: 'వాయిస్ అసిస్టెంట్‌ను మూసివేయండి', moved: 'వాయిస్ అసిస్టెంట్ కదిలింది', pill: 'వాయిస్ అసిస్టెంట్', pillClose: 'వాయిస్ మూసివేయి', pillHint: 'కదిలించడానికి పైకి లేదా కిందికి లాగండి' },
+  hi: { move: 'खिसकाएँ', moveLabel: 'वॉइस असिस्टेंट को खिसकाएँ', drag: 'खिसकाने के लिए खींचें', min: 'छोटा करें', expand: 'बड़ा करें', reset: 'स्थिति रीसेट हुई', resetBtn: 'स्थिति रीसेट करें', close: 'वॉइस असिस्टेंट बंद करें', moved: 'वॉइस असिस्टेंट खिसकाया गया', pill: 'वॉइस असिस्टेंट', pillClose: 'वॉइस बंद करें', pillHint: 'खिसकाने के लिए ऊपर या नीचे खींचें' },
+};
 const SESSION_KEY = 'bjc_voice';
 const FEMALE = /female|woman|neerja|heera|swara|shruti|kalpana|lekha|veena|zira|samantha|aditi|raveena|priya|google.*(हिन्दी|తెలుగు|india)/i;
 const MALE = /\bmale\b|ravi|hemant|prabhat|madhur|mohan|david|mark|rishi|guy|george/i;
@@ -69,10 +76,19 @@ export function VoiceAgent({ embedded = false }: { embedded?: boolean }) {
   const audioCtx = useRef<AudioContext | null>(null);
   const raf = useRef<number | null>(null);
   const [level, setLevel] = useState(0);
-  // vertical position (px from the top) when dragged; null = the default place near the bottom
-  const [y, setY] = useState<number | null>(null);
+  // panel position (px from the top-left) once moved; null = the default place near the bottom-left
+  const [pos, setPos] = useState<{ x: number; y: number } | null>(null);
+  const [pillY, setPillY] = useState<number | null>(null);
+  const [minimized, setMinimized] = useState(false);
+  const [mobile, setMobile] = useState(false);
+  const [sheet, setSheet] = useState<'normal' | 'full' | 'min'>('normal');
+  const [sheetDy, setSheetDy] = useState(0);
+  const [dragging, setDragging] = useState(false);
+  const [said, setSaid] = useState('');
   const panelRef = useRef<HTMLElement | null>(null);
-  const drag = useRef<{ startY: number; startTop: number; id: number } | null>(null);
+  const drag = useRef<{ sx: number; sy: number; x: number; y: number; id: number; moved: boolean } | null>(null);
+  const pillDrag = useRef<{ sy: number; y: number; id: number; moved: boolean } | null>(null);
+  const suppressClick = useRef(false);
   const langRef = useRef<Lang>('en');
   const mutedRef = useRef(false);
   statusRef.current = status;
@@ -321,72 +337,210 @@ export function VoiceAgent({ embedded = false }: { embedded?: boolean }) {
 
   useEffect(() => () => end(false), []); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // ---- vertical dragging (mouse, touch and pen via pointer events; arrow keys on the header)
-  const clampY = useCallback((top: number) => {
-    const h = panelRef.current?.offsetHeight ?? 400;
-    return Math.max(8, Math.min(top, window.innerHeight - h - 8));
+  // ---- moving the panel and the floating button (mouse, touch and pen via Pointer Events; keyboard on the handles)
+  // Moving never touches the conversation: no restart of recognition, microphone or audio.
+  const bucket = () => (typeof window === 'undefined' ? 'd' : `${window.innerWidth <= 480 ? 'm' : window.innerWidth <= 1024 ? 't' : 'd'}-${window.innerWidth > window.innerHeight ? 'l' : 'p'}`);
+  const insets = useCallback(() => {
+    const probe = document.createElement('div');
+    probe.style.cssText = 'position:fixed;visibility:hidden;padding:env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left)';
+    document.body.appendChild(probe);
+    const cs = getComputedStyle(probe);
+    const r = { t: parseFloat(cs.paddingTop) || 0, r: parseFloat(cs.paddingRight) || 0, b: parseFloat(cs.paddingBottom) || 0, l: parseFloat(cs.paddingLeft) || 0 };
+    probe.remove();
+    return r;
   }, []);
-  useEffect(() => {
-    try { const v = Number(sessionStorage.getItem(POS_KEY)); if (v > 0) setY(v); } catch { /* ignore */ }
-    const onResize = () => setY((cur) => (cur === null ? cur : clampY(cur)));
-    window.addEventListener('resize', onResize);
-    return () => window.removeEventListener('resize', onResize);
-  }, [clampY]);
-  useEffect(() => { if (y !== null) try { sessionStorage.setItem(POS_KEY, String(Math.round(y))); } catch { /* ignore */ } }, [y]);
-  // keep it on screen when it grows (captions appear)
-  useEffect(() => { if (open && y !== null) setY((cur) => (cur === null ? cur : clampY(cur))); }, [open, heard, answer, error, clampY]); // eslint-disable-line react-hooks/exhaustive-deps
+  /** Keep the panel on screen: the whole panel when it fits, else at least its header. */
+  const clamp = useCallback((x: number, top: number) => {
+    const el = panelRef.current;
+    const w = el?.offsetWidth ?? 380, h = el?.offsetHeight ?? 400;
+    const s = insets();
+    const minX = 8 + s.l, maxX = Math.max(minX, window.innerWidth - w - 8 - s.r);
+    const minY = 8 + s.t, maxY = Math.max(minY, window.innerHeight - Math.min(h, window.innerHeight - 16 - s.t - s.b) - 8 - s.b);
+    return { x: Math.round(Math.min(Math.max(x, minX), maxX)), y: Math.round(Math.min(Math.max(top, minY), maxY)) };
+  }, [insets]);
+  const save = useCallback((pt: { x: number; y: number } | null) => {
+    try {
+      if (pt) localStorage.setItem(`${POS_KEY}:${bucket()}`, JSON.stringify({ ...pt, w: window.innerWidth, h: window.innerHeight }));
+      else localStorage.removeItem(`${POS_KEY}:${bucket()}`);
+    } catch { /* storage may be blocked */ }
+  }, []);
+  const announce = (msg: string) => { setSaid(''); requestAnimationFrame(() => setSaid(msg)); };
 
+  // restore the saved position for this kind of screen, rescaled if the screen size changed
+  useEffect(() => {
+    const onResize = () => {
+      setMobile(window.innerWidth <= 480);
+      setPos(() => {
+        try {
+          const raw = localStorage.getItem(`${POS_KEY}:${bucket()}`);
+          if (!raw) return null;
+          const v = JSON.parse(raw) as { x: number; y: number; w: number; h: number };
+          return clamp((v.x / (v.w || window.innerWidth)) * window.innerWidth, (v.y / (v.h || window.innerHeight)) * window.innerHeight);
+        } catch { return null; }
+      });
+      setPillY(() => { try { const v = Number(localStorage.getItem(`${PILL_KEY}:${bucket()}`)); return v > 0 ? Math.min(Math.max(v, 72), window.innerHeight - 72) : null; } catch { return null; } });
+    };
+    onResize();
+    window.addEventListener('resize', onResize);
+    window.addEventListener('orientationchange', onResize);
+    return () => { window.removeEventListener('resize', onResize); window.removeEventListener('orientationchange', onResize); };
+  }, [clamp]);
+  // keep it on screen when it grows (captions) or shrinks (minimised)
+  useEffect(() => { if (open && pos) setPos((cur) => (cur ? clamp(cur.x, cur.y) : cur)); }, [open, heard, answer, error, minimized, clamp]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  /** After a move, step clear of the chat button, WhatsApp button and other floating widgets. */
+  const avoidOverlap = useCallback((pt: { x: number; y: number }) => {
+    const el = panelRef.current;
+    if (!el) return pt;
+    const w = el.offsetWidth, h = el.offsetHeight;
+    let { x, y: top } = pt;
+    for (let pass = 0; pass < 3; pass++) {
+      const hit = [...document.querySelectorAll<HTMLElement>('[data-floating-widget]')].map((n) => n.getBoundingClientRect()).find((r) => r.width && r.left < x + w && r.right > x && r.top < top + h && r.bottom > top);
+      if (!hit) break;
+      const above = hit.top - h - 8, left = hit.left - w - 8;
+      if (above >= 8) top = above; else if (left >= 8) x = left; else top = hit.bottom + 8;
+      ({ x, y: top } = clamp(x, top));
+    }
+    return { x, y: top };
+  }, [clamp]);
+
+  const isHandle = (t: HTMLElement) => !!t.closest('[data-drag-handle]') || !t.closest('button,a,select,input,textarea,label');
   function onDragStart(e: React.PointerEvent<HTMLElement>) {
-    if (embedded || (e.target as HTMLElement).closest('button,a,select,input')) return; // controls stay clickable
-    const top = panelRef.current?.getBoundingClientRect().top ?? 0;
-    drag.current = { startY: e.clientY, startTop: top, id: e.pointerId };
+    if (embedded || !isHandle(e.target as HTMLElement)) return; // controls stay clickable
+    const r = panelRef.current?.getBoundingClientRect();
+    if (!r) return;
+    drag.current = { sx: e.clientX, sy: e.clientY, x: r.left, y: r.top, id: e.pointerId, moved: false };
     e.currentTarget.setPointerCapture(e.pointerId);
     e.preventDefault();
+    setDragging(true);
   }
   function onDragMove(e: React.PointerEvent<HTMLElement>) {
     const d = drag.current;
     if (!d || d.id !== e.pointerId) return;
-    setY(clampY(d.startTop + (e.clientY - d.startY)));
+    const dx = e.clientX - d.sx, dy = e.clientY - d.sy;
+    if (Math.abs(dx) + Math.abs(dy) > 3) d.moved = true;
+    if (mobile) { setSheetDy(dy); return; } // bottom sheet: vertical gesture only
+    setPos(clamp(d.x + dx, d.y + dy));
   }
   function onDragEnd(e: React.PointerEvent<HTMLElement>) {
-    if (drag.current?.id === e.pointerId) drag.current = null;
+    const d = drag.current;
+    if (!d || d.id !== e.pointerId) return;
+    drag.current = null;
+    setDragging(false);
+    if (mobile) {
+      const dy = e.clientY - d.sy;
+      setSheetDy(0);
+      if (dy < -40) { setMinimized(false); setSheet((s) => (s === 'min' ? 'normal' : 'full')); }
+      else if (dy > 40) setSheet((s) => { if (s === 'full') return 'normal'; setMinimized(true); return 'min'; });
+      return;
+    }
+    if (!d.moved) return;
+    setPos((cur) => { const next = cur ? avoidOverlap(cur) : cur; save(next); return next; });
+    announce(T[langRef.current].moved);
   }
-  function onHeaderKey(e: React.KeyboardEvent<HTMLElement>) {
-    if (embedded || (e.key !== 'ArrowUp' && e.key !== 'ArrowDown')) return;
+  function resetPos() {
+    setPos(null);
+    save(null);
+    setSheet('normal');
+    setMinimized(false);
+    announce(T[langRef.current].reset);
+  }
+  function onHandleKey(e: React.KeyboardEvent<HTMLElement>) {
+    if (embedded) return;
+    // only the header itself or a drag handle moves the panel (arrow keys on other buttons do their normal thing)
+    if (e.target !== e.currentTarget && !(e.target as HTMLElement).closest('[data-drag-handle]')) return;
+    if (e.key === 'Home') { e.preventDefault(); resetPos(); return; }
+    const step = e.shiftKey ? 80 : 20;
+    const dir = { ArrowUp: [0, -step], ArrowDown: [0, step], ArrowLeft: [-step, 0], ArrowRight: [step, 0] }[e.key];
+    if (!dir) return;
     e.preventDefault();
-    const top = panelRef.current?.getBoundingClientRect().top ?? 0;
-    setY(clampY(top + (e.key === 'ArrowUp' ? -40 : 40)));
+    if (mobile) { if (dir[1] < 0) { setMinimized(false); setSheet((s) => (s === 'min' ? 'normal' : 'full')); } else if (dir[1] > 0) setSheet((s) => { if (s === 'full') return 'normal'; setMinimized(true); return 'min'; }); return; }
+    const r = panelRef.current?.getBoundingClientRect();
+    if (!r) return;
+    const next = clamp(r.left + dir[0], r.top + dir[1]);
+    setPos(next);
+    save(next);
+    announce(T[langRef.current].moved);
   }
 
+  // floating button: drag up and down along the left edge; a tap (< 6 px) still opens / closes
+  function onPillDown(e: React.PointerEvent<HTMLButtonElement>) {
+    pillDrag.current = { sy: e.clientY, y: e.currentTarget.getBoundingClientRect().top, id: e.pointerId, moved: false };
+    e.currentTarget.setPointerCapture(e.pointerId);
+  }
+  function onPillMove(e: React.PointerEvent<HTMLButtonElement>) {
+    const d = pillDrag.current;
+    if (!d || d.id !== e.pointerId) return;
+    const dy = e.clientY - d.sy;
+    if (!d.moved && Math.abs(dy) <= 6) return;
+    d.moved = true;
+    const s = insets();
+    setPillY(Math.min(Math.max(d.y + dy, 8 + s.t), window.innerHeight - 64 - s.b));
+  }
+  function onPillUp(e: React.PointerEvent<HTMLButtonElement>) {
+    const d = pillDrag.current;
+    pillDrag.current = null;
+    if (!d || d.id !== e.pointerId) return;
+    if (d.moved) {
+      suppressClick.current = true;
+      setPillY((v) => { if (v !== null) try { localStorage.setItem(`${PILL_KEY}:${bucket()}`, String(Math.round(v))); } catch { /* ignore */ } return v; });
+      announce(T[langRef.current].moved);
+    }
+  }
+  function onPillKey(e: React.KeyboardEvent<HTMLButtonElement>) {
+    if (e.key !== 'ArrowUp' && e.key !== 'ArrowDown') return;
+    e.preventDefault();
+    const top = e.currentTarget.getBoundingClientRect().top + (e.key === 'ArrowUp' ? -1 : 1) * (e.shiftKey ? 80 : 20);
+    const v = Math.min(Math.max(top, 8), window.innerHeight - 64);
+    setPillY(v);
+    try { localStorage.setItem(`${PILL_KEY}:${bucket()}`, String(Math.round(v))); } catch { /* ignore */ }
+    announce(T[langRef.current].moved);
+  }
   const busy = status === 'PROCESSING' || status === 'RETRIEVING_INFORMATION';
   const panel = (
     <section
       ref={panelRef}
       aria-label="BJC AI Voice Assistant"
-      style={!embedded && y !== null ? { top: y, bottom: 'auto' } : undefined}
-      className={`${embedded ? 'card mx-auto max-w-xl' : 'fixed bottom-36 left-4 z-50 w-[min(92vw,380px)] md:bottom-24 rounded-2xl border border-line bg-surface shadow-2xl'} overflow-hidden`}
+      data-testid="voice-panel"
+      data-minimized={minimized ? 'true' : 'false'}
+      style={embedded ? undefined : mobile
+        ? { left: 0, right: 0, bottom: 0, top: 'auto', maxHeight: sheet === 'full' ? '88vh' : '70vh', transform: sheetDy ? `translateY(${Math.max(-120, sheetDy)}px)` : undefined, paddingBottom: 'env(safe-area-inset-bottom)' }
+        : pos ? { left: pos.x, top: pos.y, bottom: 'auto', right: 'auto' } : undefined}
+      className={`${embedded ? 'card mx-auto max-w-xl' : mobile ? 'fixed z-[60] w-full overflow-y-auto rounded-t-2xl border border-line bg-surface shadow-2xl' : `fixed bottom-36 left-4 z-[60] w-[min(92vw,380px)] md:bottom-24 rounded-2xl border border-line bg-surface shadow-2xl ${dragging ? 'ring-2 ring-gold' : ''}`} overflow-hidden`}
     >
+      {!embedded && mobile && <div aria-hidden className="flex justify-center bg-navy pt-2"><span className="h-1.5 w-12 rounded-full bg-white/50" /></div>}
       <header
         onPointerDown={onDragStart}
         onPointerMove={onDragMove}
         onPointerUp={onDragEnd}
         onPointerCancel={onDragEnd}
-        onKeyDown={onHeaderKey}
+        onKeyDown={onHandleKey}
+        onDoubleClick={(e) => { if (!embedded && isHandle(e.target as HTMLElement)) resetPos(); }}
         tabIndex={embedded ? undefined : 0}
-        aria-label={embedded ? undefined : 'Drag up or down to move the voice assistant (or use the arrow keys)'}
-        className={`flex items-center gap-3 bg-navy px-4 py-3 text-white ${embedded ? '' : 'cursor-grab touch-none select-none active:cursor-grabbing focus:outline-none focus-visible:ring-2 focus-visible:ring-gold'}`}
+        role={embedded ? undefined : 'group'}
+        aria-label={embedded ? undefined : `${T[lang].moveLabel}. ${T[lang].drag}`}
+        title={embedded ? undefined : T[lang].drag}
+        data-testid="voice-header"
+        className={`flex items-center gap-2 bg-navy px-3 py-3 text-white ${embedded ? '' : 'cursor-grab touch-none select-none active:cursor-grabbing focus:outline-none focus-visible:ring-2 focus-visible:ring-gold'}`}
       >
-        {!embedded && <span aria-hidden className="-ml-1 text-white/50" title="Drag to move">⠿</span>}
+        {!embedded && <span aria-hidden data-drag-handle className="-ml-1 px-1 text-lg leading-none text-white/60" title={T[lang].drag}>⋮⋮</span>}
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img src={college.logoSrc} alt="" width={36} height={36} draggable={false} className="h-9 w-9 rounded-full bg-white" />
         <div className="min-w-0 flex-1">
           <p className="truncate font-semibold">BJC AI Voice Assistant</p>
           <p className="text-xs text-white/70">Voice only · {LANG_LABEL[lang]} · <span data-testid="voice-status">{CHIP[lang][status] ?? status}</span></p>
         </div>
-        {!embedded && <button type="button" onClick={close} aria-label="Close voice assistant" title="Close" className="rounded-full px-2 text-lg text-white/80 hover:text-white">×</button>}
+        {!embedded && (
+          <>
+            <button type="button" data-drag-handle data-testid="voice-move" aria-label={T[lang].moveLabel} title={T[lang].drag} className="cursor-grab touch-none rounded-full px-1.5 text-base text-white/80 hover:text-white active:cursor-grabbing">⇅</button>
+            <button type="button" onClick={resetPos} aria-label={T[lang].resetBtn} title={T[lang].resetBtn} data-testid="voice-reset" className="rounded-full px-1.5 text-base text-white/80 hover:text-white">↺</button>
+            <button type="button" onClick={() => { setMinimized((v) => !v); if (mobile) setSheet((s) => (s === 'min' ? 'normal' : 'min')); }} aria-label={minimized ? T[lang].expand : T[lang].min} aria-expanded={!minimized} title={minimized ? T[lang].expand : T[lang].min} data-testid="voice-minimize" className="rounded-full px-1.5 text-lg leading-none text-white/80 hover:text-white">{minimized ? '▢' : '–'}</button>
+            <button type="button" onClick={close} aria-label={T[lang].close} title={T[lang].close} className="rounded-full px-1.5 text-lg text-white/80 hover:text-white">×</button>
+          </>
+        )}
       </header>
-
-      <div className="flex flex-col items-center gap-3 px-5 py-6 text-center">
+      <span className="sr-only" aria-live="polite" data-testid="voice-announce">{said}</span>
+      <div className="flex flex-col items-center gap-3 px-5 py-6 text-center" hidden={!embedded && minimized}>
         <div className="relative grid h-28 w-28 place-items-center">
           <span aria-hidden className={`absolute inset-0 rounded-full ${status === 'LISTENING' ? 'animate-ping bg-gold/30' : status === 'SPEAKING' ? 'animate-pulse bg-maroon/25' : busy ? 'animate-spin border-4 border-gold/40 border-t-gold' : ''}`} />
           <span aria-hidden className="relative grid h-24 w-24 place-items-center rounded-full bg-gradient-to-br from-gold-100 to-white text-5xl shadow-inner dark:from-gold/30 dark:to-navy">👩‍💼</span>
@@ -434,9 +588,23 @@ export function VoiceAgent({ embedded = false }: { embedded?: boolean }) {
   return (
     <>
       {open && panel}
-      <button type="button" onClick={() => (open ? close() : setOpen(true))} aria-expanded={open} className="fixed bottom-20 left-4 z-40 flex h-14 items-center gap-2 rounded-full bg-maroon px-4 md:bottom-6 md:left-6 font-semibold text-white shadow-lg transition hover:brightness-110">
-        <span aria-hidden>🎙️</span> {open ? 'Close voice' : 'Voice assistant'}
+      <button
+        type="button"
+        data-testid="voice-pill"
+        onPointerDown={onPillDown}
+        onPointerMove={onPillMove}
+        onPointerUp={onPillUp}
+        onPointerCancel={onPillUp}
+        onKeyDown={onPillKey}
+        onClick={() => { if (suppressClick.current) { suppressClick.current = false; return; } if (open) close(); else { setMinimized(false); setOpen(true); } }}
+        aria-expanded={open}
+        aria-describedby="voice-pill-hint"
+        style={pillY !== null ? { top: pillY, bottom: 'auto' } : undefined}
+        className="fixed bottom-20 left-4 z-40 flex h-14 touch-none select-none items-center gap-2 rounded-full bg-maroon px-4 md:bottom-6 md:left-6 font-semibold text-white shadow-lg transition hover:brightness-110"
+      >
+        <span aria-hidden>🎙️</span> {open ? T[lang].pillClose : T[lang].pill}
       </button>
+      <span id="voice-pill-hint" className="sr-only">{T[lang].pillHint}</span>
     </>
   );
 }

@@ -11,6 +11,7 @@ import { formatDate, formatDateTime } from '@/lib/dates';
 import { formatINR } from '@/lib/fees';
 import { HomeTiles } from './HomeTiles';
 import { comingUp } from '@/lib/app/reminders';
+import { myPendingMessages, verificationNotice } from '@/lib/app/pendingAdmin';
 
 export const metadata = { title: 'Home' };
 
@@ -40,6 +41,7 @@ function Timeline({ steps }: { steps: Awaited<ReturnType<typeof profileData>>['t
 }
 
 export default async function AppHome({ searchParams }: { searchParams?: { welcome?: string } }) {
+  const lang0 = getLang();
   const { visitSlots } = await getContent();
   const u = await requireAppUser();
   const p = u.active;
@@ -60,6 +62,25 @@ export default async function AppHome({ searchParams }: { searchParams?: { welco
       <div className="space-y-4">
         <section className="card p-4"><p className="text-xs font-semibold uppercase tracking-wider text-muted">Alumni network</p><p className="mt-1 font-display text-2xl text-heading">{p.name}</p><p className="mt-1 text-sm text-muted">Mentor current students, share your story, and refer families.</p></section>
         <Link href="/app/alumni" className="btn-gold w-full">Open alumni page</Link>
+      </div>
+    );
+  }
+
+  // a self-sign-up waiting for the admin office: general features only (no college record is linked yet)
+  if (p.kind === 'student' && p.pending) {
+    const notes = await myPendingMessages(p.studentId.replace(/^pending-/, ''));
+    return (
+      <div className="space-y-4">
+        {searchParams?.welcome === 'pending' && <p role="status" data-testid="signup-pending" className="rounded-lg bg-emerald-50 px-3 py-2 text-sm font-medium text-emerald-800 dark:bg-emerald-400/10 dark:text-emerald-200">{signupText(lang0, 'pendingDone')}</p>}
+        <section className="card p-4">
+          <p className="text-xs font-semibold uppercase tracking-wider text-muted">Student account</p>
+          <p className="mt-1 font-display text-2xl text-heading">{p.name}</p>
+          <p className="mt-1 text-sm text-muted">{signupText(lang0, 'pendingBanner')} Your marks, attendance, fees and class details appear here once it is verified.</p>
+        </section>
+        {notes.length > 0 && <section className="card p-4 text-sm" data-testid="office-messages"><p className="text-xs font-semibold uppercase tracking-wider text-muted">From the admin office</p><ul className="mt-1 space-y-1">{notes.map((n, i) => <li key={i}>{n.text} <span className="text-[11px] text-muted">· {formatDateTime(n.at)}</span></li>)}</ul></section>}
+        <nav className="grid grid-cols-2 gap-2 text-sm" aria-label="Available now">
+          {[['/app/openbook', '📘 Open Book library'], ['/app/openbook/generate', '🤖 AI practice questions'], ['/app/openbook/flashcards', '🗂️ Flashcards'], ['/app/openbook/path', '🧭 Learning path'], ['/app/openbook/challenge', '🔥 Daily challenge'], ['/app/practice', '✍️ Practice'], ['/app/openbook/mock', '📝 Mock tests'], ['/app/knowledge', '📖 Knowledge base'], ['/app/notices', '📢 Notices'], ['/app/more', '👤 My profile']].map(([href, label]) => <Link key={href} href={href} className="card p-3 font-medium text-heading">{label}</Link>)}
+        </nav>
       </div>
     );
   }
@@ -104,11 +125,12 @@ export default async function AppHome({ searchParams }: { searchParams?: { welco
   const account = p.kind === 'parent' ? await accountSummary(s.id) : null;
   const lang = getLang();
   // a student account created in the last 14 days: the in-app notice to the parent (the WhatsApp message is the other half)
+  const verified = p.kind === 'student' ? await verificationNotice(s.id) : null;
   const reminders = p.kind === 'student' || p.kind === 'parent' ? await comingUp({ kind: p.kind, studentId: s.id, phone: p.kind === 'parent' ? u.phone : null }).catch((e) => { console.error('[reminders]', (e as Error).message); return []; }) : [];
   const recentAccount = account?.exists && account.status === 'active' && account.createdAt && Date.now() - new Date(account.createdAt).getTime() < 14 * 86_400_000;
   return (
     <div className="space-y-4">
-      {p.kind === 'student' && searchParams?.welcome === '1' && <p role="status" className="rounded-lg bg-emerald-50 px-3 py-2 text-sm font-medium text-emerald-800 dark:bg-emerald-400/10 dark:text-emerald-200">{signupText(lang, 'created')}</p>}
+      {p.kind === 'student' && searchParams?.welcome === '1' && <p role="status" data-testid="signup-active" className="rounded-lg bg-emerald-50 px-3 py-2 text-sm font-medium text-emerald-800 dark:bg-emerald-400/10 dark:text-emerald-200">{signupText(lang, 'created')} {signupText(lang, 'welcome')}, {s.fullName}!</p>}
       {recentAccount && (
         <section className="card border-l-4 border-gold p-4 text-sm">
           <p className="font-semibold text-heading">A student account was created for {s.fullName} ({s.collegeId}) on {formatDate(account!.createdAt!.slice(0, 10), { day: 'numeric', month: 'short' })}.</p>
@@ -116,6 +138,7 @@ export default async function AppHome({ searchParams }: { searchParams?: { welco
           <Link href="/app/student-account" className="mt-2 inline-block font-semibold text-maroon underline dark:text-gold">Manage student account →</Link>
         </section>
       )}
+      {verified && <p role="status" data-testid="verified-notice" className="rounded-lg bg-emerald-50 px-3 py-2 text-sm text-emerald-800 dark:bg-emerald-400/10 dark:text-emerald-200">✓ {verified.text}</p>}
       {reminders.length > 0 && (
         <section className="card border-l-4 border-maroon p-4 text-sm dark:border-gold" aria-label="Coming up">
           <p className="text-[11px] font-semibold uppercase tracking-wider text-muted">Coming up: today &amp; tomorrow</p>

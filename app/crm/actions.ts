@@ -1,4 +1,6 @@
 'use server';
+import { NEXT_COOKIE, safeNext } from '@/lib/crm/nextPath';
+import { cookies } from 'next/headers';
 import { revalidatePath } from 'next/cache';
 import { redirect } from 'next/navigation';
 import { z } from 'zod';
@@ -45,11 +47,20 @@ async function run(fn: () => Promise<string | void>, paths: string[]): Promise<A
 
 // ---------------------------------------------------------------- auth
 
+/** Remembers the page the staff member asked for across the 2FA step (10 minutes, this site only). */
+function rememberNext(fd: FormData) {
+  const next = safeNext(fd.get('next'));
+  if (next) cookies().set(NEXT_COOKIE, next, { httpOnly: true, sameSite: 'lax', secure: process.env.NODE_ENV === 'production', path: '/crm', maxAge: 600 });
+  return next;
+}
+
 export async function loginDevAction(_: ActionState, fd: FormData): Promise<ActionState> {
+  const next = rememberNext(fd);
   const r = await loginAsDevStaff(String(fd.get('staffId') ?? ''));
   if (r === 'mfa') redirect('/crm/login/2fa');
   if (r) return { error: r };
-  redirect('/crm');
+  cookies().delete(NEXT_COOKIE);
+  redirect(next ?? '/crm');
 }
 
 export async function loginPasswordAction(_: ActionState, fd: FormData): Promise<ActionState> {
@@ -57,10 +68,12 @@ export async function loginPasswordAction(_: ActionState, fd: FormData): Promise
   const password = typeof fd.get('password') === 'string' ? String(fd.get('password')) : '';
   if (!email || !password) return { error: 'Enter your email and password.' };
   if (email.length > 254 || password.length > 200) return { error: 'Email or password is incorrect.' };
+  const next = rememberNext(fd);
   const r = await loginWithPassword(email, password);
   if (r === 'mfa') redirect('/crm/login/2fa');
   if (r) return { error: r };
-  redirect('/crm');
+  cookies().delete(NEXT_COOKIE);
+  redirect(next ?? '/crm');
 }
 
 export async function logoutAction() {

@@ -8,7 +8,7 @@ import { can } from '../crm/permissions';
 import { usingSupabase } from '../crm/repo';
 import type { Staff } from '../crm/types';
 import { getRecordStore } from '../records';
-import { studentAuthAudit, studentCredentials } from '../records/collections';
+import { pendingSignups, studentAuthAudit, studentCredentials } from '../records/collections';
 import { sendTemplate } from '../whatsapp/service';
 import { getAppStore } from './service';
 
@@ -30,7 +30,6 @@ export class StudentAccountError extends Error {
 }
 
 export const MSG = {
-  noMatch: 'These details don’t match our records. Check your College ID and date of birth, or contact the admin office.',
   exists: 'An account already exists for this College ID. Sign in or reset your password.',
   tooMany: 'Too many attempts. Please try again later.',
   blocked: 'This account is blocked. Please contact the admin office.',
@@ -47,11 +46,65 @@ async function credList(store: ReturnType<typeof getRecordStore>, f?: { k1?: str
 }const sha = (t: string) => createHash('sha256').update(t).digest('hex');
 const now = () => new Date().toISOString();
 export const internalLoginId = (collegeId: string) => `${collegeId.toLowerCase().replace(/[^a-z0-9-]/g, '-')}@students.bjc.internal`;
-export const normCollegeId = (raw: string) => raw.trim().toUpperCase().replace(/\s+/g, '-').replace(/-+/g, '-');
+/** Trim, upper-case, any dash character or space → "-", and "BJC2027JEE0007" → "BJC-2027-JEE-0007". */
+export const normCollegeId = (raw: string) => {
+  const s = raw.trim().toUpperCase().replace(/[‐-―−﹘﹣－_]/g, '-').replace(/\s+/g, '-').replace(/-+/g, '-').replace(/^-|-$/g, '');
+  const m = /^([A-Z]{2,5})-?(\d{4})-?([A-Z]{2,6})-?(\d{3,5})$/.exec(s);
+  return m ? `${m[1]}-${m[2]}-${m[3]}-${m[4]}` : s;
+};
+
+/** Plain YYYY-MM-DD (no time zone involved). Accepts YYYY-MM-DD and DD/MM/YYYY (also with - or .). Null if not a real date. */
+export function normDob(raw: string): string | null {
+  const t = raw.trim();
+  let y: number, mo: number, d: number;
+  let m = /^(\d{4})-(\d{1,2})-(\d{1,2})$/.exec(t);
+  if (m) [y, mo, d] = [+m[1], +m[2], +m[3]];
+  else if ((m = /^(\d{1,2})[/.-](\d{1,2})[/.-](\d{4})$/.exec(t))) [d, mo, y] = [+m[1], +m[2], +m[3]];
+  else return null;
+  const dt = new Date(Date.UTC(y, mo - 1, d));
+  if (dt.getUTCFullYear() !== y || dt.getUTCMonth() !== mo - 1 || dt.getUTCDate() !== d) return null;
+  return `${y}-${String(mo).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+}
+
+/**
+ * Name similarity 0..1: case, extra spaces, dots and word order don't matter; an initial matches a word; small
+ * spelling differences count partly. Exact token match (namesMatch) = 1.
+ */
+export function nameSimilarity(given: string, record: string): number {
+  if (namesMatch(given, record)) return 1;
+  const toks = (s: string) => s.toLowerCase().normalize('NFKD').replace(/[̀-ͯ]/g, '').replace(/[^\p{L}\s]/gu, ' ').split(/\s+/).filter(Boolean);
+  const a = toks(given), b = toks(record);
+  if (!a.length || !b.length) return 0;
+  const bigrams = (w: string) => { const out: string[] = []; for (let i = 0; i < w.length - 1; i++) out.push(w.slice(i, i + 2)); return out; };
+  const dice = (x: string, y: string) => {
+    if (x === y) return 1;
+    if (x.length < 2 || y.length < 2) return 0;
+    const bx = bigrams(x), by = bigrams(y);
+    let hit = 0; const pool = [...by];
+    for (const g of bx) { const i = pool.indexOf(g); if (i >= 0) { hit++; pool.splice(i, 1); } }
+    return (2 * hit) / (bx.length + by.length);
+  };
+  const left = [...b];
+  let score = 0;
+  for (const w of [...a].sort((x, y) => y.length - x.length)) {
+    let best = -1, bestS = 0;
+    left.forEach((x, i) => {
+      const s = x === w ? 1 : (w.length === 1 && x[0] === w) || (x.length === 1 && w[0] === x) ? 0.9 : dice(w, x);
+      if (s > bestS) { bestS = s; best = i; }
+    });
+    if (best >= 0 && bestS >= 0.6) { score += bestS; left.splice(best, 1); }
+  }
+  const tokenScore = (2 * score) / (a.length + b.length);
+  const whole = dice([...a].sort().join(''), [...b].sort().join(''));
+  return Math.round(Math.max(tokenScore, whole) * 1000) / 1000;
+}
+export const NAME_MATCH = 0.8;
 
 // ---------------------------------------------------------------- validation (shared with the form)
 
 export const COLLEGE_ID_RE = /^[A-Z]{2,5}-\d{4}-[A-Z]{2,6}-\d{3,5}$/;
+/** Any college ID / admission number shape the college uses (letters, digits, dashes). */
+export const ADMISSION_NO_RE = /^[A-Z0-9][A-Z0-9-]{3,29}$/;
 
 /** "K. Ravi Teja" = "Ravi Teja K" = "ravi  teja k": case, spaces, dots and word order don't matter; an initial matches a word. */
 export function namesMatch(given: string, record: string): boolean {
@@ -91,8 +144,8 @@ export function ageProblem(dob: string, today = new Date()): string | null {
 
 interface PasswordBackend {
   create(collegeId: string, studentId: string, password: string): Promise<{ authUserId: string | null; passwordHash: string }>;
-  verify(cred: { authUserId: string | null; passwordHash: string; collegeId: string }, password: string): Promise<boolean>;
-  set(cred: { authUserId: string | null; collegeId: string; studentId: string }, password: string): Promise<{ authUserId: string | null; passwordHash: string }>;
+  verify(cred: { authUserId: string | null; passwordHash: string; collegeId: string; authLogin?: string | null }, password: string): Promise<boolean>;
+  set(cred: { authUserId: string | null; collegeId: string; studentId: string; authLogin?: string | null }, password: string): Promise<{ authUserId: string | null; passwordHash: string }>;
   ban(authUserId: string | null, banned: boolean): Promise<void>;
 }
 
@@ -108,10 +161,10 @@ function backend(): PasswordBackend {
     };
   }
   const admin = createClient(url, service, opts);
-  const create = async (collegeId: string, studentId: string, password: string) => {
+  const create = async (loginKey: string, studentId: string, password: string) => {
     const { data, error } = await admin.auth.admin.createUser({
-      email: internalLoginId(collegeId), password, email_confirm: true, // internal id: no email is ever sent
-      app_metadata: { role: 'student', college_id: collegeId, student_id: studentId }, user_metadata: { kind: 'student' },
+      email: internalLoginId(loginKey), password, email_confirm: true, // internal id: no email is ever sent
+      app_metadata: { role: 'student', college_id: loginKey, student_id: studentId }, user_metadata: { kind: 'student' },
     });
     if (error || !data.user) {
       if (error && /already|registered|exists/i.test(error.message)) throw new StudentAccountError(MSG.exists);
@@ -124,12 +177,12 @@ function backend(): PasswordBackend {
     async verify(c, pw) {
       if (!c.authUserId) return !!c.passwordHash && checkPassword(pw, c.passwordHash); // older accounts, migrated on success
       const sb = createClient(url, anon, opts);
-      const { data, error } = await sb.auth.signInWithPassword({ email: internalLoginId(c.collegeId), password: pw });
+      const { data, error } = await sb.auth.signInWithPassword({ email: internalLoginId(c.authLogin ?? c.collegeId), password: pw });
       await sb.auth.signOut().catch(() => undefined); // our own session cookie is the session
       return !error && data.user?.id === c.authUserId;
     },
     async set(c, pw) {
-      if (!c.authUserId) return create(c.collegeId, c.studentId, pw);
+      if (!c.authUserId) return create(c.authLogin ?? c.collegeId, c.studentId, pw);
       const { error } = await admin.auth.admin.updateUserById(c.authUserId, { password: pw });
       if (error) throw new Error(`student auth password update failed: ${error.message}`);
       return { authUserId: c.authUserId, passwordHash: '' };
@@ -161,8 +214,9 @@ export function signUpFieldErrors(i: SignUpInput): Record<string, string> {
   const e: Record<string, string> = {};
   const name = i.name.trim().replace(/\s+/g, ' ');
   if (!/^[\p{L}\d][\p{L}\d .'-]{1,59}$/u.test(name) || name.replace(/[^\p{L}]/gu, '').length < 2) e.name = 'Enter your name as in college records (2–60 letters).';
-  if (!COLLEGE_ID_RE.test(normCollegeId(i.collegeId))) e.collegeId = 'Enter your College ID, like BJC-2027-JEE-0001.';
-  const age = ageProblem(i.dob);
+  if (!ADMISSION_NO_RE.test(normCollegeId(i.collegeId))) e.collegeId = 'Enter your College ID or admission number, like BJC-2027-JEE-0001.';
+  const dob = normDob(i.dob);
+  const age = dob ? ageProblem(dob) : 'Enter a valid date of birth.';
   if (age) e.dob = age;
   const pw = passwordProblem(i.password, normCollegeId(i.collegeId));
   if (pw) e.password = pw;
@@ -171,30 +225,69 @@ export function signUpFieldErrors(i: SignUpInput): Record<string, string> {
   return e;
 }
 
-/** Creates the account and returns the College ID to sign in with. Throws StudentAccountError with a field-safe message. */
-export async function signUp(i: SignUpInput, ip: string | null): Promise<{ collegeId: string; studentId: string }> {
+/** A: linked and active at once · pending: B / C / E, waiting for the admin office · exists: D (no new account). */
+export type SignUpResult =
+  | { kind: 'active'; collegeId: string; studentId: string; name: string }
+  | { kind: 'pending'; pendingId: string; name: string }
+  | { kind: 'exists' };
+
+const tempIdOf = () => `TMP-${randomInt(0, 36 ** 6).toString(36).toUpperCase().padStart(6, '0')}`;
+const blankCred = { status: 'active' as const, statusBy: null, statusAt: null, resetCodeHash: null, resetCodeExp: null, resetCodeBy: null, resetFailed: 0, failed: 0, lockedUntil: null, email: null, emailVerifiedAt: null, emailTokenHash: null, emailTokenExp: null, verifiedPhone: null, isTest: false };
+
+/**
+ * Every valid sign-up succeeds (master prompt task 2). Matching is server-side only and never tells the student
+ * which detail differed:
+ * A record matches (College ID + DOB + name ≥ 0.8) and has no account → active, linked.
+ * B no record → pending · C record exists, details differ → pending + conflict · E College ID already has an
+ * account with other details → pending + conflict · D the same person already has an account → no new account.
+ */
+export async function signUp(i: SignUpInput, ip: string | null): Promise<SignUpResult> {
   const collegeId = normCollegeId(i.collegeId);
-  if (i.website) { await audit('signup', 'honeypot', null, ip); throw new StudentAccountError(MSG.noMatch); }
+  if (i.website) { await audit('signup', 'honeypot', null, ip); throw new StudentAccountError('Something went wrong. Please try again.'); }
   if ((await attempts('signup', { ip }, 3600_000)) >= 5 || (await attempts('signup', { collegeId }, 86_400_000)) >= 5) {
     await audit('signup', 'rate_limited', collegeId, ip);
     throw new StudentAccountError(MSG.tooMany);
   }
   const errs = signUpFieldErrors(i);
   if (Object.keys(errs).length) { const [f, m] = Object.entries(errs)[0]; throw new StudentAccountError(m, f); }
-  const s = await getAppStore().studentByCollegeId(collegeId);
-  if (!s?.collegeId || s.dob !== i.dob || !namesMatch(i.name, s.fullName)) {
-    await audit('signup', 'no_match', collegeId, ip);
-    throw new StudentAccountError(MSG.noMatch); // never says which field was wrong
-  }
-  const prev = (await credList(st(), { k1: s.collegeId }))[0];
-  if (prev) { await audit('signup', 'exists', collegeId, ip); throw new StudentAccountError(MSG.exists); }
-  const pw = await backend().create(s.collegeId, s.id, i.password);
-  await studentCredentials.put(st(), { collegeId: s.collegeId, studentId: s.id, ...pw, status: 'active', statusBy: null, statusAt: null, createdAt: now(), resetCodeHash: null, resetCodeExp: null, resetCodeBy: null, resetFailed: 0, failed: 0, lockedUntil: null, email: null, emailVerifiedAt: null, emailTokenHash: null, emailTokenExp: null, verifiedPhone: null, source: 'signup' });
-  await audit('signup', 'created', collegeId, ip);
-  await notifyParents(s.id, s.fullName, s.collegeId);
-  return { collegeId: s.collegeId, studentId: s.id };
-}
+  const dob = normDob(i.dob)!;
+  const name = i.name.trim().replace(/\s+/g, ' ');
+  const same = (n: string, d: string) => d === dob && nameSimilarity(name, n) >= NAME_MATCH;
 
+  const s = await getAppStore().studentByCollegeId(collegeId);
+  const creds = await credList(st(), { k1: s?.collegeId ?? collegeId });
+  const realCred = s ? creds.find((c) => c.data.studentId === s.id) : undefined;
+  const pendings = (await pendingSignups.list(st(), { k1: collegeId })).filter((p) => p.data.status === 'pending');
+
+  // D: this person already has an account (linked, or an earlier pending sign-up with the same details)
+  if ((s && realCred && same(s.fullName, s.dob)) || pendings.some((p) => same(p.data.fullName, p.data.dob))) {
+    await audit('signup', 'exists', collegeId, ip);
+    return { kind: 'exists' };
+  }
+  // A: matching record without an account
+  if (s?.collegeId && !realCred && same(s.fullName, s.dob)) {
+    const pw = await backend().create(s.collegeId, s.id, i.password);
+    await studentCredentials.put(st(), { ...blankCred, collegeId: s.collegeId, studentId: s.id, ...pw, createdAt: now(), source: 'signup', pendingId: null, authLogin: null });
+    await audit('signup', 'created', collegeId, ip);
+    await notifyParents(s.id, s.fullName, s.collegeId);
+    return { kind: 'active', collegeId: s.collegeId, studentId: s.id, name: s.fullName };
+  }
+  // B / C / E: a pending account of its own, never linked to anyone else's record
+  const kase: 'B' | 'C' | 'E' = !s && !pendings.length ? 'B' : s && !realCred ? 'C' : 'E';
+  const conflictType = kase === 'B' ? null : kase === 'C' ? 'record_mismatch' : s ? 'duplicate_account' : 'duplicate_signup';
+  const tempId = tempIdOf();
+  const rec = await pendingSignups.put(st(), { fullName: name, collegeId, dob, tempId, case: kase, conflictType, conflictStudentId: s?.id ?? null, status: 'pending', linkedStudentId: null, resolution: null, decidedBy: null, decidedAt: null, isTest: false, source: 'self-signup', createdAt: now(), messages: [] });
+  const pendingStudentId = `pending-${rec.id}`;
+  try {
+    const pw = await backend().create(tempId, pendingStudentId, i.password);
+    await studentCredentials.put(st(), { ...blankCred, collegeId, studentId: pendingStudentId, ...pw, createdAt: now(), source: 'self-signup', pendingId: rec.id, authLogin: tempId });
+  } catch (e) {
+    await pendingSignups.remove(st(), rec.id).catch(() => undefined);
+    throw e;
+  }
+  await audit('signup', `pending_${kase}`, collegeId, ip);
+  return { kind: 'pending', pendingId: rec.id, name };
+}
 /** WhatsApp to every linked parent/guardian (the in-app notice is the parent home card). */
 async function notifyParents(studentId: string, name: string, collegeId: string) {
   for (const g of await getAppStore().guardiansOf(studentId)) {
@@ -205,37 +298,45 @@ async function notifyParents(studentId: string, name: string, collegeId: string)
 // ---------------------------------------------------------------- sign-in
 
 const MAX_FAILS = 5, LOCK_MS = 15 * 60_000;
-export async function verifyStudentLogin(idRaw: string, password: string, ip: string | null): Promise<{ ok: true; collegeId: string } | { ok: false; reason: 'invalid' | 'locked' | 'blocked' | 'unverified' }> {
+export async function verifyStudentLogin(idRaw: string, password: string, ip: string | null): Promise<{ ok: true; collegeId: string; subject: string } | { ok: false; reason: 'invalid' | 'locked' | 'blocked' | 'unverified' }> {
   const id = idRaw.includes('@') ? idRaw.trim().toLowerCase() : normCollegeId(idRaw);
-  const cred = id.includes('@') ? (await credList(st())).find((c) => c.data.email === id) : (await credList(st(), { k1: id }))[0];
-  if (!cred) { await audit('login', 'unknown', id.includes('@') ? null : id, ip); return { ok: false, reason: 'invalid' }; }
-  const c = cred.data;
-  if (c.status !== 'active') { await audit('login', c.status, c.collegeId, ip); return { ok: false, reason: 'blocked' }; }
-  if (c.lockedUntil && new Date(c.lockedUntil) > new Date()) return { ok: false, reason: 'locked' };
-  if (c.source === 'self' && !c.emailVerifiedAt && !c.authUserId && c.passwordHash && !c.createdAt) return { ok: false, reason: 'unverified' };
+  const all = id.includes('@') ? (await credList(st())).filter((c) => c.data.email === id) : await credList(st(), { k1: id });
+  if (!all.length) { await audit('login', 'unknown', id.includes('@') ? null : id, ip); return { ok: false, reason: 'invalid' }; }
+  // One College ID can have a linked account and pending sign-ups (cases C/E): the password says whose it is.
+  // Linked accounts are tried first; blocked / disabled ones never sign in.
+  const ordered = [...all].sort((a, b) => Number(!!a.data.pendingId) - Number(!!b.data.pendingId));
   const b = backend();
-  if (!(await b.verify(c, password))) {
+  let lastBad: (typeof all)[number] | null = null;
+  for (const cred of ordered) {
+    const c = cred.data;
+    if (c.lockedUntil && new Date(c.lockedUntil) > new Date()) { if (all.length === 1) return { ok: false, reason: 'locked' }; continue; }
+    if (c.source === 'self' && !c.emailVerifiedAt && !c.authUserId && c.passwordHash && !c.createdAt) return { ok: false, reason: 'unverified' };
+    if (!(await b.verify(c, password))) { lastBad = cred; continue; }
+    if (c.status !== 'active') { await audit('login', c.status, c.collegeId, ip); return { ok: false, reason: 'blocked' }; }
+    let next = { ...c, failed: 0, lockedUntil: null };
+    // an older account (hash in our store) moves into Supabase Auth on its first successful sign-in
+    if (!c.authUserId && usingSupabase()) {
+      try { next = { ...next, ...(await b.set(c, password)) }; } catch (e) { console.error('[student-account] migration to Supabase Auth failed', (e as Error).message); }
+    }
+    await studentCredentials.put(st(), next, cred.id);
+    await audit('login', 'ok', c.collegeId, ip);
+    return { ok: true, collegeId: c.collegeId, subject: c.pendingId ? `pend:${c.pendingId}` : `cid:${c.collegeId}` };
+  }
+  if (lastBad) {
+    const c = lastBad.data;
     const failed = c.failed + 1;
-    await studentCredentials.put(st(), { ...c, failed, lockedUntil: failed >= MAX_FAILS ? new Date(Date.now() + LOCK_MS).toISOString() : null }, cred.id);
+    await studentCredentials.put(st(), { ...c, failed, lockedUntil: failed >= MAX_FAILS ? new Date(Date.now() + LOCK_MS).toISOString() : null }, lastBad.id);
     await audit('login', 'bad_password', c.collegeId, ip);
     return { ok: false, reason: failed >= MAX_FAILS ? 'locked' : 'invalid' };
   }
-  let next = { ...c, failed: 0, lockedUntil: null };
-  // an older account (hash in our store) moves into Supabase Auth on its first successful sign-in
-  if (!c.authUserId && usingSupabase()) {
-    try { next = { ...next, ...(await b.set(c, password)) }; } catch (e) { console.error('[student-account] migration to Supabase Auth failed', (e as Error).message); }
-  }
-  await studentCredentials.put(st(), next, cred.id);
-  await audit('login', 'ok', c.collegeId, ip);
-  return { ok: true, collegeId: c.collegeId };
+  return { ok: false, reason: 'locked' };
 }
-
 // ---------------------------------------------------------------- block / disable / reset
 
 async function credFor(studentId: string) {
   const s = await getAppStore().getStudent(studentId);
   if (!s?.collegeId) return null;
-  const c = (await credList(st(), { k1: s.collegeId }))[0];
+  const c = (await credList(st(), { k1: s.collegeId })).find((x) => x.data.studentId === studentId);
   return c ? { s, c } : { s, c: null };
 }
 
@@ -294,7 +395,8 @@ export async function resetWithCode(idRaw: string, code: string, password: strin
   const pwErr = passwordProblem(password, collegeId);
   if (pwErr) throw new StudentAccountError(pwErr, 'password');
   if (password !== confirm) throw new StudentAccountError('The two passwords don’t match.', 'confirm');
-  const cred = (await credList(st(), { k1: collegeId }))[0];
+  const creds = await credList(st(), { k1: collegeId });
+  const cred = creds.find((x) => x.data.resetCodeHash && x.data.resetCodeHash === sha(`${collegeId}:${code}`)) ?? creds.find((x) => !x.data.pendingId) ?? creds[0];
   const c = cred?.data;
   const ok = !!c?.resetCodeHash && !!c.resetCodeExp && new Date(c.resetCodeExp) > new Date() && c.resetFailed < 5 && /^\d{6}$/.test(code) && timingSafeEqual(Buffer.from(sha(`${collegeId}:${code}`)), Buffer.from(c.resetCodeHash));
   if (!ok) {
@@ -313,9 +415,9 @@ export async function resetWithCode(idRaw: string, code: string, password: strin
 export async function changeOwnPassword(collegeId: string, studentId: string, password: string) {
   const err = passwordProblem(password, collegeId);
   if (err) return err;
-  const prev = (await credList(st(), { k1: collegeId }))[0];
-  const pw = await backend().set({ authUserId: prev?.data.authUserId ?? null, collegeId, studentId }, password);
+  const prev = (await credList(st(), { k1: collegeId })).find((x) => x.data.studentId === studentId);
+  const pw = await backend().set({ authUserId: prev?.data.authUserId ?? null, collegeId, studentId, authLogin: prev?.data.authLogin ?? null }, password);
   if (prev) await studentCredentials.put(st(), { ...prev.data, ...pw, failed: 0, lockedUntil: null }, prev.id);
-  else await studentCredentials.put(st(), { collegeId, studentId, ...pw, status: 'active', statusBy: null, statusAt: null, createdAt: now(), resetCodeHash: null, resetCodeExp: null, resetCodeBy: null, resetFailed: 0, failed: 0, lockedUntil: null, email: null, emailVerifiedAt: null, emailTokenHash: null, emailTokenExp: null, verifiedPhone: null, source: 'app' });
+  else await studentCredentials.put(st(), { ...blankCred, collegeId, studentId, ...pw, createdAt: now(), source: 'app', pendingId: null, authLogin: null });
   return null;
 }

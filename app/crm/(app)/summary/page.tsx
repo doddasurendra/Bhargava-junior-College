@@ -3,17 +3,23 @@ import { Empty, Panel } from '@/components/crm/ui';
 import { requireStaff } from '@/lib/crm/auth';
 import { formatDate, todayIST } from '@/lib/dates';
 import { summary } from '@/lib/school/summary';
+import { canSeeInstitution } from '@/lib/school/institution';
+import { InstitutionDashboard } from './Institution';
 
 export const metadata = { title: 'Summary' };
 export const dynamic = 'force-dynamic';
 
-export default async function SummaryPage() {
+export const maxDuration = 60;
+
+export default async function SummaryPage({ searchParams }: { searchParams: { from?: string; to?: string; year?: string } }) {
   const user = await requireStaff();
+  const full = canSeeInstitution(user);
   const { sections, events } = await summary(user);
   return (
-    <div className="max-w-6xl space-y-5">
+    <div className="max-w-7xl space-y-5">
+      {full && <InstitutionDashboard user={user} q={searchParams} />}
       <div>
-        <h1 className="font-display text-3xl text-heading">Summary</h1>
+        <h1 className={full ? 'font-display text-xl text-heading' : 'font-display text-3xl text-heading'}>{full ? 'Today in each module' : 'Summary'}</h1>
         <p className="text-sm text-muted">Today across the college · {formatDate(todayIST(), { weekday: 'long', day: 'numeric', month: 'long' })}. Each card opens the detailed page.</p>
       </div>
       {sections.length === 0 && <Panel title="Summary"><Empty>Nothing to summarise for your role.</Empty></Panel>}

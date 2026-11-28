@@ -163,6 +163,12 @@ export function createSupabaseVerifyRepo(sb: SupabaseClient): VerifyRepo {
       );
     },
 
+    async officeAddStudent(s, actorId) {
+      const { data, error } = await sb.rpc('office_add_student', { p_actor: actorId, p: { full_name: s.fullName, dob: s.dob, gender: s.gender, program: s.program, stay: s.stay, guardian_name: s.guardianName, guardian_phone: s.guardianPhone, relation: s.relation ?? 'parent', college_id: s.collegeId } });
+      if (error) throw /college_id_exists/.test(error.message) ? new RepoConflict('college_id_exists') : new Error(`office_add_student: ${error.message}`);
+      return data as string;
+    },
+
     async issueCollegeId(leadId, actorId) {
       const c = (await numbering()).collegeId;
       return ok(await sb.rpc('issue_college_id', { p_lead: leadId, p_actor: actorId, p_template: c.template, p_year: c.year, p_codes: c.programCodes, p_digits: c.seqDigits })) as string;

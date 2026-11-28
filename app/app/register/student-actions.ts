@@ -1,37 +1,44 @@
 'use server';
 import { headers } from 'next/headers';
 import { redirect } from 'next/navigation';
-import { recordConsent, startStudentSession } from '@/lib/app/service';
+import { recordConsent, startPendingSession, startStudentSession } from '@/lib/app/service';
 import { resetWithCode, signUp, signUpFieldErrors, StudentAccountError } from '@/lib/app/studentAccount';
 import { getLang } from '@/lib/i18n-server';
 import { sErr } from '@/lib/app/signupText';
 
-export interface FormState { error?: string; fields?: Record<string, string>; done?: string; exists?: boolean }
+export interface FormState { error?: string; fields?: Record<string, string>; done?: string; exists?: boolean; /** case D: friendly information, not an error */ info?: 'exists' }
 
 const ip = () => headers().get('x-forwarded-for')?.split(',')[0]?.trim() || null;
 const str = (fd: FormData, k: string) => (typeof fd.get(k) === 'string' ? String(fd.get(k)) : '');
 const tr = (m: string) => sErr(getLang(), m);
 const trFields = (f: Record<string, string>) => Object.fromEntries(Object.entries(f).map(([k, v]) => [k, tr(v)]));
 
-/** Single-form student sign-up: name + College ID + date of birth + password; matched against the college record. */
+/** Single-form student sign-up. Every valid sign-up succeeds: linked at once (A), pending verification (B/C/E), or 'you already have an account' (D). */
 export async function studentSignUpAction(_: FormState, fd: FormData): Promise<FormState> {
   const input = { name: str(fd, 'name'), collegeId: str(fd, 'collegeId'), dob: str(fd, 'dob'), password: str(fd, 'password'), confirm: str(fd, 'confirm'), consent: fd.get('consent') === 'on', website: str(fd, 'website') };
   const fields = signUpFieldErrors(input);
   if (Object.keys(fields).length && !input.website) return { fields: trFields(fields) };
-  let collegeId: string;
+  let r: Awaited<ReturnType<typeof signUp>>;
   try {
-    collegeId = (await signUp(input, ip())).collegeId;
+    r = await signUp(input, ip());
   } catch (e) {
     if (e instanceof StudentAccountError) {
       if (e.field) return { fields: { [e.field]: tr(e.message) } };
-      return { error: tr(e.message), exists: /already exists/.test(e.message) };
+      return { error: tr(e.message) };
     }
     console.error('[student-signup] failed', e);
     return { error: tr('Something went wrong. Please try again.') };
   }
-  await startStudentSession(collegeId);
-  await recordConsent(`cid:${collegeId}`); // the consent box on this form is the DPDP consent
-  redirect('/app?welcome=1');
+  if (r.kind === 'exists') return { info: 'exists' };
+  // the consent box on this form is the DPDP consent
+  if (r.kind === 'active') {
+    await startStudentSession(r.collegeId);
+    await recordConsent(`cid:${r.collegeId}`);
+    redirect('/app?welcome=1');
+  }
+  await startPendingSession(r.pendingId);
+  await recordConsent(`pend:${r.pendingId}`);
+  redirect('/app?welcome=pending');
 }
 
 /** Forgot password: College ID + one-time code (from a parent or the admin office) + new password. */

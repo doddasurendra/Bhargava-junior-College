@@ -14,13 +14,15 @@ const ICON: Record<string, string> = {
   star: 'M12 3l2.7 5.6 6.1.9-4.4 4.3 1 6.1L12 17l-5.4 2.9 1-6.1L3.2 9.5l6.1-.9L12 3Z',
 };
 
-type Kind = 'parent' | 'student' | 'applicant' | 'alumni' | null;
+type Kind = 'parent' | 'student' | 'pending' | 'applicant' | 'alumni' | null;
 
 const NAV: Record<string, { href: string; label: string; icon: string }[]> = {
   student: [{ href: '/app', label: 'Home', icon: 'home' }, { href: '/app/openbook', label: 'Open Book', icon: 'study' }, { href: '/app/study', label: 'Study', icon: 'study' }, { href: '/app/tests', label: 'Tests', icon: 'test' }, { href: '/app/knowledge', label: 'Knowledge', icon: 'doc' }, { href: '/app/doubts', label: 'Doubts', icon: 'chat' }, { href: '/app/more', label: 'More', icon: 'more' }],
   parent: [{ href: '/app', label: 'Home', icon: 'home' }, { href: '/app/results', label: 'Progress', icon: 'chart' }, { href: '/app/fees', label: 'Fees', icon: 'fees' }, { href: '/app/knowledge', label: 'Knowledge', icon: 'doc' }, { href: '/app/messages', label: 'Teacher', icon: 'chat' }, { href: '/app/more', label: 'More', icon: 'more' }],
   applicant: [{ href: '/app', label: 'Status', icon: 'home' }, { href: '/app/apply', label: 'Apply', icon: 'doc' }, { href: '/app/documents', label: 'Documents', icon: 'study' }, { href: '/app/more', label: 'More', icon: 'more' }],
   alumni: [{ href: '/app', label: 'Home', icon: 'home' }, { href: '/app/alumni', label: 'Alumni', icon: 'star' }, { href: '/app/more', label: 'More', icon: 'more' }],
+  // a sign-up waiting for verification: general features only
+  pending: [{ href: '/app', label: 'Home', icon: 'home' }, { href: '/app/openbook', label: 'Open Book', icon: 'study' }, { href: '/app/practice', label: 'Practice', icon: 'star' }, { href: '/app/knowledge', label: 'Help', icon: 'doc' }, { href: '/app/more', label: 'More', icon: 'more' }],
 };
 
 /** Bottom tabs for the active profile (§9A: each login gets its own home and menu). */

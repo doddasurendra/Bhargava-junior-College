@@ -266,6 +266,7 @@ export function ChatWidget({ facts }: { facts: BotFacts }) {
           setNudge(false);
           setUnread(0);
         }}
+        data-floating-widget="chat"
         className="fixed bottom-20 right-4 z-40 flex h-14 items-center gap-2 rounded-full bg-navy pl-1.5 pr-4 text-white shadow-lg transition hover:bg-navy-800 md:bottom-6 md:right-6"
       >
         {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -275,7 +276,7 @@ export function ChatWidget({ facts }: { facts: BotFacts }) {
       </button>
 
       {open && (
-        <section role="dialog" aria-label="Bhargava Admission Assistant" className="fixed inset-x-2 bottom-[9.5rem] z-50 flex max-h-[70vh] animate-rise flex-col overflow-hidden rounded-2xl bg-surface shadow-2xl ring-1 ring-line md:inset-x-auto md:bottom-24 md:right-6 md:h-[560px] md:w-[380px]">
+        <section role="dialog" aria-label="Bhargava Admission Assistant" data-floating-widget="chat-panel" className="fixed inset-x-2 bottom-[9.5rem] z-50 flex max-h-[70vh] animate-rise flex-col overflow-hidden rounded-2xl bg-surface shadow-2xl ring-1 ring-line md:inset-x-auto md:bottom-24 md:right-6 md:h-[560px] md:w-[380px]">
           <header className="flex items-center gap-3 bg-navy px-4 py-3 text-white">
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img src={college.logoSrc} alt="" width={36} height={36} className="h-9 w-9 rounded-full bg-white" />

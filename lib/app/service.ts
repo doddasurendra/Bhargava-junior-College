@@ -10,7 +10,7 @@ import { getCrmRepo } from '../crm/repo';
 import { decodeToken, encodeToken } from '../crm/session';
 import { getRecordStore } from '../records';
 import { changeOwnPassword, verifyStudentLogin } from './studentAccount';
-import { alumni, consents, studentCredentials } from '../records/collections';
+import { pendingSignups, alumni, consents, studentCredentials } from '../records/collections';
 import { formatDateTime } from '../dates';
 import { issueOtp, verifyOtp } from '../otp';
 import { maskPhone } from '../phone';
@@ -40,6 +40,16 @@ const APP_SESSION_S = 30 * 24 * 3600; // parents stay signed in for 30 days on t
  */
 export async function resolveProfiles(phone: string): Promise<Profile[]> {
   const st = getAppStore();
+  // a self-sign-up waiting for verification: its own limited profile, or the real student once the office links it
+  if (phone.startsWith('pend:')) {
+    const pend = await pendingSignups.get(getRecordStore(), phone.slice(5));
+    if (!pend || pend.data.status === 'rejected') return [];
+    if (pend.data.status === 'linked' && pend.data.linkedStudentId) {
+      const s = await st.getStudent(pend.data.linkedStudentId);
+      return s?.collegeId ? [{ key: `s:${s.id}`, kind: 'student', studentId: s.id, leadId: s.leadId, name: s.fullName, collegeId: s.collegeId }] : [];
+    }
+    return [{ key: `s:pending-${pend.id}`, kind: 'student', studentId: `pending-${pend.id}`, leadId: '', name: pend.data.fullName, collegeId: pend.data.collegeId, pending: true }];
+  }
   // signed in with College ID + password: just that student
   if (phone.startsWith('cid:')) {
     const s = await st.studentByCollegeId(phone.slice(4));
@@ -154,13 +164,16 @@ export async function loginWithCollegeId(idRaw: string, password: string): Promi
   const ip = headers().get('x-forwarded-for')?.split(',')[0]?.trim() || null;
   const r = await verifyStudentLogin(idRaw, password, ip);
   if (!r.ok) return r.reason;
-  await startAppSession(`cid:${r.collegeId}`);
+  await startAppSession(r.subject);
   return 'ok';
 }
 
-/** Starts the app session for a student right after sign-up (the account was just created from a matched record). */
+/** Starts the app session right after sign-up: a linked student (cid:) or a pending sign-up (pend:). */
 export async function startStudentSession(collegeId: string) {
   await startAppSession(`cid:${collegeId}`);
+}
+export async function startPendingSession(pendingId: string) {
+  await startAppSession(`pend:${pendingId}`);
 }
 
 /** A signed-in student changes their own password. */

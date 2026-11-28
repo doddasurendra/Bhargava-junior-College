@@ -10,6 +10,7 @@ import { pickActiveRole } from '@/lib/crm/permissions';
 import { revokeAll } from '@/lib/auth/sessions';
 import { getRecordStore } from '@/lib/records';
 import { decodeToken, RC_COOKIE, SESSION_COOKIE } from '@/lib/crm/session';
+import { NEXT_COOKIE, safeNext } from '@/lib/crm/nextPath';
 import type { ActionState } from './actions';
 
 const code = (fd: FormData) => String(fd.get('code') ?? '').trim().slice(0, 20);
@@ -38,7 +39,9 @@ export async function mfaVerifyAction(_: ActionState, fd: FormData): Promise<Act
   const r = await getAuthService().secondFactor(staffId, code(fd), requestCtx());
   if (r.kind === 'error') return { error: r.message };
   await setSession(r.staffId, r.sv, true);
-  redirect(r.method === 'recovery' ? `/crm/account?recovery=${r.recoveryLeft}` : '/crm');
+  const next = safeNext(cookies().get(NEXT_COOKIE)?.value);
+  cookies().delete(NEXT_COOKIE);
+  redirect(r.method === 'recovery' ? `/crm/account?recovery=${r.recoveryLeft}` : next ?? '/crm');
 }
 
 /** Confirms the first code from a newly added authenticator — at sign-in, or from My account. */

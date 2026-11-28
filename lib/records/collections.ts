@@ -624,7 +624,12 @@ export const studentCredentials = collection({
     emailTokenExp: z.string().nullable().default(null),
     /** the mobile that received the registration code (the student's own, or a parent's) */
     verifiedPhone: z.string().nullable().default(null),
-    source: z.enum(['app', 'self', 'signup']).default('app'),
+    source: z.enum(['app', 'self', 'signup', 'self-signup']).default('app'),
+    /** self-sign-up still waiting for the admin office (pending_signups id); studentId is then 'pending-<id>' */
+    pendingId: z.string().max(80).nullable().default(null),
+    /** internal Supabase Auth login key when it differs from the College ID (pending sign-ups use their temporary id) */
+    authLogin: z.string().max(120).nullable().default(null),
+    isTest: z.boolean().default(false),
   }),
   k1: (d) => d.collegeId,
   k2: (d) => d.studentId,
@@ -635,7 +640,7 @@ export const studentAuthAudit = collection({
   name: 'student_auth_audit',
   schema: z.object({
     at: z.string(),
-    action: z.enum(['signup', 'login', 'reset', 'block', 'disable', 'enable', 'reset_code']),
+    action: z.enum(['signup', 'login', 'reset', 'block', 'disable', 'enable', 'reset_code', 'office_link', 'office_create', 'office_merge', 'office_reject', 'office_message', 'office_test', 'office_delete_test', 'office_import']),
     outcome: z.string().max(40),
     collegeId: z.string().max(40).nullable(),
     ip: z.string().max(64).nullable(),
@@ -703,3 +708,60 @@ export const applications = collection({
 });
 
 export { isoDate, month, text, optText };
+
+// ---------------------------------------------------------------- student self-sign-up verification (Admin Office)
+/**
+ * A student sign-up that could not be linked to a college record automatically (case B: no record, C: record
+ * details differ, E: the College ID already has an account). The account works with limited access until the
+ * Admin Office links, creates, merges or rejects it. The conflicting record is referenced by id only.
+ */
+export const pendingSignups = collection({
+  name: 'pending_signups',
+  schema: z.object({
+    fullName: z.string().trim().min(1).max(80),
+    collegeId: z.string().max(40),
+    dob: isoDate,
+    tempId: z.string().max(20),
+    case: z.enum(['B', 'C', 'E']),
+    conflictType: z.enum(['record_mismatch', 'duplicate_account', 'duplicate_signup']).nullable().default(null),
+    conflictStudentId: z.string().max(80).nullable().default(null),
+    status: z.enum(['pending', 'linked', 'rejected']).default('pending'),
+    linkedStudentId: z.string().max(80).nullable().default(null),
+    resolution: z.enum(['linked', 'created', 'merged', 'rejected', 'imported']).nullable().default(null),
+    decidedBy: z.string().max(120).nullable().default(null),
+    decidedAt: z.string().nullable().default(null),
+    isTest: z.boolean().default(false),
+    source: z.literal('self-signup').default('self-signup'),
+    createdAt: z.string(),
+    messages: z.array(z.object({ at: z.string(), by: z.string().max(120), text: z.string().max(1000) })).max(50).default([]),
+  }),
+  k1: (d) => d.collegeId,
+  k2: (d) => d.status,
+});
+
+/** Test flag for real student records (kept out of reports and dashboards; never deleted by the test clean-up). */
+export const studentFlags = collection({
+  name: 'student_flags',
+  schema: z.object({ studentId: z.string().min(1).max(80), isTest: z.boolean(), by: z.string().max(120), at: z.string() }),
+  k1: (d) => d.studentId,
+  k2: () => null,
+});
+
+/** One report per Excel / CSV student import. */
+export const studentImports = collection({
+  name: 'student_imports',
+  schema: z.object({
+    at: z.string(),
+    by: z.string().max(120),
+    fileName: z.string().max(200),
+    total: z.number().int(),
+    created: z.number().int(),
+    linked: z.number().int(),
+    conflicts: z.number().int(),
+    existing: z.number().int(),
+    failed: z.number().int(),
+    rows: z.array(z.object({ row: z.number().int(), collegeId: z.string().max(40), outcome: z.string().max(30), note: z.string().max(300) })).max(5000),
+  }),
+  k1: (d) => d.by,
+  k2: (d) => d.at,
+});

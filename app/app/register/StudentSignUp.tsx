@@ -101,11 +101,14 @@ export function StudentSignUpForm({ d, minDob, maxDob, purposes }: { d: D; minDo
           <FieldErr id="consent" msg={s.fields?.consent} />
         </span>
       </label>
-      {s.error && (
-        <p role="alert" className="rounded-lg bg-red-50 px-3 py-2 text-sm font-medium text-red-800 dark:bg-red-400/10 dark:text-red-200">
-          {s.error}
-          {s.exists && <span className="mt-1 block"><Link href="/app/login?as=student" className="underline">{d.signin}</Link> · <Link href="/app/forgot-password" className="underline">{d.reset}</Link></span>}
+      {s.info === 'exists' && (
+        <p role="status" data-testid="signup-exists" className="rounded-lg border border-sky-200 bg-sky-50 px-3 py-2 text-sm text-sky-900 dark:border-sky-400/30 dark:bg-sky-400/10 dark:text-sky-100">
+          {d.already}
+          <span className="mt-1 block"><Link href="/app/login?as=student" className="font-semibold underline">{d.signin}</Link> · <Link href="/app/forgot-password" className="font-semibold underline">{d.forgot}</Link></span>
         </p>
+      )}
+      {s.error && (
+        <p role="alert" className="rounded-lg bg-red-50 px-3 py-2 text-sm font-medium text-red-800 dark:bg-red-400/10 dark:text-red-200">{s.error}</p>
       )}
       <SubmitBtn idle={d.create} busy={d.creating} />
       <p className="flex flex-wrap justify-between gap-2 text-sm">

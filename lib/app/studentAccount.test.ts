@@ -47,6 +47,17 @@ describe('student sign-up rules', () => {
     expect(A.namesMatch('Ravi', 'Ravi Teja')).toBe(false);
     expect(A.namesMatch('Ravi Tej', 'Ravi Teja')).toBe(false);
   });
+  it('normalises College ID and DOB without time-zone shifts; name similarity', () => {
+    expect(A.normCollegeId(' bjc 2027 jee 0007 ')).toBe('BJC-2027-JEE-0007');
+    expect(A.normCollegeId('bjc2027jee0007')).toBe('BJC-2027-JEE-0007');
+    expect(A.normCollegeId('BJC–2027—JEE−0007')).toBe('BJC-2027-JEE-0007');
+    expect(A.normDob('28/11/2010')).toBe('2010-11-28');
+    expect(A.normDob('2010-11-28')).toBe('2010-11-28');
+    expect(A.normDob('31/02/2010')).toBeNull();
+    expect(A.nameSimilarity('K. Ravi Teja', 'Ravi Teja K')).toBe(1);
+    expect(A.nameSimilarity('Ravi Tej', 'Ravi Teja')).toBeGreaterThanOrEqual(0.8);
+    expect(A.nameSimilarity('Divya Rani', 'Divya Sri')).toBeLessThan(0.8);
+  });
   it('validates every field and reports each one', () => {
     const e = A.signUpFieldErrors({ name: 'R', collegeId: 'abc', dob: '2020-01-01', password: 'abcdefgh', confirm: 'x', consent: false });
     expect(Object.keys(e).sort()).toEqual(['collegeId', 'consent', 'dob', 'name', 'password']);
@@ -58,14 +69,13 @@ describe('student sign-up rules', () => {
 });
 
 describe('student account lifecycle (local store)', () => {
-  it('sign-up needs the right name + College ID + DOB, says nothing about which was wrong, and allows one account', async () => {
+  it('case A: matching record → active at once (name variations, lower-case ID without dashes); case D: same person again → no new account', async () => {
     const { collegeId, studentId } = await admit('Divya Sri', '+919877700001');
-    const base = { name: 'divya  sri', collegeId: collegeId.toLowerCase(), dob: '2010-06-15', password: 'mango77river', confirm: 'mango77river', consent: true };
-    for (const bad of [{ dob: '2010-06-16' }, { name: 'Divya Rani' }, { collegeId: 'BJC-2027-JEE-9999' }]) await expect(A.signUp({ ...base, ...bad }, ip())).rejects.toThrow(A.MSG.noMatch);
-    await expect(A.signUp({ ...base, website: 'spam' }, ip())).rejects.toThrow(A.MSG.noMatch); // honeypot
-    expect(await A.signUp(base, ip())).toEqual({ collegeId, studentId });
-    await expect(A.signUp(base, ip())).rejects.toThrow(A.MSG.exists);
-    expect((await A.verifyStudentLogin(collegeId, 'mango77river', ip())).ok).toBe(true);
+    const base = { name: 'divya  sri', collegeId: collegeId.toLowerCase().replace(/-/g, ''), dob: '15/06/2010', password: 'mango77river', confirm: 'mango77river', consent: true };
+    await expect(A.signUp({ ...base, website: 'spam' }, ip())).rejects.toThrow(/try again/); // honeypot
+    expect(await A.signUp(base, ip())).toEqual({ kind: 'active', collegeId, studentId, name: 'Divya Sri' });
+    expect(await A.signUp(base, ip())).toEqual({ kind: 'exists' });
+    expect(await A.verifyStudentLogin(collegeId, 'mango77river', ip())).toEqual({ ok: true, collegeId, subject: `cid:${collegeId}` });
     expect(await A.verifyStudentLogin(collegeId, 'wrong-pass1', ip())).toEqual({ ok: false, reason: 'invalid' });
   });
 
@@ -79,11 +89,14 @@ describe('student account lifecycle (local store)', () => {
     expect(await A.accountSummary(studentId)).toMatchObject({ exists: true, status: 'active' });
   });
 
-  it('rate limit: 5 sign-up attempts per College ID per day', async () => {
+  it('rate limits: 5 sign-ups per IP per hour, 5 per College ID per day', async () => {
     const { collegeId } = await admit('Rate Limit', '+919877700002');
-    const bad = { name: 'Rate Limit', collegeId, dob: '2010-01-01', password: 'mango77river', confirm: 'mango77river', consent: true };
-    for (let i = 0; i < 5; i++) await expect(A.signUp(bad, ip())).rejects.toThrow(A.MSG.noMatch);
-    await expect(A.signUp({ ...bad, dob: '2010-06-15' }, ip())).rejects.toThrow(A.MSG.tooMany);
+    const other = { name: 'Someone Else', collegeId, dob: '2010-01-01', password: 'mango77river', confirm: 'mango77river', consent: true };
+    for (let i = 0; i < 5; i++) expect((await A.signUp(other, ip())).kind).toMatch(/pending|exists/);
+    await expect(A.signUp({ ...other, dob: '2010-06-15', name: 'Rate Limit' }, ip())).rejects.toThrow(A.MSG.tooMany);
+    const one = '10.9.9.9';
+    for (let i = 0; i < 5; i++) await A.signUp({ ...other, collegeId: `BJC-2027-NEET-08${i}0`, name: `Ip Test ${'abcde'[i]}` }, one);
+    await expect(A.signUp({ ...other, collegeId: 'BJC-2027-NEET-0999', name: 'Ip Test Six' }, one)).rejects.toThrow(A.MSG.tooMany);
   });
 
   it('parent block and admin office disable/enable stop and restore sign-in; only the right people can act', async () => {

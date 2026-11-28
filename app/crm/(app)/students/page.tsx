@@ -4,10 +4,12 @@ import { requireStaff } from '@/lib/crm/auth';
 import { phoneFor } from '@/lib/crm/mask';
 import { allBatches, allStudents, readableStudentIds, visibleStudentIds } from '@/lib/school/common';
 import { PROGRAM_SLUGS } from '@/content/programs';
+import { canManageSignups, testStudentIds } from '@/lib/app/pendingAdmin';
+import { SignupTools } from './SignupTools';
 
 export const metadata = { title: 'Students' };
 
-type SP = { q?: string; batch?: string; section?: string; program?: string; mine?: string };
+type SP = { q?: string; batch?: string; section?: string; program?: string; mine?: string; view?: string };
 
 /**
  * Student search (master prompt §4.B). Teachers read every student (Student 360); "My students" narrows to
@@ -31,6 +33,8 @@ export default async function StudentsPage({ searchParams }: { searchParams: SP 
     return [s.fullName, s.collegeId ?? '', s.id, s.leadId, b?.data.name ?? ''].some((v) => v.toLowerCase().includes(q));
   });
   const sel = 'input py-2 text-sm';
+  const office = canManageSignups(user);
+  const testIds = office ? await testStudentIds() : new Set<string>();
 
   return (
     <div className="space-y-4">
@@ -38,6 +42,7 @@ export default async function StudentsPage({ searchParams }: { searchParams: SP 
         <h1 className="font-display text-3xl text-heading">{readable === 'all' && mine !== 'all' ? 'Student 360' : 'Students'}</h1>
         <p className="text-sm text-muted">{rows.length} of {readable === 'all' ? students.length : readable.size} students{readable === 'all' && mine !== 'all' ? ' · you can read every student’s academic record; you edit only your own classes' : ''}</p>
       </div>
+      {office && <SignupTools user={user} view={searchParams.view ?? 'pending'} />}
       <form method="get" className="flex flex-wrap items-end gap-2" role="search">
         <input name="q" defaultValue={q} placeholder="Name, College ID or student ID" aria-label="Search students" className="input w-64 py-2 text-sm" />
         <select name="batch" defaultValue={searchParams.batch ?? ''} aria-label="Class" className={sel}>
@@ -69,7 +74,7 @@ export default async function StudentsPage({ searchParams }: { searchParams: SP 
                 const b = batchOf.get(s.id);
                 return (
                   <tr key={s.id}>
-                    <td><Link href={`/crm/students/${s.id}`} className="font-semibold text-heading hover:underline">{s.fullName}</Link>{mine !== 'all' && mine.has(s.id) && <span className="ml-1.5 rounded bg-bg px-1.5 py-0.5 text-[10px] uppercase text-muted">my class</span>}</td>
+                    <td><Link href={`/crm/students/${s.id}`} className="font-semibold text-heading hover:underline">{s.fullName}</Link>{mine !== 'all' && mine.has(s.id) && <span className="ml-1.5 rounded bg-bg px-1.5 py-0.5 text-[10px] uppercase text-muted">my class</span>}{testIds.has(s.id) && <span className="ml-1.5 rounded bg-amber-100 px-1.5 py-0.5 text-[10px] font-semibold uppercase text-amber-900">test</span>}</td>
                     <td className="font-mono">{s.collegeId}</td>
                     <td>{programShort(s.program)}</td>
                     <td>{b?.data.name ?? <span className="text-maroon dark:text-gold">Not allotted</span>}</td>

@@ -34,6 +34,10 @@ const T = {
   saving: ['Saving…', 'సేవ్ చేస్తోంది…', 'सहेजा जा रहा है…'],
   done: ['Password changed. Sign in with your College ID and the new password.', 'పాస్‌వర్డ్ మార్చబడింది. మీ కాలేజ్ ID మరియు కొత్త పాస్‌వర్డ్‌తో సైన్ ఇన్ చేయండి.', 'पासवर्ड बदल गया। अपने कॉलेज ID और नए पासवर्ड से साइन इन करें।'],
   created: ['Account created.', 'ఖాతా సృష్టించబడింది.', 'खाता बन गया।'],
+  welcome: ['Welcome', 'స్వాగతం', 'स्वागत है'],
+  already: ['You already have an account. Sign in, or use Forgot password if you don’t remember it.', 'మీకు ఇప్పటికే ఖాతా ఉంది. సైన్ ఇన్ చేయండి, లేదా గుర్తులేకపోతే పాస్‌వర్డ్ మర్చిపోయారా ఉపయోగించండి.', 'आपका खाता पहले से है। साइन इन करें, या याद न हो तो पासवर्ड भूल गए का उपयोग करें।'],
+  pendingDone: ['Account created. The admin office will verify your details soon. You can start using Open Book, practice and tests now.', 'ఖాతా సృష్టించబడింది. అడ్మిన్ కార్యాలయం త్వరలో మీ వివరాలను ధృవీకరిస్తుంది. మీరు ఇప్పుడే ఓపెన్ బుక్, ప్రాక్టీస్ మరియు టెస్ట్‌లు ఉపయోగించడం ప్రారంభించవచ్చు.', 'खाता बन गया। प्रशासन कार्यालय जल्द ही आपके विवरण सत्यापित करेगा। आप अभी से ओपन बुक, अभ्यास और टेस्ट का उपयोग शुरू कर सकते हैं।'],
+  pendingBanner: ['Your account is waiting for verification by the admin office.', 'మీ ఖాతా అడ్మిన్ కార్యాలయ ధృవీకరణ కోసం వేచి ఉంది.', 'आपका खाता प्रशासन कार्यालय द्वारा सत्यापन की प्रतीक्षा में है।'],
 } as const;
 export type SKey = keyof typeof T;
 export const st = (lang: string, k: SKey) => T[k][lang === 'te' ? 1 : lang === 'hi' ? 2 : 0];
@@ -41,7 +45,6 @@ export const sDict = (lang: string) => Object.fromEntries(Object.keys(T).map((k)
 
 /** Server messages (errors) in the three languages, keyed by their English text. */
 const ERR: Record<string, [string, string]> = {
-  'These details don’t match our records. Check your College ID and date of birth, or contact the admin office.': ['ఈ వివరాలు మా రికార్డులతో సరిపోలడం లేదు. మీ కాలేజ్ ID మరియు పుట్టిన తేదీని తనిఖీ చేయండి, లేదా అడ్మిన్ కార్యాలయాన్ని సంప్రదించండి.', 'ये विवरण हमारे रिकॉर्ड से मेल नहीं खाते। अपना कॉलेज ID और जन्म तिथि जाँचें, या प्रशासन कार्यालय से संपर्क करें।'],
   'An account already exists for this College ID. Sign in or reset your password.': ['ఈ కాలేజ్ IDకి ఇప్పటికే ఖాతా ఉంది. సైన్ ఇన్ చేయండి లేదా మీ పాస్‌వర్డ్ రీసెట్ చేయండి.', 'इस कॉलेज ID के लिए पहले से खाता है। साइन इन करें या अपना पासवर्ड रीसेट करें।'],
   'Too many attempts. Please try again later.': ['చాలా ప్రయత్నాలు. దయచేసి తర్వాత మళ్లీ ప్రయత్నించండి.', 'बहुत अधिक प्रयास। कृपया बाद में फिर प्रयास करें।'],
   'This account is blocked. Please contact the admin office.': ['ఈ ఖాతా బ్లాక్ చేయబడింది. దయచేసి అడ్మిన్ కార్యాలయాన్ని సంప్రదించండి.', 'यह खाता ब्लॉक है। कृपया प्रशासन कार्यालय से संपर्क करें।'],
