@@ -51,7 +51,7 @@ test('Staff CRM opens the staff login; Summary asks to sign in and then opens th
   await expect(p).toHaveURL(/\/crm\/summary/);
   await expect(p.getByTestId('institution-dashboard')).toBeVisible({ timeout: 60_000 });
   await expect(p.locator('body')).not.toContainText(CRASH);
-  for (const t of ['Institution', 'Academics', 'Admissions', 'Students & parents', 'Staff & management', 'Fees & finance', 'Open Book & knowledge base', 'Campus & other modules']) await expect(p.getByRole('heading', { name: t })).toBeVisible();
+  for (const t of ['Institution', 'Academics', 'Admissions', 'Students & parents', 'Staff & management', 'Fees & finance', 'Open Book & knowledge base', 'Campus & other modules']) await expect(p.getByTestId('institution-dashboard').getByRole('heading', { name: t, exact: true })).toBeVisible();
   await expect(p.getByTestId('admission-funnel')).toBeVisible();
   const students = await p.locator('text=Students').first().locator('xpath=..').innerText();
   console.log('summary students tile:', students.replace(/\s+/g, ' ').slice(0, 60));
@@ -78,7 +78,7 @@ test('role-based landing and dashboards: telecaller gets its home and the role s
   console.log('telecaller landed on', new URL(p.url()).pathname);
   await p.goto('/crm/summary');
   await expect(p.getByTestId('institution-dashboard')).toHaveCount(0);
-  await expect(p.getByRole('heading', { name: 'Summary' })).toBeVisible();
+  await expect(p.getByRole('heading', { name: 'Summary', level: 1 })).toBeVisible();
   // an outside URL in next= is ignored (no open redirect)
   const c2 = await browser.newContext();
   const q = await c2.newPage();

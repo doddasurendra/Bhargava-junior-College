@@ -32,7 +32,7 @@ test('desktop: drag in all directions, stays on screen, controls do not drag, ke
 
   // start a conversation (fake microphone) and keep it running while we move things
   await panel.getByRole('button', { name: /Start conversation/ }).click();
-  await expect(p.getByTestId('voice-status')).toHaveText(/Listening|Connecting/, { timeout: 15_000 });
+  await expect(p.getByTestId('voice-status')).toHaveText('Listening', { timeout: 15_000 });
   const statusBefore = await p.getByTestId('voice-status').innerText();
 
   const header = p.getByTestId('voice-header');
