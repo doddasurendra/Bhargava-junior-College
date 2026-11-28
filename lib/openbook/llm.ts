@@ -59,6 +59,7 @@ export async function callJson<T>(c: JsonCall<T>): Promise<{ data: T; model: str
       // Anthropic's own message never contains the key; log it so the real cause is visible in the server logs.
       const detail = String((e.error as { error?: { message?: string } } | undefined)?.error?.message ?? e.message ?? '').slice(0, 300);
       console.error('[ai] Anthropic API error', e.status, (e.error as { error?: { type?: string } } | undefined)?.error?.type ?? '', detail);
+      if (e.status === 402 && /afford|total limit|key's limit/i.test(detail)) throw new OpenBookError('The OpenRouter API key has almost reached its spending limit. The administrator needs to raise the key’s credit limit on openrouter.ai (Settings → API Keys → edit the key) or add credits.');
       if (e.status === 402 || /credit balance|insufficient credits/i.test(detail)) throw new OpenBookError(`The AI account has no credit left. The administrator needs to add credit in the ${process.env.OPENROUTER_API_KEY ? 'OpenRouter dashboard (Credits)' : 'Anthropic Console (Plans & Billing)'}.`);
       if (e.status === 404 || /model/i.test(detail)) throw new OpenBookError(`The AI model "${s.model}" is not available for this API key. Ask the administrator to check the model in Open Book settings.`);
       throw new OpenBookError(`The AI service returned an error (${e.status ?? 'network'}). Please try again.`);

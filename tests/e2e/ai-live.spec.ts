@@ -13,12 +13,12 @@ test.skip(process.env.QA_RUN_AI !== '1', 'Set QA_RUN_AI=1 (makes real, billed AI
 test.describe.configure({ mode: 'serial' });
 test.setTimeout(4 * 60_000);
 
-test('server reports Anthropic and Voyage configured', async ({ browser }) => {
+test('server reports OpenRouter (Claude) and Voyage configured', async ({ browser }) => {
   const d = await (await browser.newContext()).newPage();
   await staffLogin(d, staffFor('developer'));
   await d.goto('/crm/developer');
-  const row = d.locator('dl > div', { has: d.locator('dt', { hasText: 'ANTHROPIC_API_KEY' }) }).first();
-  console.log('anthropic:', (await row.innerText()).replace(/\s+/g, ' '));
+  const row = d.locator('dl > div', { has: d.locator('dt', { hasText: 'OPENROUTER_API_KEY' }) }).first();
+  console.log('openrouter:', (await row.innerText()).replace(/\s+/g, ' '));
   await expect(row).not.toContainText('not set');
   const a = await (await browser.newContext()).newPage();
   await staffLogin(a, staffFor('super_admin'));
@@ -36,9 +36,11 @@ test('student AI summary is written from the computed figures', async ({ browser
   test.skip(!(await link.count()), 'no student with results to summarise');
   await link.click();
   await p.getByRole('button', { name: 'Write an AI summary of these figures' }).click();
-  const out = p.locator('[role=status], .whitespace-pre-line').filter({ hasNotText: /^$/ }).last();
-  await expect(p.getByText(/not configured|went wrong|rejected/i)).toHaveCount(0, { timeout: 90_000 });
-  await expect(out).toBeVisible({ timeout: 90_000 });
+  const any = p.locator('p[role=status], p[role=alert]').filter({ hasText: /\S/ }).first();
+  await expect(any).toBeVisible({ timeout: 120_000 });
+  if (await p.locator('p[role=alert]').filter({ hasText: /\S/ }).count()) console.log('summary ERROR:', await any.innerText());
+  const out = p.locator('p[role=status]').filter({ hasText: /\S/ }).first();
+  await expect(out).toBeVisible();
   console.log('summary:', (await out.innerText()).slice(0, 300).replace(/\s+/g, ' '));
 });
 
@@ -61,7 +63,7 @@ test('AI generates bank questions for review (duplicates checked)', async ({ bro
 test('assistant answers with Claude (not the fallback); student AI pages switched on', async ({ browser, request }) => {
   const r = await request.post('/api/voice/turn', { data: { text: 'What programs does Bhargava Junior College offer?', lang: 'en' } });
   const j = await r.json();
-  console.log('voice:', r.status(), 'fallback=', j.fallback ?? j.data?.fallback, '|', String(j.caption ?? j.data?.caption ?? j.error ?? '').slice(0, 200).replace(/\s+/g, ' '));
+  console.log('assistant:', r.status(), 'fallback=', j.fallback ?? j.data?.fallback, '|', String(j.caption ?? j.data?.caption ?? j.error ?? '').slice(0, 200).replace(/\s+/g, ' '));
   expect(r.status()).toBe(200);
   expect(j.fallback ?? j.data?.fallback).toBe(false);
   if (!qa) return;
