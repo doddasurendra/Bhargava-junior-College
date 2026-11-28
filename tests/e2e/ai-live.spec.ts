@@ -11,7 +11,7 @@ const FAM = path.join(process.cwd(), '.data', 'qa-family.json');
 const qa = existsSync(FAM) ? JSON.parse(readFileSync(FAM, 'utf8')) : null;
 test.skip(process.env.QA_RUN_AI !== '1', 'Set QA_RUN_AI=1 (makes real, billed AI calls)');
 test.describe.configure({ mode: 'serial' });
-test.setTimeout(4 * 60_000);
+test.setTimeout(7 * 60_000);
 
 test('server reports OpenRouter (Claude) and Voyage configured', async ({ browser }) => {
   const d = await (await browser.newContext()).newPage();
@@ -55,7 +55,7 @@ test('AI generates bank questions for review (duplicates checked)', async ({ bro
   await f.locator('input[name=count]').fill('2');
   await f.getByRole('button', { name: 'Generate for review' }).click();
   const msg = p.locator('p[role=status], p[role=alert]').filter({ hasText: /\S/ }).first();
-  await expect(msg).toBeVisible({ timeout: 150_000 });
+  await expect(msg).toBeVisible({ timeout: 310_000 });
   console.log('generate:', await msg.innerText());
   await expect(msg).toContainText('added for review');
 });

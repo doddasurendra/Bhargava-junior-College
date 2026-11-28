@@ -33,7 +33,7 @@ export async function geminiGenerate(c: { system: string; turns: GeminiTurn[]; m
         method: 'POST',
         headers: { 'x-goog-api-key': key(), 'Content-Type': 'application/json' },
         body: JSON.stringify(body),
-        signal: AbortSignal.timeout(c.json ? 150_000 : 40_000),
+        signal: AbortSignal.timeout(c.json ? 100_000 : 25_000),
       });
       const j = (await r.json().catch(() => null)) as {
         error?: { message?: string; status?: string };
@@ -53,7 +53,8 @@ export async function geminiGenerate(c: { system: string; turns: GeminiTurn[]; m
       const status = e instanceof GeminiError ? e.status : null;
       console.error('[gemini] request failed', model, (e as Error).message);
       // try the next model when this one is unknown or overloaded (404, 500, 503); quota / key errors stop here
-      const nextModel = status === 404 || status === 500 || status === 503 || (status === 400 && /model/i.test((e as Error).message));
+      const timedOut = (e as Error).name === 'TimeoutError' || (e as Error).name === 'AbortError';
+      const nextModel = timedOut || status === 404 || status === 500 || status === 503 || (status === 400 && /model/i.test((e as Error).message));
       if (!nextModel) throw e;
     }
   }
