@@ -53,7 +53,14 @@ export async function callJson<T>(c: JsonCall<T>): Promise<{ data: T; model: str
   } catch (e) {
     if (e instanceof Anthropic.RateLimitError) throw new OpenBookError('The AI service is busy. Please try again in a minute.');
     if (e instanceof Anthropic.AuthenticationError) throw new OpenBookError('The AI key on the server was rejected. Ask the administrator to check ANTHROPIC_API_KEY.');
-    if (e instanceof Anthropic.APIError) throw new OpenBookError(`The AI service returned an error (${e.status ?? 'network'}). Please try again.`);
+    if (e instanceof Anthropic.APIError) {
+      // Anthropic's own message never contains the key; log it so the real cause is visible in the server logs.
+      const detail = String((e.error as { error?: { message?: string } } | undefined)?.error?.message ?? e.message ?? '').slice(0, 300);
+      console.error('[ai] Anthropic API error', e.status, (e.error as { error?: { type?: string } } | undefined)?.error?.type ?? '', detail);
+      if (/credit balance/i.test(detail)) throw new OpenBookError('The AI account has no credit left. The administrator needs to add credit in the Anthropic Console (Plans & Billing).');
+      if (e.status === 404 || /model/i.test(detail)) throw new OpenBookError(`The AI model "${s.model}" is not available for this API key. Ask the administrator to check the model in Open Book settings.`);
+      throw new OpenBookError(`The AI service returned an error (${e.status ?? 'network'}). Please try again.`);
+    }
     throw e;
   }
   if (r.stop_reason === 'refusal') throw new OpenBookError('The AI declined this request. Try rephrasing it.');
