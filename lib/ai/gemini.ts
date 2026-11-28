@@ -52,7 +52,9 @@ export async function geminiGenerate(c: { system: string; turns: GeminiTurn[]; m
       last = e;
       const status = e instanceof GeminiError ? e.status : null;
       console.error('[gemini] request failed', model, (e as Error).message);
-      if (status !== 404 && !(status === 400 && /model/i.test((e as Error).message))) throw e;
+      // try the next model when this one is unknown or overloaded (404, 500, 503); quota / key errors stop here
+      const nextModel = status === 404 || status === 500 || status === 503 || (status === 400 && /model/i.test((e as Error).message));
+      if (!nextModel) throw e;
     }
   }
   throw last;

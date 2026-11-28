@@ -12,7 +12,7 @@ describe('Gemini (Google AI Studio) client', () => {
     const seen: { url: string; key: string | null; body: Record<string, unknown> }[] = [];
     vi.stubGlobal('fetch', vi.fn(async (url: string, init: RequestInit) => {
       seen.push({ url, key: new Headers(init.headers).get('x-goog-api-key'), body: JSON.parse(String(init.body)) });
-      if (url.includes('gemini-3.8-flash')) return reply(404, { error: { status: 'NOT_FOUND', message: 'model not found' } });
+      if (url.includes('gemini-3.8-flash')) return reply(503, { error: { status: 'UNAVAILABLE', message: 'high demand' } });
       return reply(200, { candidates: [{ content: { parts: [{ text: 'thinking…', thought: true }, { text: 'We offer four programs.' }] }, finishReason: 'STOP' }], usageMetadata: { promptTokenCount: 9, candidatesTokenCount: 5 } });
     }));
     const { geminiGenerate, geminiConfigured } = await import('./gemini');
