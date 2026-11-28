@@ -175,7 +175,7 @@ export async function listCampaigns(user: Staff) {
 }
 
 export async function saveCampaign(user: Staff, input: Record<string, unknown>, id?: string) {
-  if (!can(user, 'marketing.spend') && !can(user, 'lead.assign')) throw new CrmError('Only marketing or admissions management can manage campaigns.');
+  if (!can(user, 'marketing.spend')) throw new CrmError('Only marketing or management can manage campaigns.');
   const code = String(input.code ?? '').trim().toLowerCase();
   const dup = (await marketingCampaigns.list(getRecordStore(), { k1: code })).find((c) => c.id !== id);
   if (dup) throw new CrmError('Another campaign already uses this code.');
@@ -183,6 +183,6 @@ export async function saveCampaign(user: Staff, input: Record<string, unknown>, 
 }
 
 export async function removeCampaign(user: Staff, id: string) {
-  if (!can(user, 'marketing.spend') && !can(user, 'lead.assign')) throw new CrmError('Not permitted.');
+  if (!can(user, 'marketing.spend')) throw new CrmError('Not permitted.');
   await marketingCampaigns.remove(getRecordStore(), id);
 }

@@ -11,6 +11,7 @@ afterAll(() => { process.chdir(cwd); rmSync(dir, { recursive: true, force: true 
 
 const manager = { id: 'staff-am', fullName: 'Admission Manager', email: null, phone: null, roles: ['admission_manager' as const], active: true };
 const faculty = { ...manager, id: 'f', roles: ['faculty' as const] };
+const marketing = { ...manager, id: 'staff-mk', roles: ['data_executive' as const] };
 
 describe('marketing analytics', () => {
   it('counts real enquiries by stage, source and campaign; forecast refuses to guess without history; follow-ups needing attention', async () => {
@@ -27,8 +28,9 @@ describe('marketing analytics', () => {
     await repo.updateLead(a.leadId, { status: 'confirmed', category: 'hot' }, []);
     await repo.updateLead(b.leadId, { status: 'lost' }, []);
     await repo.updateLead(c.leadId, { category: 'hot' }, []);
-    await A.saveCampaign(manager, { name: 'Instagram JEE', code: 'INSTA-JEE', channel: 'social_media', startDate: addDays(t, -10), budget: 20000 });
-    await expect(A.saveCampaign(manager, { name: 'Dup', code: 'insta-jee', channel: 'other', startDate: t })).rejects.toThrow(/already uses/);
+    await expect(A.saveCampaign(manager, { name: 'X', code: 'x-1', channel: 'other', startDate: t })).rejects.toThrow(/Only marketing/);
+    await A.saveCampaign(marketing, { name: 'Instagram JEE', code: 'INSTA-JEE', channel: 'social_media', startDate: addDays(t, -10), budget: 20000 });
+    await expect(A.saveCampaign(marketing, { name: 'Dup', code: 'insta-jee', channel: 'other', startDate: t })).rejects.toThrow(/already uses/);
     await expect(A.marketingAnalytics(faculty, { from: addDays(t, -30), to: t })).rejects.toThrow(/Only marketing/);
     const m = await A.marketingAnalytics(manager, { from: addDays(t, -30), to: t });
     expect(m.totals).toMatchObject({ enquiries: 3, confirmed: 1 });
