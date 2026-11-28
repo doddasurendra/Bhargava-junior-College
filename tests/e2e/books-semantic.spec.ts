@@ -14,7 +14,10 @@ test('Google Books search by title, author, subject and keyword', async ({ brows
   for (const [field, q] of [['title', 'Concepts of Physics'], ['author', 'H C Verma'], ['subject', 'Chemistry'], ['any', 'NCERT Mathematics class 11']] as const) {
     await p.getByLabel('Search by').selectOption(field);
     await p.getByLabel('Search Google Books').fill(q);
+    const before = await p.locator('p.font-semibold.text-heading').first().innerText().catch(() => '');
     await p.getByRole('button', { name: 'Search' }).click();
+    await p.waitForFunction((b) => { const el = document.querySelector('p.font-semibold.text-heading'); return !el || el.textContent !== b || !!document.querySelector('p[role=alert]'); }, before, { timeout: 30_000 }).catch(() => undefined);
+    await p.waitForTimeout(1500);
     const done = p.getByText(/results from Google Books|Google Books (refused|rejected|returned|daily)/).first();
     await expect(done).toBeVisible({ timeout: 30_000 });
     const err = p.locator('p[role=alert]').filter({ hasText: /\S/ });
@@ -22,8 +25,7 @@ test('Google Books search by title, author, subject and keyword', async ({ brows
     await expect(err, 'Google Books must answer without an error').toHaveCount(0);
     const total = await p.getByText(/results from Google Books/).first().innerText();
     const firstTitles = await p.locator('img[src*="books.google"], img[src*="googleusercontent"]').count();
-    const bodyText = await p.locator('main').innerText();
-    const sample = bodyText.split('\n').filter((l) => l.length > 6).slice(0, 0);
+    const sample = [' | top: ' + (await p.locator('p.font-semibold.text-heading').evaluateAll((ps) => ps.slice(0, 2).map((x) => `${x.textContent} — ${(x.nextElementSibling?.textContent ?? '').split('·')[0].trim()}`).join(' / ')))];
     console.log(`${field} "${q}" | ${total} | covers shown: ${firstTitles}`, sample.join(''));
     expect(total).toMatch(/[1-9]/);
   }
