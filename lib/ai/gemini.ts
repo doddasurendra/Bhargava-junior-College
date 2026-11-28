@@ -19,11 +19,11 @@ let working: string | null = null;
 
 export interface GeminiTurn { role: 'user' | 'model'; text: string }
 
-export async function geminiGenerate(c: { system: string; turns: GeminiTurn[]; maxTokens?: number }) {
+export async function geminiGenerate(c: { system: string; turns: GeminiTurn[]; maxTokens?: number; json?: boolean; thinking?: 'MINIMAL' | 'LOW' | 'MEDIUM' }) {
   const body = {
     systemInstruction: { parts: [{ text: c.system }] },
     contents: c.turns.map((t) => ({ role: t.role, parts: [{ text: t.text }] })),
-    generationConfig: { maxOutputTokens: c.maxTokens ?? 1024, thinkingConfig: { thinkingLevel: 'MINIMAL' } },
+    generationConfig: { maxOutputTokens: c.maxTokens ?? 1024, thinkingConfig: { thinkingLevel: c.thinking ?? 'MINIMAL' }, ...(c.json ? { responseMimeType: 'application/json' } : {}) },
   };
   const list = working ? [working, ...MODELS().filter((m) => m !== working)] : MODELS();
   let last: unknown = null;
@@ -33,7 +33,7 @@ export async function geminiGenerate(c: { system: string; turns: GeminiTurn[]; m
         method: 'POST',
         headers: { 'x-goog-api-key': key(), 'Content-Type': 'application/json' },
         body: JSON.stringify(body),
-        signal: AbortSignal.timeout(40_000),
+        signal: AbortSignal.timeout(c.json ? 150_000 : 40_000),
       });
       const j = (await r.json().catch(() => null)) as {
         error?: { message?: string; status?: string };

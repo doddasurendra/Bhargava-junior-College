@@ -174,8 +174,8 @@ export async function generate(by: Actor, studentId: string | null, input: Gener
       parts: [{ kind: 'text', text: `Subject: ${input.subject}\nChapter: ${input.chapter}\nConcept: ${input.concept}\nDifficulty: ${DIFFICULTY_LABEL[input.difficulty]}\nQuestion types (spread the questions across these): ${input.types.map((t) => QTYPES.find((q) => q.id === t)!.label).join(', ')}\nNumber of questions: ${want}\n${input.context ? `\nBase the questions on this source passage (stay within the concept):\n"""${input.context.slice(0, 6000)}"""\n` : ''}${avoid ? `\nThe student has already seen these questions on this concept. Do NOT repeat them or reword them; use different situations, numbers and reasoning:\n${avoid}` : ''}` }],
       // reserve output in proportion to the questions asked (providers bill / pre-authorise against max_tokens)
       jsonSchema: genSchema, validate: genValidate, effort: 'medium', maxTokens: Math.min(32000, 3000 + want * 1500),
-      // Claude via OpenRouter by default; QUESTION_AI_PROVIDER=openai switches this task to OpenAI.
-      ...(process.env.QUESTION_AI_PROVIDER === 'openai' ? { provider: 'openai' as const } : {}),
+      // Gemini (Google AI Studio) by default; QUESTION_AI_PROVIDER=openai | claude overrides.
+      ...(process.env.QUESTION_AI_PROVIDER === 'openai' ? { provider: 'openai' as const } : process.env.QUESTION_AI_PROVIDER === 'claude' ? {} : { provider: 'gemini' as const }),
     });
     model = res.model;
     const cands = res.data.questions.filter((q) => input.types.includes(q.type as QType) && validShape(q));

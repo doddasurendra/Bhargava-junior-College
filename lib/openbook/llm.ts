@@ -4,6 +4,7 @@ import type { z } from 'zod';
 import { OpenBookError, settings } from './core';
 import { aiAvailable, aiClient, aiModel, anthropicExtras, jsonFromText } from '../ai/client';
 import { OpenAiError, openaiConfigured, openaiJson } from '../ai/openai';
+import { GeminiError, geminiConfigured, geminiGenerate } from '../ai/gemini';
 
 /**
  * Server-side Claude calls for Open Book (keys never reach the browser). Every call returns JSON constrained
@@ -32,12 +33,13 @@ export interface JsonCall<T> {
   effort?: 'low' | 'medium' | 'high';
   maxTokens?: number;
   /** 'openai': use OpenAI (OPENAI_API_KEY) for this call when configured; otherwise Claude as usual. */
-  provider?: 'openai';
+  provider?: 'openai' | 'gemini';
 }
 
 export async function callJson<T>(c: JsonCall<T>): Promise<{ data: T; model: string; usage: { input: number; output: number } }> {
   const s = await settings();
   if (c.provider === 'openai' && openaiConfigured() && s.aiEnabled) return callOpenAi(c);
+  if (c.provider === 'gemini' && geminiConfigured() && s.aiEnabled) return callGemini(c);
   if (!aiConfigured() || !s.aiEnabled) throw new AiNotConfigured();
   const content: Anthropic.ContentBlockParam[] = c.parts.map((p) =>
     p.kind === 'text'
@@ -118,5 +120,41 @@ async function callOpenAi<T>(c: JsonCall<T>) {
   }
   const v = c.validate.safeParse(parsed);
   if (!v.success) throw new OpenBookError('The AI answer did not match the expected format. Please try again.');
+  return { data: v.data, model: r.model, usage: r.usage };
+}
+async function callGemini<T>(c: JsonCall<T>) {
+  if (c.parts.some((p) => p.kind !== 'text')) throw new OpenBookError('This AI task needs text input only.');
+  let r: Awaited<ReturnType<typeof geminiGenerate>>;
+  try {
+    r = await geminiGenerate({
+      system: `${c.system}\n\nReply with ONLY one JSON object (no prose, no code fence) that matches this JSON schema; every listed field is required:\n${JSON.stringify(c.jsonSchema)}`,
+      turns: [{ role: 'user', text: c.parts.map((p) => (p.kind === 'text' ? p.text : '')).join('\n\n') }],
+      maxTokens: c.maxTokens ?? 16000,
+      json: true,
+      thinking: c.effort === 'high' ? 'MEDIUM' : 'LOW',
+    });
+  } catch (e) {
+    if (e instanceof GeminiError) {
+      const m = e.message;
+      if (e.status === 400 && /API key|API_KEY/i.test(m)) throw new OpenBookError('The Google AI Studio key on the server was rejected. Ask the administrator to check GOOGLE_AI_STUDIO_API_KEY.');
+      if (e.status === 403) throw new OpenBookError('The Google AI Studio key is not allowed to use this model. Ask the administrator to check the key in AI Studio.');
+      if (e.status === 429) throw new OpenBookError('The Google AI quota is used up for now. Please try again later, or raise the quota in Google AI Studio.');
+      if (/MAX_TOKENS/.test(m)) throw new OpenBookError('The answer was too long. Ask for fewer items.');
+      if (/blocked|SAFETY/i.test(m)) throw new OpenBookError('The AI declined this request. Try rephrasing it.');
+      throw new OpenBookError(`The AI service returned an error (${e.status ?? 'network'}). Please try again.`);
+    }
+    throw e;
+  }
+  let parsed: unknown;
+  try {
+    parsed = jsonFromText(r.text);
+  } catch {
+    throw new OpenBookError('The AI returned an unreadable answer. Please try again.');
+  }
+  const v = c.validate.safeParse(parsed);
+  if (!v.success) {
+    console.error('[gemini] reply did not match the schema', v.error.issues.slice(0, 3).map((i) => `${i.path.join('.')}: ${i.message}`).join('; '));
+    throw new OpenBookError('The AI answer did not match the expected format. Please try again.');
+  }
   return { data: v.data, model: r.model, usage: r.usage };
 }
