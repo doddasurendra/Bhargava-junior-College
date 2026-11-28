@@ -3,7 +3,8 @@ import * as X from '@/app/crm/signup-actions';
 import { ActionForm, Submit } from '@/components/crm/forms';
 import { QuickForm } from '@/components/crm/QuickForm';
 import { Empty, Panel, programShort } from '@/components/crm/ui';
-import { signupQueue, testSignupsPreview } from '@/lib/app/pendingAdmin';
+import { signupQueue, testSignupsPreview, testStudentIds } from '@/lib/app/pendingAdmin';
+import { getAppStore } from '@/lib/app/service';
 import { recentImports } from '@/lib/app/studentImport';
 import type { Staff } from '@/lib/crm/types';
 import { formatDate, formatDateTime } from '@/lib/dates';
@@ -16,6 +17,7 @@ const d = (x: string) => formatDate(x, { day: 'numeric', month: 'short', year: '
 /** Admin Office: student sign-up verification, add / import students, test data (master prompt task 2.7). */
 export async function SignupTools({ user, view }: { user: Staff; view: string }) {
   const q = await signupQueue(user);
+  const [allStudents, testIds] = view === 'test' ? await Promise.all([getAppStore().listStudents(), testStudentIds()]) : [[], new Set<string>()];
   const v = VIEWS.some(([k]) => k === view) ? view : 'pending';
   const superAdmin = user.roles.includes('super_admin') && !user.viewedBy;
   const newFields = (id: string, cid: string) => [
@@ -134,6 +136,10 @@ export async function SignupTools({ user, view }: { user: Staff; view: string })
             <p className="text-xs font-semibold uppercase text-muted">Sign-ups</p>
             <div className="max-h-60 overflow-y-auto rounded-lg border border-line p-2">
               {[...q.pending, ...q.recent].map((p) => <label key={p.id} className="flex items-center gap-2 py-0.5"><input type="checkbox" name="pendingIds" value={p.id} className="accent-maroon" />{p.fullName} · <span className="font-mono">{p.collegeId}</span> · {p.status}{p.isTest && <span className="rounded bg-amber-100 px-1 text-[10px] font-semibold uppercase text-amber-900">test</span>}</label>)}
+            </div>
+            <p className="pt-2 text-xs font-semibold uppercase text-muted">College student records (marking keeps them out of reports; they are never deleted)</p>
+            <div className="max-h-60 overflow-y-auto rounded-lg border border-line p-2">
+              {allStudents.map((st) => <label key={st.id} className="flex items-center gap-2 py-0.5"><input type="checkbox" name="studentIds" value={st.id} className="accent-maroon" />{st.fullName} · <span className="font-mono">{st.collegeId}</span>{testIds.has(st.id) && <span className="rounded bg-amber-100 px-1 text-[10px] font-semibold uppercase text-amber-900">test</span>}</label>)}
             </div>
             <div className="flex gap-2"><Submit className="btn-outline px-3 py-1.5 text-xs" name="test" value="1">Mark selected as test</Submit><Submit className="btn-outline px-3 py-1.5 text-xs" name="test" value="0">Unmark</Submit></div>
           </ActionForm>
