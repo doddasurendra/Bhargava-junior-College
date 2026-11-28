@@ -540,7 +540,7 @@ export function VoiceAgent({ embedded = false }: { embedded?: boolean }) {
         )}
       </header>
       <span className="sr-only" aria-live="polite" data-testid="voice-announce">{said}</span>
-      <div className={` flex-col items-center gap-3 px-5 py-6 text-center`} aria-hidden={!embedded && minimized ? true : undefined}>
+      <div className={`${!embedded && minimized ? 'hidden' : 'flex'} flex-col items-center gap-3 px-5 py-6 text-center`} aria-hidden={!embedded && minimized ? true : undefined}>
         <div className="relative grid h-28 w-28 place-items-center">
           <span aria-hidden className={`absolute inset-0 rounded-full ${status === 'LISTENING' ? 'animate-ping bg-gold/30' : status === 'SPEAKING' ? 'animate-pulse bg-maroon/25' : busy ? 'animate-spin border-4 border-gold/40 border-t-gold' : ''}`} />
           <span aria-hidden className="relative grid h-24 w-24 place-items-center rounded-full bg-gradient-to-br from-gold-100 to-white text-5xl shadow-inner dark:from-gold/30 dark:to-navy">👩‍💼</span>
