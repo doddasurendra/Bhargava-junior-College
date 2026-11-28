@@ -27,18 +27,23 @@ async function signUp(p: Page, name: string, cid: string, dobText: string, pw: s
   await p.goto('/app/register/student');
   await p.locator('input[name=name]').fill(name);
   await p.locator('input[name=collegeId]').fill(cid);
-  // type the date the way people write it (DD/MM/YYYY); the server stores YYYY-MM-DD without a time-zone shift
-  await p.locator('input[name=dob]').evaluate((el: HTMLInputElement) => { el.type = 'text'; });
-  await p.locator('input[name=dob]').fill(dobText);
+  // type the date the way people write it in India (DD/MM/YYYY, en-IN date field); the server stores YYYY-MM-DD with no time-zone shift
+  const dob = p.locator('input[name=dob]');
+  if (/^\d{4}-/.test(dobText)) await dob.fill(dobText);
   await p.locator('input[name=password]').fill(pw);
   await p.locator('input[name=confirm]').fill(pw);
   await p.locator('input[name=consent]').check();
+  if (!/^\d{4}-/.test(dobText)) {
+    // submit the literal text as typed (28/11/2010): set type + value together right before submitting
+    await dob.evaluate((el: HTMLInputElement, v) => { el.type = 'text'; el.value = v; }, dobText);
+    await expect(dob).toHaveValue(dobText);
+  }
   await p.getByRole('button', { name: 'Create account' }).click();
 }
 
 test('sign-up cases, pending limits, admin office queue, import auto-link, test clean-up', async ({ browser }) => {
   // B: unknown College ID → pending
-  const sc = await browser.newContext({ viewport: { width: 390, height: 844 } });
+  const sc = await browser.newContext({ viewport: { width: 390, height: 844 }, locale: 'en-IN' });
   const s = await sc.newPage();
   await signUp(s, NAME, CID, '28/11/2010', PW);
   await expect(s).toHaveURL(/\/app\?welcome=pending/, { timeout: 60_000 });
@@ -62,7 +67,7 @@ test('sign-up cases, pending limits, admin office queue, import auto-link, test 
   await dc.close();
 
   // E: the QA student's College ID (which has an account) with another name → pending + conflict
-  const ec = await browser.newContext();
+  const ec = await browser.newContext({ locale: 'en-IN' });
   const e = await ec.newPage();
   await signUp(e, `QA Conflict ${tag}`, qa.collegeId, '01/01/2010', PW);
   await expect(e).toHaveURL(/\/app\?welcome=pending/, { timeout: 60_000 });
@@ -95,10 +100,13 @@ test('sign-up cases, pending limits, admin office queue, import auto-link, test 
 
   // clean-up: mark the QA sign-ups and the imported QA record as Test; the Super Admin deletes test sign-ups
   await o.goto('/crm/students?view=test');
-  for (const label of [NAME, `QA Conflict ${tag}`]) await o.locator('label', { hasText: label }).locator('input[name=pendingIds]').check();
+  // every QA sign-up (this run and any earlier interrupted run)
+  const qaRows = o.locator('label', { hasText: /QA (Pending|Conflict) /i }).locator('input[name=pendingIds]');
+  const nQa = await qaRows.count();
+  for (let i = 0; i < nQa; i++) await qaRows.nth(i).check();
   await o.locator('label', { hasText: CID }).locator('input[name=studentIds]').check();
   await o.getByRole('button', { name: 'Mark selected as test' }).click();
-  await expect(o.getByText(/3 record\(s\) marked as test/)).toBeVisible({ timeout: 30_000 });
+  await expect(o.getByText(/\d+ record\(s\) marked as test/)).toBeVisible({ timeout: 30_000 });
   await oc.close();
 
   const ac = await browser.newContext();
