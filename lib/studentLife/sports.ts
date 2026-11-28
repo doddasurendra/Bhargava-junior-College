@@ -3,7 +3,7 @@ import { can } from '../crm/permissions';
 import type { Staff } from '../crm/types';
 import { addDays, todayIST } from '../dates';
 import { SchoolError, store, studentsById } from '../school/common';
-import { achievements, fitnessChecks, fixtures, HOUSES, houses, sportsAttendance, sportsSignups, SPORTS } from './collections';
+import { achievements, fitnessChecks, fixtures, HOUSES, houses, sportsAttendance, sportsSignups, sportsTeams, SPORTS } from './collections';
 
 /** Sports & games: houses, fixtures, results, points table, attendance, fitness checks, achievements. */
 
@@ -100,7 +100,7 @@ export async function addAchievement(user: Staff, input: { studentId: string; ti
 }
 
 export async function achievementsOf(studentId: string) {
-  return (await achievements.list(store(), { k1: studentId })).map((a) => a.data).sort((a, b) => b.date.localeCompare(a.date));
+  return (await achievements.list(store(), { k1: studentId })).map((a) => ({ id: a.id, ...a.data })).sort((a, b) => b.date.localeCompare(a.date));
 }
 
 export async function allAchievements() {
@@ -193,4 +193,39 @@ export async function sportsReport(user: Staff, from: string, to: string) {
     medals: ['gold', 'silver', 'bronze', 'certificate', 'participation'].map((m) => ({ medal: m, n: medals.filter((a) => a.medal === m).length })),
     table: pointsTable(fx),
   };
+}
+// ---------------------------------------------------------------- teams
+export async function allTeams() {
+  const byId = await studentsById();
+  return (await sportsTeams.list(store())).map((t) => ({ id: t.id, ...t.data, members: t.data.memberIds.map((m) => ({ id: m, name: byId.get(m)?.fullName ?? 'Student' })), captain: t.data.captainId ? byId.get(t.data.captainId)?.fullName ?? null : null })).sort((a, b) => a.sport.localeCompare(b.sport) || a.name.localeCompare(b.name));
+}
+
+export async function addTeam(user: Staff, input: { name: string; sport: string; coach: string }) {
+  need(user);
+  if (!(SPORTS as readonly string[]).includes(input.sport)) throw new SchoolError('Pick a sport from the list.');
+  if ((await sportsTeams.list(store(), { k1: input.sport })).some((t) => t.data.name.toLowerCase() === input.name.trim().toLowerCase())) throw new SchoolError('A team with this name already exists for this sport.');
+  return sportsTeams.put(store(), { ...input, captainId: null, memberIds: [], createdBy: user.id });
+}
+
+/** Members must be real students; the captain must be a member. */
+export async function setTeamMembers(user: Staff, id: string, memberIds: string[], captainId: string | null) {
+  need(user);
+  const t = await sportsTeams.get(store(), id);
+  if (!t) throw new SchoolError('Team not found.');
+  const byId = await studentsById();
+  const members = [...new Set(memberIds)].filter((m) => byId.has(m));
+  if (captainId && !members.includes(captainId)) throw new SchoolError('The captain must be a team member.');
+  return sportsTeams.put(store(), { ...t.data, memberIds: members, captainId: captainId || null }, id);
+}
+
+export async function teamsOf(studentId: string) {
+  return (await sportsTeams.list(store())).filter((t) => t.data.memberIds.includes(studentId)).map((t) => ({ name: t.data.name, sport: t.data.sport, coach: t.data.coach, captain: t.data.captainId === studentId }));
+}
+
+/** One achievement for its certificate (the caller checks who may download it). */
+export async function achievementById(id: string) {
+  const a = await achievements.get(store(), id);
+  if (!a) return null;
+  const s = (await studentsById()).get(a.data.studentId);
+  return { ...a.data, name: s?.fullName ?? 'Student', collegeId: s?.collegeId ?? null };
 }

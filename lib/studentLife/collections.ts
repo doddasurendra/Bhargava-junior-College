@@ -11,7 +11,7 @@ const id = z.string().min(1).max(80);
 const time = z.string().regex(/^\d{2}:\d{2}$/, 'Use HH:MM');
 
 // ---------------------------------------------------------------- sports
-export const SPORTS = ['Cricket', 'Volleyball', 'Badminton', 'Kabaddi', 'Chess', 'Table tennis', 'Athletics', 'Yoga'] as const;
+export const SPORTS = ['Cricket', 'Football', 'Volleyball', 'Basketball', 'Badminton', 'Kabaddi', 'Chess', 'Table tennis', 'Athletics', 'Yoga'] as const;
 export const HOUSES = [
   { key: 'godavari', name: 'Godavari', color: '#1D2A5E' },
   { key: 'krishna', name: 'Krishna', color: '#7D1F2C' },
@@ -49,6 +49,14 @@ export const fixtures = collection({
   }),
   k1: (d) => d.kind,
   k2: (d) => d.date,
+});
+
+/** A sports team (college or house squad) with its coach, captain and members. */
+export const sportsTeams = collection({
+  name: 'sports_teams',
+  schema: z.object({ name: text(60), sport: text(40), coach: text(80), captainId: z.string().max(80).nullable().default(null), memberIds: z.array(id).max(60).default([]), createdBy: id }),
+  k1: (d) => d.sport,
+  k2: () => null,
 });
 
 /** Daily games period attendance. */
@@ -98,6 +106,11 @@ export const SESSION_TYPES = [
   { value: 'parent_seminar', label: 'Parent seminar' },
   { value: 'exam_strategy', label: 'Exam-strategy workshop' },
   { value: 'study_skills', label: 'Study-skills workshop' },
+  { value: 'goal_setting', label: 'Goal setting' },
+  { value: 'leadership', label: 'Leadership development' },
+  { value: 'communication', label: 'Communication skills' },
+  { value: 'confidence', label: 'Confidence building' },
+  { value: 'time_management', label: 'Time management' },
 ] as const;
 export const SESSION_TYPE_KEYS = SESSION_TYPES.map((t) => t.value) as [string, ...string[]];
 
@@ -281,6 +294,7 @@ export const PROGRAM_KINDS = [
   { value: 'mindfulness', label: 'Mindfulness' },
   { value: 'fitness', label: 'Fitness training' },
   { value: 'sports_practice', label: 'Sports practice' },
+  { value: 'motivation', label: 'Motivation / personal development class' },
 ] as const;
 export const PROGRAM_KIND_KEYS = PROGRAM_KINDS.map((k) => k.value) as [string, ...string[]];
 export const WEEKDAYS = ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'] as const;

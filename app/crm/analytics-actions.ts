@@ -1,7 +1,8 @@
 'use server';
 import { revalidatePath } from 'next/cache';
 import { requireStaff } from '@/lib/crm/auth';
-import { decideCorrection, markSubjectAttendance } from '@/lib/school/attendanceTools';
+import { decideCorrection, markSubjectAttendance, notifyLowAttendance } from '@/lib/school/attendanceTools';
+import { isIsoDate } from '@/lib/dates';
 import { SchoolError } from '@/lib/school/common';
 import { aiStudentSummary, canReadStudent, studentPerformance } from '@/lib/school/performance';
 import { AiNotConfigured } from '@/lib/openbook/llm';
@@ -59,3 +60,16 @@ export const aiSummaryAction = async (_: ActionState, fd: FormData) =>
     const r = await aiStudentSummary(p);
     return `${r.summary}${r.focus.length ? `\n\nFocus: ${r.focus.join(' · ')}` : ''}`;
   });
+
+export async function notifyLowAttendanceAction(_: ActionState, fd: FormData): Promise<ActionState> {
+  try {
+    const g = (k: string) => String(fd.get(k) ?? '');
+    if (!isIsoDate(g('from')) || !isIsoDate(g('to'))) return { error: 'Pick a valid date range first.' };
+    const r = await notifyLowAttendance(await requireStaff(), { from: g('from'), to: g('to'), batchId: g('batch') || null, subject: g('subject') || null, threshold: Math.min(100, Math.max(1, Number(g('threshold')) || 75)) });
+    return { ok: true, message: `Sent to ${r.sent} famil${r.sent === 1 ? 'y' : 'ies'} in the app's Messages${r.skipped ? `; ${r.skipped} already alerted today` : ''}.` };
+  } catch (e) {
+    if (e instanceof SchoolError) return { error: e.message };
+    console.error('[low attendance] failed', e);
+    return { error: 'Something went wrong. Please try again.' };
+  }
+}

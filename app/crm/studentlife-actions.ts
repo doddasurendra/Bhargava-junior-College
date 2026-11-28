@@ -126,3 +126,8 @@ export const programAttendanceAction = async (_: ActionState, fd: FormData) =>
     const r = await AC.markProgramAttendance(await requireStaff(), req(fd, 'programId', 'Program'), date(fd, 'date', 'Date'), fd.getAll('present').map(String));
     return `Attendance saved: ${r.data.present.length} present.`;
   }, PROG_PATHS);
+// ---------------------------------------------------------------- sports teams
+export const addTeamAction = async (_: ActionState, fd: FormData) =>
+  run(async () => { await SP.addTeam(await requireStaff(), { name: req(fd, 'name', 'Team name'), sport: req(fd, 'sport', 'Sport'), coach: req(fd, 'coach', 'Coach') }); return 'Team created. Add its players below.'; }, ['/crm/sports']);
+export const teamMembersAction = async (_: ActionState, fd: FormData) =>
+  run(async () => { const t = await SP.setTeamMembers(await requireStaff(), req(fd, 'id', 'Team'), fd.getAll('members').map(String), s(fd, 'captainId')); return `Saved: ${t.data.memberIds.length} players.`; }, ['/crm/sports', '/app/sports']);

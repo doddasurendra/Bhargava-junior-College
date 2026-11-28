@@ -2,7 +2,7 @@ import { signUpSportForm } from '@/app/app/studentlife-actions';
 import { requireEnrolled } from '@/lib/app/portal';
 import { formatDate } from '@/lib/dates';
 import { SPORTS } from '@/lib/studentLife/collections';
-import { studentSports } from '@/lib/studentLife/sports';
+import { studentSports, teamsOf } from '@/lib/studentLife/sports';
 
 export const metadata = { title: 'Sports & games' };
 
@@ -12,7 +12,7 @@ const mmss = (s: number) => `${Math.floor(s / 60)}:${String(s % 60).padStart(2, 
 
 export default async function SportsPage() {
   const { p } = await requireEnrolled();
-  const d = await studentSports(p.studentId);
+  const [d, myTeams] = await Promise.all([studentSports(p.studentId), teamsOf(p.studentId)]);
   const student = p.kind === 'student';
   return (
     <div className="space-y-4">
@@ -69,10 +69,16 @@ export default async function SportsPage() {
         </section>
       )}
 
+      {myTeams.length > 0 && (
+        <section className="card p-4">
+          <p className="mb-1 font-semibold text-heading">My teams</p>
+          <ul className="space-y-1 text-sm">{myTeams.map((t) => <li key={t.name + t.sport}>{t.name} · {t.sport}{t.captain ? ' · Captain' : ''} <span className="text-[11px] text-muted">(coach {t.coach})</span></li>)}</ul>
+        </section>
+      )}
       <section className="card p-4">
         <p className="mb-2 font-semibold text-heading">Achievements</p>
         {d.achievements.length ? (
-          <ul className="space-y-1 text-sm">{d.achievements.map((a, i) => <li key={i}>{MEDAL[a.medal]} · {a.title} <span className="text-[11px] text-muted">({a.event}, {formatDate(a.date)})</span></li>)}</ul>
+          <ul className="space-y-1 text-sm">{d.achievements.map((a) => <li key={a.id}>{MEDAL[a.medal]} · {a.title} <span className="text-[11px] text-muted">({a.event}, {formatDate(a.date)})</span> <a href={`/api/sports-certificate/${a.id}`} target="_blank" rel="noopener noreferrer" className="text-xs underline">Certificate</a></li>)}</ul>
         ) : <p className="text-sm text-muted">No medals or certificates yet. Every games period counts!</p>}
       </section>
 

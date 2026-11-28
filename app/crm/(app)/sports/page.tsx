@@ -1,11 +1,12 @@
-import { addAchievementAction, addFitnessAction, addFixtureAction, assignHouseAction, recordResultAction, sportsAttendanceForm } from '@/app/crm/studentlife-actions';
+import { addAchievementAction, addFitnessAction, addFixtureAction, addTeamAction, assignHouseAction, recordResultAction, sportsAttendanceForm, teamMembersAction } from '@/app/crm/studentlife-actions';
+import { ActionForm, Submit } from '@/components/crm/forms';
 import { QuickForm } from '@/components/crm/QuickForm';
 import { Empty, Panel } from '@/components/crm/ui';
 import { requireStaff } from '@/lib/crm/auth';
 import { can } from '@/lib/crm/permissions';
 import { formatDate, todayIST } from '@/lib/dates';
 import { FIXTURE_KINDS, HOUSES, MEDALS, SPORTS } from '@/lib/studentLife/collections';
-import { coachOverview } from '@/lib/studentLife/sports';
+import { allTeams, coachOverview } from '@/lib/studentLife/sports';
 
 export const metadata = { title: 'Sports' };
 export const dynamic = 'force-dynamic';
@@ -16,7 +17,7 @@ const d = (x: string) => formatDate(x, { weekday: 'short', day: 'numeric', month
 export default async function SportsPage() {
   const user = await requireStaff();
   if (!can(user, 'sports.manage') && !can(user, 'sports.view')) return <Panel title="Sports"><p className="text-sm text-muted">Your role doesn’t use the sports module.</p></Panel>;
-  const o = await coachOverview(user);
+  const [o, teamList] = await Promise.all([coachOverview(user), allTeams()]);
   const manage = can(user, 'sports.manage');
   const teams = [...HOUSES.map((h) => ({ value: h.name, label: `${h.name} house` })), { value: 'BJC', label: 'BJC college team' }, { value: 'Opponent college', label: 'Another college' }];
   const studentOpts = o.students.map((s) => ({ value: s.id, label: `${s.name}${s.house ? ` · ${s.house}` : ''}` }));
@@ -46,6 +47,27 @@ export default async function SportsPage() {
           {manage && <div className="mt-3"><QuickForm action={assignHouseAction} submit="Assign house" cols={2} fields={[{ name: 'studentId', label: 'Student', type: 'select', required: true, options: studentOpts }, { name: 'house', label: 'House', type: 'select', required: true, options: HOUSES.map((h) => ({ value: h.key, label: h.name })) }]} /></div>}
         </Panel>
       </div>
+
+      <Panel title={`Teams (${teamList.length})`}>
+        {teamList.length === 0 ? <Empty>No teams yet.</Empty> : teamList.map((t) => (
+          <details key={t.id} className="border-t border-line py-2 first:border-0">
+            <summary className="cursor-pointer text-sm"><span className="font-medium text-heading">{t.name}</span> · {t.sport} · coach {t.coach} · {t.members.length} players{t.captain ? ` · captain ${t.captain}` : ''}</summary>
+            {manage ? (
+              <ActionForm action={teamMembersAction} reset={false} className="mt-2 text-sm">
+                <input type="hidden" name="id" value={t.id} />
+                <div className="max-h-48 overflow-y-auto rounded-lg border border-line p-2">{o.students.map((s) => <label key={s.id} className="flex items-center gap-2 py-0.5"><input type="checkbox" name="members" value={s.id} defaultChecked={t.memberIds.includes(s.id)} className="accent-maroon" />{s.name}</label>)}</div>
+                <label className="mt-2 block text-xs font-semibold uppercase text-muted">Captain<select name="captainId" defaultValue={t.captainId ?? ''} className="input mt-1 py-1.5 text-sm"><option value="">None</option>{t.members.map((m) => <option key={m.id} value={m.id}>{m.name}</option>)}</select></label>
+                <Submit className="btn-outline mt-2 py-1.5 text-sm">Save team</Submit>
+              </ActionForm>
+            ) : <p className="mt-1 text-xs text-muted">{t.members.map((m) => m.name).join(', ') || 'No players yet.'}</p>}
+          </details>
+        ))}
+        {manage && <div className="mt-3"><QuickForm action={addTeamAction} submit="Create team" cols={3} fields={[
+          { name: 'name', label: 'Team name', type: 'text', required: true, placeholder: 'BJC Football XI' },
+          { name: 'sport', label: 'Sport', type: 'select', required: true, options: SPORTS.map((x) => ({ value: x, label: x })) },
+          { name: 'coach', label: 'Coach', type: 'text', required: true },
+        ]} /></div>}
+      </Panel>
 
       <Panel title={`Upcoming fixtures (${o.upcoming.length})`}>
         {o.upcoming.length === 0 ? <Empty>No fixtures scheduled.</Empty> : (
@@ -108,7 +130,7 @@ export default async function SportsPage() {
 
       <div className="grid gap-5 lg:grid-cols-2">
         <Panel title={`Achievements (${o.achievements.length})`}>
-          <ul className="max-h-72 divide-y divide-line overflow-y-auto text-sm">{o.achievements.map((a) => <li key={a.id} className="py-1.5"><span className="font-medium text-heading">{a.name}</span>: {a.medal} · {a.event}<span className="block text-xs text-muted">{a.title} · {d(a.date)}</span></li>)}</ul>
+          <ul className="max-h-72 divide-y divide-line overflow-y-auto text-sm">{o.achievements.map((a) => <li key={a.id} className="py-1.5"><span className="font-medium text-heading">{a.name}</span>: {a.medal} · {a.event}<span className="block text-xs text-muted">{a.title} · {d(a.date)} · <a href={`/api/sports-certificate/${a.id}`} target="_blank" rel="noopener noreferrer" className="underline">Certificate (PDF)</a></span></li>)}</ul>
           {manage && <div className="mt-3"><QuickForm action={addAchievementAction} submit="Add achievement" cols={2} fields={[
             { name: 'studentId', label: 'Student', type: 'select', required: true, options: studentOpts },
             { name: 'medal', label: 'Medal / certificate', type: 'select', required: true, options: MEDALS.map((m) => ({ value: m, label: m })) },

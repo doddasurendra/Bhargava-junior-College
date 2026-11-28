@@ -1,7 +1,7 @@
 import Link from 'next/link';
-import { decideCorrectionAction } from '@/app/crm/analytics-actions';
+import { decideCorrectionAction, notifyLowAttendanceAction } from '@/app/crm/analytics-actions';
 import { BarList, Donut, MixBars, TableView, TrendChart } from '@/components/crm/charts';
-import { ActionButton } from '@/components/crm/QuickForm';
+import { ActionButton, QuickForm } from '@/components/crm/QuickForm';
 import { Empty, Panel, Stat } from '@/components/crm/ui';
 import { requireStaff } from '@/lib/crm/auth';
 import { can } from '@/lib/crm/permissions';
@@ -125,7 +125,8 @@ export default async function AnalyticsPage({ searchParams: q }: { searchParams:
               <tbody>{a.below.map((s) => <tr key={s.id}><td>{s.name} <span className="font-mono text-xs text-muted">{s.collegeId}</span></td><td>{s.batch}</td><td className="text-right font-mono font-semibold text-maroon dark:text-gold">{s.pct}%</td><td className="text-right font-mono">{s.absent}</td><td className="text-right font-mono">{s.late}</td><td className="text-right font-mono">{s.leave}</td><td><Link className="text-xs underline" href={`/crm/analytics/student/${s.id}`}>Report</Link></td></tr>)}</tbody>
             </table></div>
           )}
-          <p className="mt-2 text-xs text-muted">The same students appear as early warnings for their mentor. Parents already get the same-day absence alert for every absence.</p>
+          {a.below.length > 0 && (can(user, 'attendance.mark') || can(user, 'academics.manage')) && <div className="mt-3"><QuickForm action={notifyLowAttendanceAction} submit={`Notify these ${a.below.length} famil${a.below.length === 1 ? 'y' : 'ies'}`} cols={1} fields={[{ name: 'from', type: 'hidden', value: r.from }, { name: 'to', type: 'hidden', value: r.to }, { name: 'batch', type: 'hidden', value: q.batch ?? '' }, { name: 'subject', type: 'hidden', value: q.subject ?? '' }, { name: 'threshold', type: 'hidden', value: String(threshold) }]} /></div>}
+          <p className="mt-2 text-xs text-muted">The same students appear as early warnings for their mentor. Parents already get the same-day absence alert for every absence; the button sends each family one message in the app (once a day at most).</p>
         </Panel>
         <Panel title={`Attendance correction requests (${corrections.length})`}>
           {corrections.length === 0 ? <Empty>No pending requests.</Empty> : (

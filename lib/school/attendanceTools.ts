@@ -2,7 +2,7 @@ import 'server-only';
 import { can } from '../crm/permissions';
 import type { Staff } from '../crm/types';
 import { addDays, todayIST } from '../dates';
-import { attendance, attendanceCorrections, ATTENDANCE, batches, subjectAttendance, timetable } from '../records/collections';
+import { attendance, attendanceCorrections, ATTENDANCE, batches, messages, subjectAttendance, timetable } from '../records/collections';
 import { allBatches, myBatchIds, requireTeaches, SchoolError, store, studentsById } from './common';
 import { attendanceSummary, type AttendanceMark } from './logic';
 import { CORRECTION_DAYS } from './academics';
@@ -179,4 +179,25 @@ export async function studentAttendanceHistory(studentId: string, batchId: strin
     bySubject: subjects.map((s) => ({ subject: s, ...attendanceSummary(subj.filter((r) => r.subject === s), studentId) })),
     days: regs.filter((r) => r.marks[studentId]).map((r) => ({ date: r.date, mark: r.marks[studentId], remark: r.remarks?.[studentId] ?? null })),
   };
+}
+
+/**
+ * Low-attendance alert to families: the below-threshold list is recomputed here from the registers (never taken from
+ * the browser) and each family gets one message in the app's Messages thread per student per day.
+ */
+export const LOW_ATTENDANCE_PREFIX = 'Attendance alert:';
+export async function notifyLowAttendance(user: Staff, f: AttendanceFilter, today = todayIST()) {
+  if (!can(user, 'attendance.mark') && !can(user, 'academics.manage')) throw new SchoolError('You do not have permission to do this.');
+  const a = await attendanceAnalytics(user, f);
+  let sent = 0, skipped = 0;
+  for (const s of a.below) {
+    const prior = await messages.list(store(), { k1: s.id });
+    if (prior.some((m) => m.data.from === 'staff' && m.data.text.startsWith(LOW_ATTENDANCE_PREFIX) && m.createdAt.slice(0, 10) >= today)) { skipped++; continue; }
+    await messages.put(store(), {
+      studentId: s.id, staffId: user.id, from: 'staff', fromPhone: null, readAt: null,
+      text: `${LOW_ATTENDANCE_PREFIX} ${s.name}'s attendance from ${f.from} to ${f.to} is ${s.pct}% (required ${f.threshold}%): ${s.absent} absent, ${s.late} late, ${s.leave} on leave. Please talk to your child, and reply here or call the college if there is a reason we should know about.`,
+    });
+    sent++;
+  }
+  return { sent, skipped, students: a.below.length };
 }

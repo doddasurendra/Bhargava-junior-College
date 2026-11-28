@@ -66,6 +66,15 @@ describe('attendance analytics', () => {
     const s2 = a.students.find((x) => x.id === S[1])!;
     expect(s2.pct).toBe(33); // 1 of 3
     expect(a.below.map((x) => x.id).sort()).toEqual([S[1], S[2]].sort()); // s3: present, leave, absent = 1/2 = 50%
+    // low-attendance alert: recomputed on the server, one message per family per day, staff-only
+    const f = { from: addDays(t, -10), to: t, threshold: 75 };
+    await expect(T.notifyLowAttendance({ ...head, roles: ['telecaller'] } as never, f)).rejects.toThrow(/permission/);
+    expect(await T.notifyLowAttendance(head, f)).toEqual({ sent: 2, skipped: 0, students: 2 });
+    expect(await T.notifyLowAttendance(head, f)).toEqual({ sent: 0, skipped: 2, students: 2 });
+    const msg = (await C.messages.list(store(), { k1: S[1] }))[0].data;
+    expect(msg).toMatchObject({ from: 'staff', staffId: head.id });
+    expect(msg.text).toMatch(/^Attendance alert: .*33% \(required 75%\): 2 absent/);
+    expect(await C.messages.list(store(), { k1: S[0] })).toHaveLength(0); // above threshold: nothing sent
   });
 
   it('subject registers stay separate; teachers only take subjects they teach; old corrections need approval', async () => {
@@ -114,5 +123,28 @@ describe('chapter-wise performance', () => {
     expect(c.examTrend).toHaveLength(2);
     expect(c.top[0].id).toBe(S[0]);
     await expect(P.classPerformance({ ...teacher, roles: ['telecaller' as never] }, batchId)).rejects.toThrow();
+  });
+});
+
+describe('sports teams and certificates', () => {
+  it('coach builds a team (real students only, captain must be a member); student sees it; certificate is a PDF', async () => {
+    const SP = await import('../studentLife/sports');
+    const { sportsCertificatePdf } = await import('../studentLife/certificatePdf');
+    const coach = { id: 'staff-coach', fullName: 'Coach', email: null, phone: null, roles: ['sports_coach' as const], active: true };
+    await expect(SP.addTeam(head, { name: 'XI', sport: 'Football', coach: 'Mr. R' })).rejects.toThrow(/Sports Coach/);
+    await expect(SP.addTeam(coach, { name: 'XI', sport: 'Rugby', coach: 'Mr. R' })).rejects.toThrow(/from the list/);
+    const team = await SP.addTeam(coach, { name: 'BJC Football XI', sport: 'Football', coach: 'Mr. R' });
+    await expect(SP.addTeam(coach, { name: 'bjc football xi', sport: 'Football', coach: 'X' })).rejects.toThrow(/already exists/);
+    await expect(SP.setTeamMembers(coach, team.id, [S[0]], S[1])).rejects.toThrow(/captain must be/);
+    const saved = await SP.setTeamMembers(coach, team.id, [S[0], S[1], 'not-a-student', S[0]], S[1]);
+    expect(saved.data.memberIds).toEqual([S[0], S[1]]);
+    expect(await SP.teamsOf(S[1])).toEqual([{ name: 'BJC Football XI', sport: 'Football', coach: 'Mr. R', captain: true }]);
+    expect(await SP.teamsOf(S[2])).toEqual([]);
+    const ach = await SP.addAchievement(coach, { studentId: S[0], title: 'Winners', medal: 'gold', event: 'Inter-college football', date: '2026-11-20' });
+    const a = (await SP.achievementById(ach.id))!;
+    expect(a).toMatchObject({ name: 'Asha Rao', medal: 'gold' });
+    expect((await SP.achievementsOf(S[0]))[0].id).toBe(ach.id);
+    const pdf = await sportsCertificatePdf(a);
+    expect(Buffer.from(pdf).subarray(0, 4).toString()).toBe('%PDF');
   });
 });
