@@ -6,6 +6,7 @@ import { isIsoDate } from '@/lib/dates';
 import { SchoolError } from '@/lib/school/common';
 import { aiStudentSummary, canReadStudent, studentPerformance } from '@/lib/school/performance';
 import { AiNotConfigured } from '@/lib/openbook/llm';
+import { OpenBookError } from '@/lib/openbook/core';
 import type { ActionState } from './actions';
 
 const s = (fd: FormData, k: string) => { const v = fd.get(k); return typeof v === 'string' && v.trim() ? v.trim() : null; };
@@ -18,6 +19,8 @@ async function run(fn: () => Promise<string>, paths: string[] = []): Promise<Act
   } catch (e) {
     if (e instanceof SchoolError || e instanceof AiNotConfigured) return { error: e.message };
     console.error('[analytics] action failed', e);
+    // AI errors carry a safe, specific message (no credit, model unavailable, busy)
+    if (e instanceof OpenBookError) return { error: e.message };
     return { error: 'Something went wrong. Please try again.' };
   }
 }

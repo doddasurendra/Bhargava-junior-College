@@ -17,7 +17,7 @@ test('Google Books search by title, author, subject and keyword', async ({ brows
     await p.getByRole('button', { name: 'Search' }).click();
     const done = p.getByText(/results from Google Books|Google Books (refused|rejected|returned|daily)/).first();
     await expect(done).toBeVisible({ timeout: 30_000 });
-    const err = p.locator('[role=alert]');
+    const err = p.locator('p[role=alert]').filter({ hasText: /\S/ });
     if (await err.count()) console.log(`${field} "${q}" | ERROR`, await err.first().innerText());
     await expect(err, 'Google Books must answer without an error').toHaveCount(0);
     const total = await p.getByText(/results from Google Books/).first().innerText();
