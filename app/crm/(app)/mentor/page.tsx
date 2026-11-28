@@ -6,11 +6,15 @@ import { requireStaff } from '@/lib/crm/auth';
 import { can } from '@/lib/crm/permissions';
 import { formatDate, formatDateTime, todayIST } from '@/lib/dates';
 import { myMentees, mySlots, staffInbox, thread } from '@/lib/school/mentoring';
+import { myMeetings } from '@/lib/school/mentorMeetings';
+import { closeMeetingAction, scheduleMeetingAction, setMeetingTimeAction } from '@/app/crm/mentor-actions';
+import { MEETING_MODES } from '@/lib/records/collections';
 
 export const metadata = { title: 'Mentoring' };
 
 export default async function MentorPage({ searchParams }: { searchParams: { thread?: string } }) {
   const user = await requireStaff('mentor.notes');
+  const meetings = await myMeetings(user);
   const [mentees, slots, inbox] = await Promise.all([myMentees(user), can(user, 'ptm.manage') ? mySlots(user) : Promise.resolve([]), can(user, 'messages.reply') ? staffInbox(user) : Promise.resolve([])]);
   const open = searchParams.thread && inbox.some((t) => t.studentId === searchParams.thread) ? searchParams.thread : null;
   const msgs = open ? await thread(open) : [];
@@ -40,6 +44,36 @@ export default async function MentorPage({ searchParams }: { searchParams: { thr
         )}
       </Panel>
 
+      <Panel title={`Mentor meetings${meetings.requests.length ? ` · ${meetings.requests.length} request${meetings.requests.length > 1 ? 's' : ''} waiting` : ''}`}>
+        <div className="grid gap-5 lg:grid-cols-2">
+          <div>
+            <p className="mb-2 text-xs font-semibold uppercase text-muted">Schedule a one-to-one</p>
+            {mentees.length === 0 ? <Empty>No mentees yet.</Empty> : <QuickForm action={scheduleMeetingAction} submit="Schedule meeting" cols={2} fields={[
+              { name: 'studentId', label: 'Mentee', type: 'select', required: true, options: mentees.map((m) => ({ value: m.student!.id, label: m.student!.fullName })) },
+              { name: 'mode', label: 'How', type: 'select', options: MEETING_MODES.map((x) => ({ value: x, label: x.replace('_', ' ') })) },
+              { name: 'date', label: 'Date', type: 'date', required: true, defaultValue: todayIST() },
+              { name: 'time', label: 'Time', type: 'time', required: true, defaultValue: '16:00' },
+              { name: 'agenda', label: 'Agenda (the student sees this)', type: 'text', wide: true, maxLength: 300 },
+            ]} />}
+          </div>
+          <div className="space-y-3 text-sm">
+            {meetings.requests.map((r) => (
+              <div key={r.id} className="rounded-lg border border-gold/60 p-3">
+                <p><b>{r.name}</b> asked for a meeting: <span className="text-muted">{r.agenda}</span></p>
+                <QuickForm action={setMeetingTimeAction} submit="Set time" cols={3} fields={[{ name: 'id', type: 'hidden', value: r.id }, { name: 'date', label: 'Date', type: 'date', required: true, defaultValue: todayIST() }, { name: 'time', label: 'Time', type: 'time', required: true, defaultValue: '16:00' }, { name: 'mode', label: 'How', type: 'select', options: MEETING_MODES.map((x) => ({ value: x, label: x.replace('_', ' ') })) }]} />
+              </div>
+            ))}
+            {meetings.upcoming.length === 0 && meetings.requests.length === 0 && <Empty>No meetings scheduled.</Empty>}
+            {meetings.upcoming.map((m) => (
+              <details key={m.id} className="rounded-lg border border-line p-3">
+                <summary className="cursor-pointer"><b>{m.name}</b> · {m.date ? formatDate(m.date, { weekday: 'short', day: 'numeric', month: 'short' }) : ''} {m.time} · {m.mode.replace('_', ' ')}{m.agenda ? ` · ${m.agenda}` : ''}</summary>
+                <div className="mt-2"><QuickForm action={closeMeetingAction} submit="Save outcome" cols={1} fields={[{ name: 'id', type: 'hidden', value: m.id }, { name: 'status', label: 'What happened', type: 'select', required: true, options: [{ value: 'held', label: 'Held' }, { value: 'missed', label: 'Student missed it' }, { value: 'cancelled', label: 'Cancelled' }] }, { name: 'outcome', label: 'Outcome (private unless shared)', type: 'textarea', rows: 2, maxLength: 1000 }, { name: 'share', label: 'Share the outcome with the student and parents', type: 'checkbox' }]} /></div>
+              </details>
+            ))}
+            {meetings.past.length > 0 && <p className="text-xs text-muted">Recent: {meetings.past.slice(0, 6).map((m) => `${m.name} (${m.status}${m.date ? `, ${formatDate(m.date, { day: 'numeric', month: 'short' })}` : ''})`).join(' · ')}</p>}
+          </div>
+        </div>
+      </Panel>
       <div className="grid gap-5 xl:grid-cols-2">
         <Panel title="Parent messages">
           {inbox.length === 0 ? <Empty>No messages.</Empty> : (

@@ -10,6 +10,7 @@ import { profileData, requireAppUser } from '@/lib/app/service';
 import { formatDate, formatDateTime } from '@/lib/dates';
 import { formatINR } from '@/lib/fees';
 import { HomeTiles } from './HomeTiles';
+import { comingUp } from '@/lib/app/reminders';
 
 export const metadata = { title: 'Home' };
 
@@ -103,6 +104,7 @@ export default async function AppHome({ searchParams }: { searchParams?: { welco
   const account = p.kind === 'parent' ? await accountSummary(s.id) : null;
   const lang = getLang();
   // a student account created in the last 14 days: the in-app notice to the parent (the WhatsApp message is the other half)
+  const reminders = p.kind === 'student' || p.kind === 'parent' ? await comingUp({ kind: p.kind, studentId: s.id, phone: p.kind === 'parent' ? u.phone : null }).catch((e) => { console.error('[reminders]', (e as Error).message); return []; }) : [];
   const recentAccount = account?.exists && account.status === 'active' && account.createdAt && Date.now() - new Date(account.createdAt).getTime() < 14 * 86_400_000;
   return (
     <div className="space-y-4">
@@ -112,6 +114,12 @@ export default async function AppHome({ searchParams }: { searchParams?: { welco
           <p className="font-semibold text-heading">A student account was created for {s.fullName} ({s.collegeId}) on {formatDate(account!.createdAt!.slice(0, 10), { day: 'numeric', month: 'short' })}.</p>
           <p className="mt-1 text-muted">If this wasn’t your child, block it now or call the admin office at {college.phones[0].display}.</p>
           <Link href="/app/student-account" className="mt-2 inline-block font-semibold text-maroon underline dark:text-gold">Manage student account →</Link>
+        </section>
+      )}
+      {reminders.length > 0 && (
+        <section className="card border-l-4 border-maroon p-4 text-sm dark:border-gold" aria-label="Coming up">
+          <p className="text-[11px] font-semibold uppercase tracking-wider text-muted">Coming up: today &amp; tomorrow</p>
+          <ul className="mt-2 space-y-1.5">{reminders.map((r, i) => <li key={i}><Link href={r.href} className="flex justify-between gap-3 hover:underline"><span><span className="font-medium text-heading">{r.title}</span><span className="block text-xs text-muted">{r.detail}</span></span><span className="shrink-0 text-right text-xs">{formatDate(r.date, { weekday: 'short', day: 'numeric', month: 'short' })}{r.time ? ` · ${r.time}` : ''}</span></Link></li>)}</ul>
         </section>
       )}
       {/* Digital College ID */}

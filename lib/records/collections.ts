@@ -359,6 +359,29 @@ export const libraryLoans = collection({
 /** 1 mentor per 20 students. */
 export const mentorships = collection({ name: 'mentorships', schema: z.object({ mentorId: id, studentId: id }), k1: (d) => d.mentorId, k2: (d) => d.studentId });
 
+/**
+ * One-to-one mentor meetings. Scheduled by the mentor, or requested by the student and then scheduled. The outcome is
+ * private to mentoring staff unless the mentor shares it with the family.
+ */
+export const MEETING_MODES = ['in_person', 'online', 'phone'] as const;
+export const mentorMeetings = collection({
+  name: 'mentor_meetings',
+  schema: z.object({
+    studentId: id,
+    mentorId: id,
+    date: isoDate.nullable(),
+    time: z.string().regex(/^\d{2}:\d{2}$/, 'Use a time like 16:30').nullable(),
+    mode: z.enum(MEETING_MODES).default('in_person'),
+    agenda: z.string().trim().max(300).default(''),
+    status: z.enum(['requested', 'scheduled', 'held', 'missed', 'cancelled']),
+    requestedBy: z.enum(['mentor', 'student']),
+    outcome: z.string().trim().max(1000).nullable().default(null),
+    shareWithParent: z.boolean().default(false),
+  }),
+  k1: (d) => d.mentorId,
+  k2: (d) => d.studentId,
+});
+
 export const mentorNotes = collection({
   name: 'mentor_notes',
   schema: z.object({ studentId: id, mentorId: id, date: isoDate, kind: z.enum(['one_to_one', 'note', 'parent_call']), note: text(2000), shareWithParent: z.boolean() }),
