@@ -114,4 +114,12 @@ export const D7: readonly Row[] = [
   ['Motion in a Straight Line', 'సరళ రేఖలో చలనం', 'सरल रेखा में गति'], ['Motion in a Plane', 'తలంలో చలనం', 'समतल में गति'],
   ['Current electricity', 'విద్యుత్ ప్రవాహం', 'विद्युत धारा'], ['Mole concept', 'మోల్ భావన', 'मोल अवधारणा'], ['Ionic equilibrium', 'అయానిక సమతాస్థితి', 'आयनिक साम्य'],
   ['States of matter', 'పదార్థ స్థితులు', 'पदार्थ की अवस्थाएँ'], ['Quadratic equations', 'వర్గ సమీకరణాలు', 'द्विघात समीकरण'], ['Sequences and series', 'శ్రేణులు', 'अनुक्रम और श्रेणी'],
+  // marketing analytics, activity programs
+  ['Marketing & admissions', 'మార్కెటింగ్ & అడ్మిషన్లు', 'मार्केटिंग और प्रवेश'], ['Marketing spend & campaigns', 'మార్కెటింగ్ ఖర్చు & క్యాంపెయిన్లు', 'मार्केटिंग खर्च और अभियान'],
+  ['Total enquiries', 'మొత్తం విచారణలు', 'कुल पूछताछ'], ['Lead conversion', 'లీడ్ మార్పిడి', 'लीड रूपांतरण'],
+  ['Admission forecast (estimate)', 'అడ్మిషన్ అంచనా (అంచనా మాత్రమే)', 'प्रवेश पूर्वानुमान (अनुमान)'], ['Counsellor-wise performance', 'కౌన్సెలర్ వారీ పనితీరు', 'काउंसलर-वार प्रदर्शन'],
+  ['Campaign-wise enrollment', 'క్యాంపెయిన్ వారీ నమోదు', 'अभियान-वार नामांकन'], ['Daily lead generation', 'రోజువారీ లీడ్లు', 'दैनिक लीड'],
+  ['Yoga & wellness', 'యోగా & ఆరోగ్యం', 'योग और कल्याण'], ['Yoga, wellness & practice timetable', 'యోగా, ఆరోగ్యం & ప్రాక్టీస్ టైమ్‌టేబుల్', 'योग, कल्याण और अभ्यास समय-सारिणी'],
+  ['Yoga, wellness & practice', 'యోగా, ఆరోగ్యం & ప్రాక్టీస్', 'योग, कल्याण और अभ्यास'], ['New program', 'కొత్త ప్రోగ్రామ్', 'नया कार्यक्रम'], ['This week', 'ఈ వారం', 'इस सप्ताह'],
+  ['Create program', 'ప్రోగ్రామ్ సృష్టించండి', 'कार्यक्रम बनाएं'], ['Student life', 'విద్యార్థి జీవితం', 'छात्र जीवन'],
 ];

@@ -7,6 +7,9 @@ import { examsOverview } from '@/lib/openbook/closedExam';
 import { canSeeMarketing, marketingAnalytics } from '@/lib/crm/marketingAnalytics';
 import { sourceLabel } from '@/components/crm/ui';
 import { formatINR } from '@/lib/fees';
+import { programReport } from '@/lib/studentLife/activities';
+import { sportsReport } from '@/lib/studentLife/sports';
+import { sessionsAnalytics } from '@/lib/studentLife/sessions';
 
 type P = { tab: string; user: Staff; from: string; to: string; q: Record<string, string | undefined> };
 
@@ -14,6 +17,7 @@ type P = { tab: string; user: Staff; from: string; to: string; q: Record<string,
 export async function ExtraTab(p: P) {
   if (p.tab === 'mocks' && can(p.user, 'ob.teach')) return <MocksTab {...p} />;
   if (p.tab === 'marketing' && canSeeMarketing(p.user)) return <MarketingTab {...p} />;
+  if (p.tab === 'life' && (can(p.user, 'sports.view') || can(p.user, 'sports.manage') || can(p.user, 'sessions.manage'))) return <LifeTab {...p} />;
   return <Empty>Not available for your role.</Empty>;
 }
 
@@ -99,6 +103,63 @@ async function MarketingTab({ user, from, to, q }: P) {
         )}
         <p className="mt-2 text-xs text-muted">Recommendations follow fixed rules (hot within 24 h, warm within 2 days, after a visit within 24 h); nothing is sent automatically.</p>
       </Panel>
+    </>
+  );
+}
+/** Sports, motivation sessions, yoga & wellness. Each section shows only for roles allowed to see it; aggregates only. */
+async function LifeTab({ user, from, to }: P) {
+  const sport = can(user, 'sports.view') || can(user, 'sports.manage');
+  const sess = can(user, 'sessions.manage') || can(user, 'academics.view');
+  const [sp, ss, ac] = await Promise.all([sport ? sportsReport(user, from, to) : null, sess ? sessionsAnalytics(user, from, to) : null, sport ? programReport(user, from, to) : null]);
+  return (
+    <>
+      {sp && (
+        <>
+          <h2 className="font-display text-xl text-heading">Sports & physical education</h2>
+          <div className="grid gap-3 sm:grid-cols-4">
+            <Stat label="Students who played" value={`${sp.participants} / ${sp.students}`} />
+            <Stat label="Participation" value={sp.participationPct === null ? '–' : `${sp.participationPct}%`} tone={sp.participationPct !== null && sp.participationPct < 50 ? 'warn' : 'default'} />
+            <Stat label="Games periods marked" value={sp.periods} />
+            <Stat label="Matches played / scheduled" value={`${sp.fixtures.played} / ${sp.fixtures.scheduled}`} />
+          </div>
+          <div className="grid gap-5 xl:grid-cols-2">
+            <Panel title="Attendance by sport">{sp.bySport.length ? <BarList rows={sp.bySport.map((x) => ({ label: x.sport, value: x.attendances, note: `${x.periods} periods` }))} color="var(--viz-1)" /> : <Empty>No games periods marked in this range.</Empty>}</Panel>
+            <Panel title="Achievements in range">{sp.medals.some((m) => m.n) ? <BarList rows={sp.medals.map((m) => ({ label: m.medal[0].toUpperCase() + m.medal.slice(1), value: m.n }))} color="var(--viz-2)" /> : <Empty>No achievements recorded in this range.</Empty>}</Panel>
+          </div>
+          <div className="grid gap-5 xl:grid-cols-2">
+            <Panel title="Monthly sports participation">{sp.monthly.length ? <TrendChart rows={sp.monthly} series={[{ key: 'attendances', label: 'Attendances', color: 'var(--viz-1)' }]} /> : <Empty>No data.</Empty>}</Panel>
+            <Panel title="House points">{sp.table.some((h) => h.played) ? <BarList rows={sp.table.map((h) => ({ label: h.house, value: h.points, note: `${h.won}W ${h.drawn}D ${h.lost}L` }))} color="var(--viz-4)" /> : <Empty>No inter-house results yet.</Empty>}</Panel>
+          </div>
+        </>
+      )}
+      {ac && (
+        <>
+          <h2 className="font-display text-xl text-heading">Yoga, wellness & practice programs</h2>
+          <div className="grid gap-3 sm:grid-cols-3">
+            <Stat label="Programs" value={ac.rows.length} />
+            <Stat label="Students who attended" value={ac.participants} />
+            <Stat label="Classes held" value={ac.rows.reduce((n, r) => n + r.held, 0)} />
+          </div>
+          <div className="grid gap-5 xl:grid-cols-2">
+            <Panel title="Average attendance by program">{ac.rows.some((r) => r.avgAttendance !== null) ? <BarList rows={ac.rows.filter((r) => r.avgAttendance !== null).map((r) => ({ label: r.title, value: r.avgAttendance!, note: `${r.held}/${r.scheduled} classes · ${r.registered} reg.` }))} unit="%" /> : <Empty>No classes marked in this range.</Empty>}</Panel>
+            <Panel title="Attendances by type">{ac.byKind.some((k) => k.attendances) ? <Donut label="attendances" slices={ac.byKind.filter((k) => k.attendances).map((k, i) => ({ label: k.label, value: k.attendances, color: `var(--viz-${(i % 4) + 1})` }))} /> : <Empty>No attendance yet.</Empty>}</Panel>
+          </div>
+          <p className="text-sm"><Link href="/crm/activities" className="underline">Open the yoga & wellness timetable →</Link></p>
+        </>
+      )}
+      {ss && (
+        <>
+          <h2 className="font-display text-xl text-heading">Motivation & personal development</h2>
+          <div className="grid gap-3 sm:grid-cols-4">
+            <Stat label="Sessions held" value={ss.held} />
+            <Stat label="Upcoming in range" value={ss.upcoming} />
+            <Stat label="Attendance of registered" value={ss.attendancePct === null ? '–' : `${ss.attendancePct}%`} />
+            <Stat label="Average rating" value={ss.avgRating === null ? '–' : `${ss.avgRating}/5 (${ss.feedback})`} />
+          </div>
+          <Panel title="Sessions by type">{ss.byType.length ? <BarList rows={ss.byType.map((t) => ({ label: t.label, value: t.attended, note: `${t.sessions} sessions · ${t.registered} registered` }))} color="var(--viz-2)" /> : <Empty>No sessions held in this range.</Empty>}</Panel>
+          <p className="text-sm"><Link href="/crm/sessions" className="underline">Open speaker sessions →</Link></p>
+        </>
+      )}
     </>
   );
 }

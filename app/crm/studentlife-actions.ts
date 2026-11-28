@@ -8,6 +8,7 @@ import * as SP from '@/lib/studentLife/sports';
 import * as SE from '@/lib/studentLife/sessions';
 import * as W from '@/lib/studentLife/wellbeing';
 import * as OB from '@/lib/studentLife/openbook';
+import * as AC from '@/lib/studentLife/activities';
 import type { ActionState } from './actions';
 
 const s = (fd: FormData, k: string) => {
@@ -106,3 +107,22 @@ export const confirmMarksForm = async (fd: FormData) =>
   }, ['/crm/open-book']);
 export const postBigQuestionAction = async (_: ActionState, fd: FormData) => run(async () => { await OB.postBigQuestion(await requireStaff(), req(fd, 'subject', 'Subject'), req(fd, 'text', 'Question')); return 'Big question posted for this week.'; }, ['/crm/open-book']);
 export const featureForm = async (fd: FormData) => plain(async () => OB.featureAnswer(await requireStaff(), req(fd, 'id', 'Answer'), fd.get('featured') === '1'), ['/crm/open-book']);
+
+// ---------------------------------------------------------------- activity programs (yoga, wellness, sports practice)
+const PROG_PATHS = ['/crm/activities', '/crm/notices'];
+export const createProgramAction = async (_: ActionState, fd: FormData) =>
+  run(async () => {
+    await AC.createProgram(await requireStaff(), {
+      title: req(fd, 'title', 'Title'), kind: req(fd, 'kind', 'Type'), sport: s(fd, 'sport'), instructor: req(fd, 'instructor', 'Instructor'), instructorStaffId: null,
+      days: fd.getAll('days').map(String), time: req(fd, 'time', 'Time'), durationMin: req(fd, 'durationMin', 'Duration'), venue: s(fd, 'venue'), audience: req(fd, 'audience', 'Audience'),
+      capacity: req(fd, 'capacity', 'Capacity'), startDate: date(fd, 'startDate', 'Start date'), endDate: s(fd, 'endDate'), description: s(fd, 'description'), videoUrl: s(fd, 'videoUrl'),
+    });
+    return 'Program created. Students were told in Notices and can register in the app.';
+  }, PROG_PATHS);
+export const toggleProgramAction = async (_: ActionState, fd: FormData) =>
+  run(async () => { await AC.setProgramActive(await requireStaff(), req(fd, 'id', 'Program'), s(fd, 'active') === '1'); return 'Updated.'; }, PROG_PATHS);
+export const programAttendanceAction = async (_: ActionState, fd: FormData) =>
+  run(async () => {
+    const r = await AC.markProgramAttendance(await requireStaff(), req(fd, 'programId', 'Program'), date(fd, 'date', 'Date'), fd.getAll('present').map(String));
+    return `Attendance saved: ${r.data.present.length} present.`;
+  }, PROG_PATHS);

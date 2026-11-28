@@ -169,3 +169,28 @@ export async function sportsProfile(studentId: string, today = todayIST()) {
   const [house, ach, week] = await Promise.all([houseOf(studentId), achievementsOf(studentId), participation(7, today)]);
   return { house: house?.name ?? null, achievements: ach.map((a) => `${a.medal[0].toUpperCase()}${a.medal.slice(1)}, ${a.event}`), playedThisWeek: week.get(studentId) ?? 0 };
 }
+
+/** Analytics: participation, practice periods, competitions and medals in a date range (aggregates; no fitness data). */
+export async function sportsReport(user: Staff, from: string, to: string) {
+  if (!can(user, 'sports.manage') && !can(user, 'sports.view')) throw new SchoolError('You do not have permission to do this.');
+  const [att, fx, ach, byId] = await Promise.all([sportsAttendance.list(store()), allFixtures(), achievements.list(store()), studentsById()]);
+  const rows = att.map((a) => a.data).filter((a) => a.date >= from && a.date <= to);
+  const players = new Set(rows.flatMap((r) => r.present));
+  const bySport = new Map<string, { periods: number; attendances: number }>();
+  for (const r of rows) { const x = bySport.get(r.sport) ?? { periods: 0, attendances: 0 }; x.periods++; x.attendances += r.present.length; bySport.set(r.sport, x); }
+  const months = new Map<string, number>();
+  for (const r of rows) months.set(r.date.slice(0, 7), (months.get(r.date.slice(0, 7)) ?? 0) + r.present.length);
+  const medals = ach.map((a) => a.data).filter((a) => a.date >= from && a.date <= to);
+  const inRange = fx.filter((f) => f.date >= from && f.date <= to);
+  return {
+    students: byId.size,
+    participants: players.size,
+    participationPct: byId.size ? Math.round((players.size / byId.size) * 100) : null,
+    periods: rows.length,
+    bySport: [...bySport].map(([sport, x]) => ({ sport, ...x })).sort((a, b) => b.attendances - a.attendances),
+    monthly: [...months].sort().map(([m, n]) => ({ date: `${m}-01`, attendances: n })),
+    fixtures: { played: inRange.filter((f) => f.status === 'played').length, scheduled: inRange.filter((f) => f.status === 'scheduled').length, interCollege: inRange.filter((f) => f.kind === 'inter_college').length },
+    medals: ['gold', 'silver', 'bronze', 'certificate', 'participation'].map((m) => ({ medal: m, n: medals.filter((a) => a.medal === m).length })),
+    table: pointsTable(fx),
+  };
+}

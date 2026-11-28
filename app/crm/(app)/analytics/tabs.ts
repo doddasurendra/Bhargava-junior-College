@@ -7,5 +7,6 @@ export function extraTabs(user: Staff): [string, string][] {
   return [
     ...(can(user, 'ob.teach') ? [['mocks', 'Mock exams'] as [string, string]] : []),
     ...(canSeeMarketing(user) ? [['marketing', 'Marketing & admissions'] as [string, string]] : []),
+    ...(can(user, 'sports.view') || can(user, 'sports.manage') || can(user, 'sessions.manage') ? [['life', 'Student life'] as [string, string]] : []),
   ];
 }

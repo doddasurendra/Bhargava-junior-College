@@ -153,3 +153,24 @@ export async function sendSessionReminders(today = todayIST()) {
   }
   return sent;
 }
+
+/** Analytics: sessions held in a range with attendance and ratings, by type (aggregates only). */
+export async function sessionsAnalytics(user: Staff, from: string, to: string, today = todayIST()) {
+  if (!can(user, 'sessions.manage') && !can(user, 'academics.view')) throw new SchoolError('You do not have permission to do this.');
+  const list = (await allSessions()).filter((s) => s.date >= from && s.date <= to);
+  const rows = await Promise.all(list.map(async (s) => ({ id: s.id, title: s.title, type: s.type, date: s.date, held: s.date < today, ...(await sessionReport(s.id)) })));
+  const held = rows.filter((r) => r.held);
+  const rated = held.filter((r) => r.avgRating !== null);
+  const byType = SESSION_TYPES.map((t) => { const g = held.filter((r) => r.type === t.value); const reg = g.reduce((n, r) => n + r.registered, 0); return { type: t.value, label: t.label, sessions: g.length, registered: reg, attended: g.reduce((n, r) => n + r.attended, 0) }; }).filter((t) => t.sessions);
+  const reg = held.reduce((n, r) => n + r.registered, 0);
+  const att = held.reduce((n, r) => n + r.attended, 0);
+  return {
+    held: held.length,
+    upcoming: rows.filter((r) => !r.held).length,
+    attendancePct: reg ? Math.round((att / reg) * 100) : null,
+    avgRating: rated.length ? Math.round((rated.reduce((n, r) => n + r.avgRating!, 0) / rated.length) * 10) / 10 : null,
+    feedback: held.reduce((n, r) => n + r.feedbackCount, 0),
+    byType,
+    rows: held.sort((a, b) => b.date.localeCompare(a.date)),
+  };
+}

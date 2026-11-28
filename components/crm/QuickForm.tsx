@@ -8,6 +8,7 @@ export type QField =
   | { name: string; label: string; type: 'textarea'; required?: boolean; defaultValue?: string; maxLength?: number; rows?: number; wide?: boolean }
   | { name: string; label: string; type: 'select'; required?: boolean; defaultValue?: string; options: { value: string; label: string }[]; wide?: boolean }
   | { name: string; label: string; type: 'checkbox'; defaultChecked?: boolean; wide?: boolean }
+  | { name: string; label: string; type: 'checks'; options: { value: string; label: string }[]; defaultValues?: string[]; wide?: boolean }
   | { name: string; type: 'hidden'; value: string };
 
 const lbl = 'mb-1 block text-xs font-semibold uppercase tracking-wider text-muted';
@@ -21,6 +22,13 @@ export function QuickForm({ action, fields, submit, cols = 2, reset = true }: { 
         {fields.map((f) => {
           if (f.type === 'hidden') return <input key={f.name} type="hidden" name={f.name} value={f.value} />;
           const span = f.wide ? 'sm:col-span-full' : '';
+          if (f.type === 'checks')
+            return (
+              <fieldset key={f.name} className={span}>
+                <legend className={lbl}>{f.label}</legend>
+                <div className="flex flex-wrap gap-x-3 gap-y-1">{f.options.map((o) => <label key={o.value} className="flex items-center gap-1.5 text-sm"><input type="checkbox" name={f.name} value={o.value} defaultChecked={f.defaultValues?.includes(o.value)} className="h-4 w-4 accent-maroon" />{o.label}</label>)}</div>
+              </fieldset>
+            );
           if (f.type === 'checkbox')
             return (
               <label key={f.name} className={`flex items-center gap-2 self-end pb-2 text-sm ${span}`}>

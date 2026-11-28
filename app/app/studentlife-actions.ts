@@ -9,6 +9,7 @@ import * as SP from '@/lib/studentLife/sports';
 import * as SE from '@/lib/studentLife/sessions';
 import * as W from '@/lib/studentLife/wellbeing';
 import * as OB from '@/lib/studentLife/openbook';
+import * as AC from '@/lib/studentLife/activities';
 import type { AppState } from './portal-actions';
 
 const s = (fd: FormData, k: string) => {
@@ -114,3 +115,11 @@ export const bigAnswerAction = async (_: AppState, fd: FormData) =>
     await OB.answerBigQuestion(p.studentId, String(fd.get('questionId') ?? ''), text);
     return 'Answer posted. The best explanations are featured each week.';
   }, ['/app/open-book']);
+
+// ---------------------------------------------------------------- activity programs
+export const registerProgramAction = async (_: AppState, fd: FormData) =>
+  run(async () => {
+    const { p } = await requireStudent();
+    const r = await AC.toggleRegistration(p.studentId, String(fd.get('programId') ?? ''));
+    return r === 'registered' ? 'Registered. See you there!' : 'Registration cancelled.';
+  }, ['/app/activities']);

@@ -271,3 +271,57 @@ export const bigAnswers = collection({
   k1: (d) => d.questionId,
   k2: (d) => d.studentId,
 });
+
+// ---------------------------------------------------------------- weekly activity programs (yoga, wellness, sports practice)
+export const PROGRAM_KINDS = [
+  { value: 'yoga', label: 'Yoga' },
+  { value: 'meditation', label: 'Meditation' },
+  { value: 'breathing', label: 'Breathing exercises' },
+  { value: 'stress_relief', label: 'Stress-relief session' },
+  { value: 'mindfulness', label: 'Mindfulness' },
+  { value: 'fitness', label: 'Fitness training' },
+  { value: 'sports_practice', label: 'Sports practice' },
+] as const;
+export const PROGRAM_KIND_KEYS = PROGRAM_KINDS.map((k) => k.value) as [string, ...string[]];
+export const WEEKDAYS = ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'] as const;
+
+/** A recurring weekly class. No health or medical details are stored about students. audience: all_students | batch:<id> */
+export const activityPrograms = collection({
+  name: 'activity_programs',
+  schema: z.object({
+    title: text(120),
+    kind: z.enum(PROGRAM_KIND_KEYS),
+    sport: z.string().max(40).nullable().default(null),
+    instructor: text(80),
+    instructorStaffId: z.string().max(80).nullable().default(null),
+    days: z.array(z.enum(WEEKDAYS)).min(1, 'Pick at least one day.').max(7),
+    time,
+    durationMin: z.coerce.number().int().min(10).max(240),
+    venue: optText(120),
+    audience: z.string().regex(/^(all_students|batch:.+)$/),
+    capacity: z.coerce.number().int().min(1).max(2000),
+    startDate: isoDate,
+    endDate: isoDate.nullable().default(null),
+    description: optText(1000),
+    videoUrl: z.string().max(300).regex(/^https:\/\//, 'Video links must start with https://').nullable().default(null),
+    active: z.boolean().default(true),
+    createdBy: id,
+  }),
+  k1: (d) => d.kind,
+  k2: (d) => d.audience,
+});
+
+export const activityRegs = collection({
+  name: 'activity_registrations',
+  schema: z.object({ programId: id, studentId: id }),
+  k1: (d) => d.programId,
+  k2: (d) => d.studentId,
+});
+
+/** One row per class held (program + date). */
+export const activityAttendance = collection({
+  name: 'activity_attendance',
+  schema: z.object({ programId: id, date: isoDate, present: z.array(id).max(2000), markedBy: id }),
+  k1: (d) => d.programId,
+  k2: (d) => d.date,
+});
