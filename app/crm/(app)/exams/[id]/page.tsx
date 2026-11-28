@@ -36,7 +36,7 @@ export default async function ExamDashboardPage({ params }: { params: { id: stri
       {done.length > 0 && (
         <div className="grid gap-5 xl:grid-cols-2">
           <Panel title="Score distribution"><Donut label="students" slices={[{ label: '75% and above', value: band(75, 101), color: 'var(--viz-4)' }, { label: '50–74%', value: band(50, 75), color: 'var(--viz-1)' }, { label: '25–49%', value: band(25, 50), color: 'var(--viz-2)' }, { label: 'Below 25%', value: band(-1000, 25), color: 'var(--viz-3)' }]} /></Panel>
-          <Panel title="Chapter-wise accuracy (all students)">{d.chapters.length ? <BarList rows={d.chapters.map((c) => ({ label: c.chapter, value: c.accuracy ?? 0, note: `${c.right}/${c.right + c.wrong}` }))} unit="%" color="var(--viz-3)" /> : <Empty>No answers yet.</Empty>}</Panel>
+          <Panel title="Chapter-wise accuracy (all students)">{d.chapters.length ? <BarList rows={d.chapters.map((c) => ({ label: c.chapter, value: c.accuracy ?? 0, note: c.right + c.wrong ? `${c.right}/${c.right + c.wrong} right${c.skipped ? `, ${c.skipped} skipped` : ''}` : `not attempted (${c.skipped} skipped)` }))} unit="%" color="var(--viz-3)" /> : <Empty>No answers yet.</Empty>}</Panel>
         </div>
       )}
       <Panel title="Results">

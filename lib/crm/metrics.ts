@@ -15,6 +15,7 @@ export interface MetricsData {
   staff: Staff[];
   payments?: { leadId: string; amount: number; approvedAt: string }[];
   admitted?: { leadId: string; program: string; collegeId: string }[];
+  campaigns?: { leadId: string; campaign: string; utmSource: string | null; at: string }[];
 }
 
 /** §8: "filter by program, source, school, owner" */

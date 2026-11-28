@@ -174,6 +174,7 @@ export function createFileCrmRepo(): CrmRepo {
           signOffs: db.signOffs.filter((s) => s.at >= since).map((s) => ({ leadId: s.leadId, stage: s.stage, at: s.at })),
           payments: db.payments.filter((p) => p.status === 'approved' && (p.approvedAt ?? '') >= since).map((p) => ({ leadId: p.leadId, amount: p.amount, approvedAt: p.approvedAt! })),
           admitted: db.students.filter((s) => s.collegeId).map((s) => ({ leadId: s.leadId, program: s.program, collegeId: s.collegeId! })),
+          campaigns: db.touchpoints.filter((t) => t.utm_campaign).map((t) => ({ leadId: String(t.leadId), campaign: String(t.utm_campaign), utmSource: (t.utm_source as string) ?? null, at: String(t.createdAt) })),
         }),
         false,
       ),

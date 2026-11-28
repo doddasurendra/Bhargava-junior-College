@@ -163,7 +163,7 @@ export function createSupabaseCrmRepo(url: string, serviceKey: string): CrmRepo 
           if (page.length < 1000) return out;
         }
       };
-      const [leads, calls, audit, visits, signOffs, payments, admitted] = await Promise.all([
+      const [leads, calls, audit, visits, signOffs, payments, admitted, campaigns] = await Promise.all([
         all((a, b) => sb.from('leads').select('*').is('merged_into', null).order('created_at').range(a, b)),
         all((a, b) => sb.from('call_logs').select('*').gte('created_at', since).order('created_at').range(a, b)),
         all((a, b) => sb.from('lead_audit').select('*').gte('at', since).in('action', ['decision', 'status_changed', 'visit_no_show', 'visit_arrived', 'assigned', 'reassigned', 'qualified', 'counselled']).order('at').range(a, b)),
@@ -171,6 +171,7 @@ export function createSupabaseCrmRepo(url: string, serviceKey: string): CrmRepo 
         all((a, b) => sb.from('admission_stage_events').select('lead_id, stage, completed_at').gte('completed_at', since).order('completed_at').range(a, b)),
         all((a, b) => sb.from('payments').select('lead_id, amount, approved_at').eq('status', 'approved').gte('approved_at', since).order('approved_at').range(a, b)),
         all((a, b) => sb.from('students').select('lead_id, program, college_id').not('college_id', 'is', null).order('created_at').range(a, b)),
+        all((a, b) => sb.from('lead_touchpoints').select('lead_id, utm_campaign, utm_source, created_at').not('utm_campaign', 'is', null).order('created_at').range(a, b)),
       ]);
       return {
         leads: leads.map(toLead),
@@ -180,6 +181,7 @@ export function createSupabaseCrmRepo(url: string, serviceKey: string): CrmRepo 
         signOffs: signOffs.map((r) => ({ leadId: r.lead_id, stage: r.stage, at: r.completed_at })),
         payments: payments.map((r) => ({ leadId: r.lead_id, amount: Number(r.amount), approvedAt: r.approved_at })),
         admitted: admitted.map((r) => ({ leadId: r.lead_id, program: r.program, collegeId: r.college_id })),
+        campaigns: campaigns.map((r) => ({ leadId: r.lead_id, campaign: r.utm_campaign, utmSource: r.utm_source ?? null, at: r.created_at })),
       };
     },
 

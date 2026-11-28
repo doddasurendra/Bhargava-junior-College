@@ -11,6 +11,30 @@ const optText = (max: number) => z.string().trim().max(max).optional().nullable(
 // ---------------------------------------------------------------- management / marketing
 
 /** Ad spend per source and month — cost per lead and source ROI on the dashboard (§8). */
+/**
+ * Marketing campaigns. Leads are attributed to a campaign when their touchpoint carries the campaign code as
+ * utm_campaign (website / ads links), or — for offline campaigns — when their first source matches `source`
+ * and they were created between the campaign dates.
+ */
+export const CAMPAIGN_CHANNELS = ['social_media', 'google_ads', 'school_outreach', 'newspaper', 'hoardings', 'sms_whatsapp', 'referral', 'events', 'other'] as const;
+export const marketingCampaigns = collection({
+  name: 'marketing_campaigns',
+  schema: z.object({
+    name: text(120),
+    code: z.string().trim().toLowerCase().regex(/^[a-z0-9_-]{2,60}$/, 'Use letters, numbers, - or _ for the campaign code (as in utm_campaign).'),
+    channel: z.enum(CAMPAIGN_CHANNELS),
+    source: z.string().max(40).nullable().default(null),
+    startDate: isoDate,
+    endDate: isoDate.nullable().default(null),
+    budget: z.coerce.number().min(0).max(100_000_000).default(0),
+    targetLeads: z.coerce.number().int().min(0).max(1_000_000).default(0),
+    targetAdmissions: z.coerce.number().int().min(0).max(100_000).default(0),
+    createdBy: z.string().min(1).max(80),
+  }),
+  k1: (d) => d.code,
+  k2: (d) => d.channel,
+});
+
 export const marketingSpend = collection({
   name: 'marketing_spend',
   schema: z.object({ source: text(40), month, amount: z.coerce.number().int().min(0).max(100_000_000), note: optText(200), enteredBy: z.string() }),
