@@ -43,6 +43,7 @@ beforeAll(async () => {
   dir = mkdtempSync(path.join(tmpdir(), 'bjc-ai-'));
   process.chdir(dir);
   delete process.env.SUPABASE_URL;
+  delete process.env.OPENROUTER_API_KEY; // the fake client stands in for Claude
   agent = await import('./agent');
   session = await import('./session');
   tools = await import('./tools');

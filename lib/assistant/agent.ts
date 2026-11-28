@@ -1,5 +1,6 @@
 import 'server-only';
 import Anthropic from '@anthropic-ai/sdk';
+import { aiAvailable, aiClient, aiModel, anthropicExtras } from '../ai/client';
 import { college } from '@/content/college';
 import { formatOpening, isOfficeOpen, nextOpening } from '../chat/hours';
 import { formatDate, todayIST } from '../dates';
@@ -39,7 +40,8 @@ function getClient(): Anthropic {
   if (process.env.ASSISTANT_DISABLED === '1') throw new AssistantUnavailable('disabled');
   if (!client) {
     try {
-      client = new Anthropic({ maxRetries: 1, timeout: 45_000 });
+      if (!aiAvailable()) throw new Error('no AI key configured');
+      client = aiClient({ maxRetries: 1, timeout: 45_000 });
     } catch (e) {
       throw new AssistantUnavailable((e as Error).message);
     }
@@ -105,18 +107,27 @@ export async function runAssistant(history: Turn[], ctx: ToolContext, now = new 
   for (let round = 0; round < MAX_TOOL_ROUNDS; round++) {
     let response: Anthropic.Beta.BetaMessage;
     try {
-      response = await anthropic.beta.messages.create({
-        model: ASSISTANT_MODEL,
-        max_tokens: 8000,
-        // Chat route: low effort keeps replies quick; thinking stays adaptive (Opus 5.5 default).
-        output_config: { effort: 'low' },
-        system: prompt.system,
-        tools: prompt.tools,
-        messages,
-        // A safety-classifier decline is retried server-side on Anthropic's recommended fallback model.
-        betas: ['server-side-fallback-2026-07-01'],
-        fallbacks: 'default',
-      });
+      response = anthropicExtras()
+        ? await anthropic.beta.messages.create({
+            model: ASSISTANT_MODEL,
+            max_tokens: 8000,
+            // Chat route: low effort keeps replies quick; thinking stays adaptive (Opus 5.5 default).
+            output_config: { effort: 'low' },
+            system: prompt.system,
+            tools: prompt.tools,
+            messages,
+            // A safety-classifier decline is retried server-side on Anthropic's recommended fallback model.
+            betas: ['server-side-fallback-2026-07-01'],
+            fallbacks: 'default',
+          })
+        : // OpenRouter: plain Messages request; per-turn facts join the system prompt (no mid-conversation system role)
+          ((await anthropic.messages.create({
+            model: aiModel(ASSISTANT_MODEL),
+            max_tokens: 8000,
+            system: [...prompt.system, { type: 'text', text: situation }] as Anthropic.TextBlockParam[],
+            tools: prompt.tools as unknown as Anthropic.Tool[],
+            messages: messages.filter((m) => (m.role as string) !== 'system') as Anthropic.MessageParam[],
+          })) as unknown as Anthropic.Beta.BetaMessage);
     } catch (e) {
       // Any failure to reach Claude (missing credentials, network, rate limit, overload, 5xx) means the
       // rule-based assistant answers this turn instead. Rate limits and 5xx were already retried by the SDK.

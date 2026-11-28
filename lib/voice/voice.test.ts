@@ -13,7 +13,7 @@ beforeAll(() => {
   dir = mkdtempSync(path.join(tmpdir(), 'bjc-voice-'));
   process.chdir(dir);
   delete process.env.SUPABASE_URL;
-  delete process.env.ANTHROPIC_API_KEY; // no AI key → the assistants answer from the shared knowledge base
+  delete process.env.ANTHROPIC_API_KEY; delete process.env.OPENROUTER_API_KEY; // no AI key → the assistants answer from the shared knowledge base
   process.env.ASSISTANT_DISABLED = '1';
   delete process.env.AZURE_SPEECH_KEY;
 });

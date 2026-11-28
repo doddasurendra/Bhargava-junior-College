@@ -11,7 +11,7 @@ beforeAll(() => {
   dir = mkdtempSync(path.join(tmpdir(), 'bjc-exam-'));
   process.chdir(dir);
   delete process.env.SUPABASE_URL;
-  delete process.env.ANTHROPIC_API_KEY;
+  delete process.env.ANTHROPIC_API_KEY; delete process.env.OPENROUTER_API_KEY;
 });
 afterAll(() => { process.chdir(cwd); rmSync(dir, { recursive: true, force: true }); });
 

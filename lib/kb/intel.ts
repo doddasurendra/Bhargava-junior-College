@@ -1,5 +1,5 @@
 import 'server-only';
-import Anthropic from '@anthropic-ai/sdk';
+import { aiClient, aiModel } from '../ai/client';
 import { PDFDocument, rgb, StandardFonts } from 'pdf-lib';
 import { ASSISTANT_MODEL } from '../assistant/agent';
 import { college } from '@/content/college';
@@ -143,7 +143,7 @@ async function sourceText(user: Staff, kind: 'article' | 'file', id: string) {
 async function claude(system: string, user: string, max = 1500) {
   if (!llmAvailable()) return null;
   try {
-    const r = await new Anthropic({ maxRetries: 1, timeout: 60_000 }).messages.create({ model: ASSISTANT_MODEL, max_tokens: max, system, messages: [{ role: 'user', content: user }] });
+    const r = await aiClient({ maxRetries: 1, timeout: 60_000 }).messages.create({ model: aiModel(ASSISTANT_MODEL), max_tokens: max, system, messages: [{ role: 'user', content: user }] });
     return r.content.map((c) => (c.type === 'text' ? c.text : '')).join('').trim() || null;
   } catch (e) {
     console.error('[kb intel] Claude unavailable', (e as Error).message.slice(0, 160));

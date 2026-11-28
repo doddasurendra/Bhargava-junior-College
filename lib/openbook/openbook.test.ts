@@ -13,7 +13,7 @@ beforeAll(() => {
   dir = mkdtempSync(path.join(tmpdir(), 'bjc-openbook-'));
   process.chdir(dir);
   delete process.env.SUPABASE_URL;
-  delete process.env.ANTHROPIC_API_KEY;
+  delete process.env.ANTHROPIC_API_KEY; delete process.env.OPENROUTER_API_KEY;
   delete process.env.VOYAGE_API_KEY;
 });
 afterAll(() => {

@@ -2,22 +2,23 @@ import 'server-only';
 import Anthropic from '@anthropic-ai/sdk';
 import type { z } from 'zod';
 import { OpenBookError, settings } from './core';
+import { aiAvailable, aiClient, aiModel, anthropicExtras, jsonFromText } from '../ai/client';
 
 /**
  * Server-side Claude calls for Open Book (keys never reach the browser). Every call returns JSON constrained
  * by a JSON schema (structured outputs) and validated again with zod. Without ANTHROPIC_API_KEY the features
  * say "AI is not configured" — nothing is ever faked.
  */
-export const aiConfigured = () => !!process.env.ANTHROPIC_API_KEY && process.env.ASSISTANT_DISABLED !== '1';
+export const aiConfigured = aiAvailable;
 
 export class AiNotConfigured extends OpenBookError {
   constructor() {
-    super('AI is not configured on this server yet (ANTHROPIC_API_KEY is missing). The college needs to add it before AI features work.');
+    super('AI is not configured on this server yet (no OPENROUTER_API_KEY or ANTHROPIC_API_KEY). The college needs to add one before AI features work.');
   }
 }
 
 let client: Anthropic | null = null;
-const getClient = () => (client ??= new Anthropic({ maxRetries: 2, timeout: 180_000 }));
+const getClient = () => (client ??= aiClient({ maxRetries: 2, timeout: 180_000 }));
 
 export type Part = { kind: 'text'; text: string } | { kind: 'image'; mime: 'image/png' | 'image/jpeg' | 'image/webp' | 'image/gif'; data: Uint8Array } | { kind: 'pdf'; data: Uint8Array };
 
@@ -44,11 +45,12 @@ export async function callJson<T>(c: JsonCall<T>): Promise<{ data: T; model: str
   let r: Anthropic.Message;
   try {
     r = await getClient().messages.create({
-      model: s.model,
+      model: aiModel(s.model),
       max_tokens: c.maxTokens ?? 16000,
-      system: [{ type: 'text', text: c.system, cache_control: { type: 'ephemeral' } }],
       messages: [{ role: 'user', content }],
-      output_config: { effort: c.effort ?? 'medium', format: { type: 'json_schema', schema: c.jsonSchema } },
+      ...(anthropicExtras()
+        ? { system: [{ type: 'text' as const, text: c.system, cache_control: { type: 'ephemeral' as const } }], output_config: { effort: c.effort ?? 'medium', format: { type: 'json_schema' as const, schema: c.jsonSchema } } }
+        : { system: `${c.system}\n\nReply with ONLY one JSON object (no prose, no code fence) that matches this JSON schema:\n${JSON.stringify(c.jsonSchema)}` }),
     });
   } catch (e) {
     if (e instanceof Anthropic.RateLimitError) throw new OpenBookError('The AI service is busy. Please try again in a minute.');
@@ -57,7 +59,7 @@ export async function callJson<T>(c: JsonCall<T>): Promise<{ data: T; model: str
       // Anthropic's own message never contains the key; log it so the real cause is visible in the server logs.
       const detail = String((e.error as { error?: { message?: string } } | undefined)?.error?.message ?? e.message ?? '').slice(0, 300);
       console.error('[ai] Anthropic API error', e.status, (e.error as { error?: { type?: string } } | undefined)?.error?.type ?? '', detail);
-      if (/credit balance/i.test(detail)) throw new OpenBookError('The AI account has no credit left. The administrator needs to add credit in the Anthropic Console (Plans & Billing).');
+      if (e.status === 402 || /credit balance|insufficient credits/i.test(detail)) throw new OpenBookError(`The AI account has no credit left. The administrator needs to add credit in the ${process.env.OPENROUTER_API_KEY ? 'OpenRouter dashboard (Credits)' : 'Anthropic Console (Plans & Billing)'}.`);
       if (e.status === 404 || /model/i.test(detail)) throw new OpenBookError(`The AI model "${s.model}" is not available for this API key. Ask the administrator to check the model in Open Book settings.`);
       throw new OpenBookError(`The AI service returned an error (${e.status ?? 'network'}). Please try again.`);
     }
@@ -68,7 +70,7 @@ export async function callJson<T>(c: JsonCall<T>): Promise<{ data: T; model: str
   const text = r.content.map((b) => (b.type === 'text' ? b.text : '')).join('');
   let parsed: unknown;
   try {
-    parsed = JSON.parse(text);
+    parsed = jsonFromText(text);
   } catch {
     throw new OpenBookError('The AI returned an unreadable answer. Please try again.');
   }

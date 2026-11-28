@@ -1,5 +1,5 @@
 import 'server-only';
-import Anthropic from '@anthropic-ai/sdk';
+import { aiAvailable, aiClient, aiModel } from '../ai/client';
 import { ASSISTANT_MODEL } from '../assistant/agent';
 import { todayIST } from '../dates';
 import type { Lang } from '../i18n';
@@ -128,8 +128,8 @@ async function familyLive(v: Extract<Viewer, { kind: 'student' | 'parent' }>, q:
 
 // ---------------------------------------------------------------- the answer
 
-const client = () => (process.env.ANTHROPIC_API_KEY && process.env.ASSISTANT_DISABLED !== '1' ? new Anthropic({ maxRetries: 1, timeout: 45_000 }) : null);
-export const llmAvailable = () => !!process.env.ANTHROPIC_API_KEY && process.env.ASSISTANT_DISABLED !== '1';
+const client = () => (aiAvailable() ? aiClient({ maxRetries: 1, timeout: 45_000 }) : null);
+export const llmAvailable = aiAvailable;
 
 function sourcesOf(hits: Hit[]): Source[] {
   const seen = new Set<string>();
@@ -176,7 +176,7 @@ Rules:
 - Cite the documents you used like [1] or [2].
 - Never invent fees, dates, rules or results; never predict ranks or promise seats.`;
   try {
-    const r = await c.messages.create({ model: ASSISTANT_MODEL, max_tokens: 1200, system, messages: [{ role: 'user', content: `${docs}\n\nQuestion: ${q}` }] });
+    const r = await c.messages.create({ model: aiModel(ASSISTANT_MODEL), max_tokens: 1200, system, messages: [{ role: 'user', content: `${docs}\n\nQuestion: ${q}` }] });
     const text = r.content.map((x) => (x.type === 'text' ? x.text : '')).join('').trim();
     if (!text || /^NOT_FOUND\b/.test(text)) return { notFound: true as const };
     const used = [...text.matchAll(/\[(\d)\]/g)].map((m) => Number(m[1]) - 1).filter((i) => i >= 0 && i < hits.length);

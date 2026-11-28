@@ -110,7 +110,7 @@ describe('Knowledge Hub workflow, search, AI and files (local store)', { timeout
     process.chdir(dir);
     delete process.env.SUPABASE_URL;
     delete process.env.SUPABASE_SERVICE_ROLE_KEY;
-    delete process.env.ANTHROPIC_API_KEY;
+    delete process.env.ANTHROPIC_API_KEY; delete process.env.OPENROUTER_API_KEY;
     delete process.env.VOYAGE_API_KEY;
   });
   afterAll(() => {
