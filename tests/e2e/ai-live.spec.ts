@@ -52,7 +52,7 @@ test('AI generates bank questions for review (duplicates checked)', async ({ bro
   await f.locator('input[name=concept]').fill("Newton's second law");
   await f.locator('input[name=count]').fill('2');
   await f.getByRole('button', { name: 'Generate for review' }).click();
-  const msg = p.getByText(/AI questions added for review|AI|error|wrong/i).filter({ hasText: /added for review|not configured|wrong|rejected|limit/i }).first();
+  const msg = p.locator('p[role=status], p[role=alert]').filter({ hasText: /\S/ }).first();
   await expect(msg).toBeVisible({ timeout: 150_000 });
   console.log('generate:', await msg.innerText());
   await expect(msg).toContainText('added for review');
